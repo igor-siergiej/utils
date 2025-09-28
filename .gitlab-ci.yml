@@ -20,6 +20,7 @@ ci:
   stage: ci
   tags:
     - server
+  image: node:22
   variables:
     NODE_AUTH_TOKEN: $CI_JOB_TOKEN
     YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
@@ -97,6 +98,7 @@ publish:
   stage: publish
   tags:
     - server
+  image: node:22
   variables:
     NODE_AUTH_TOKEN: $CI_JOB_TOKEN
     YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
@@ -269,6 +271,7 @@ gitops-update:
   stage: deploy
   tags:
     - server
+  image: node:22
   variables:
     ARGONAUT_PROJECT_ID: "your-argonaut-project-id" # Replace with actual project ID
   script:
@@ -308,6 +311,7 @@ deploy-production:
   stage: deploy
   tags:
     - server
+  image: node:22
   environment:
     name: production
   variables:
