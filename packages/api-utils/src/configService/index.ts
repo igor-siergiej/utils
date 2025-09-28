@@ -45,7 +45,6 @@ export function loadBaseConfig(): BaseConfigShape {
     };
 }
 
-// Generic schema-driven config service
 export interface SchemaEntry<T> { parser: EnvParser<T>; default?: T; optional?: boolean; from?: string }
 export type ConfigSchema = Record<string, SchemaEntry<unknown>>;
 
