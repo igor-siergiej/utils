@@ -1,10 +1,19 @@
+# ==============================================================================
+# REUSABLE JOB TEMPLATES FOR IM APPS PROJECTS
+# Include this file in other repositories to use standardized CI/CD patterns
+# ==============================================================================
+
 stages:
   - ci
   - publish
+  - docker-build
+  - gitops-update
+  - production-deploy
 
 variables:
   NODE_VERSION: "22"
   YARN_CACHE_FOLDER: "$CI_PROJECT_DIR/.yarn-cache"
+  PRIVATE_REGISTRY: "192.168.68.54:31834"
 
 # Cache configuration for faster builds
 cache:
@@ -13,8 +22,12 @@ cache:
     - .yarn-cache/
     - node_modules/
 
-# CI job - lint and test
-ci:
+# ==============================================================================
+# REUSABLE JOB TEMPLATES
+# ==============================================================================
+
+# Reusable CI job template
+.ci-template:
   stage: ci
   tags:
     - server
@@ -86,13 +99,9 @@ ci:
       fi
 
       echo "🎉 Test execution completed!"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_PIPELINE_SOURCE == "web"
 
-# Package publishing using current version
-publish:
+# Reusable publish job template
+.publish-template:
   stage: publish
   tags:
     - server
@@ -195,8 +204,110 @@ publish:
       git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
       git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
 
+# Reusable Docker build job template
+.docker-build-template:
+  stage: docker-build
+  tags:
+    - server
+  image: docker:27-dind
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker info
+    - echo "Building ${APP_NAME} image"
+  script:
+    # Generate version tag based on commit SHA
+    - export VERSION="${CI_COMMIT_SHORT_SHA}"
+    - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${VERSION}"
+    - export LATEST_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:latest"
+
+    # Build the Docker image
+    - |
+      if [ -n "${BUILD_ARGS:-}" ]; then
+        docker build ${BUILD_ARGS} --secret id=PAT_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+      else
+        docker build --secret id=PAT_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+      fi
+
+    # Push to private registry
+    - docker push ${IMAGE_TAG}
+    - docker push ${LATEST_TAG}
+
+    # Output version for downstream jobs
+    - echo "${APP_NAME}_IMAGE_TAG=${IMAGE_TAG}" > ${APP_NAME}_build_info.env
+    - echo "${APP_NAME}_VERSION=${VERSION}" >> ${APP_NAME}_build_info.env
+  artifacts:
+    reports:
+      dotenv: ${APP_NAME}_build_info.env
+    expire_in: 1 hour
+
+# Reusable GitOps update template
+.gitops-update-template:
+  stage: gitops-update
+  tags:
+    - server
+  image: alpine:latest
+  variables:
+    ARGONAUT_REPO: "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/igor-siergiej/argonaut.git"
+  before_script:
+    - apk add --no-cache git yq
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+  script:
+    # Clone argonaut repository
+    - git clone ${ARGONAUT_REPO} argonaut
+    - cd argonaut
+
+    # Update deployment with new image tags
+    - export VERSION="${CI_COMMIT_SHORT_SHA}"
+
+    # Update deployments based on provided APP_IMAGES variable
+    # APP_IMAGES should be in format "app1:image1,app2:image2"
+    - |
+      if [ -n "${APP_IMAGES:-}" ]; then
+        echo "Updating images: ${APP_IMAGES}"
+        IFS=',' read -ra IMAGES <<< "$APP_IMAGES"
+        for image_info in "${IMAGES[@]}"; do
+          IFS=':' read -ra PARTS <<< "$image_info"
+          app_name="${PARTS[0]}"
+          image_name="${PARTS[1]}"
+
+          echo "Updating ${app_name} to use image ${image_name}:${VERSION}"
+
+          # Create or update deployment patch
+          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
+          mkdir -p "$(dirname "$patch_file")"
+
+          cat > "$patch_file" << EOF
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ${PROJECT_NAME}-${app_name}
+      spec:
+        template:
+          spec:
+            containers:
+            - name: ${PROJECT_NAME}-${app_name}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
+      EOF
+        done
+      fi
+
+    # Commit and push changes
+    - git add .
+    - git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): update to version ${VERSION}" || echo "No changes to commit"
+    - git push origin main
+
+    - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
+
+# Reusable production deployment template (manual)
+.production-deploy-template:
+  extends: .gitops-update-template
+  stage: production-deploy
+  variables:
+    ENVIRONMENT: "production"
   rules:
     - when: manual
       allow_failure: true
-  needs:
-    - ci
