@@ -9,7 +9,7 @@
         "url": "https://gitlab.com/imapps/utils.git"
     },
     "publishConfig": {
-        "registry": "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
+        "registry": "https://gitlab.com/api/v4/groups/imapps/-/packages/npm/"
     },
     "main": "build/index.js",
     "module": "build/index.mjs",

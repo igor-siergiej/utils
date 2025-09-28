@@ -104,10 +104,32 @@ publish:
     - corepack enable
     - yarn install --immutable
   script:
-    # Get current version from package.json
+    # Increment patch version
     - |
+      set -euo pipefail
       CURRENT_VERSION=$(node -p "require('./package.json').version")
-      echo "Publishing current version: ${CURRENT_VERSION}"
+      echo "Current version: ${CURRENT_VERSION}"
+
+      # Increment patch version
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+      PATCH=$((PATCH+1))
+      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+      echo "New version: ${NEW_VERSION}"
+
+      # Update root package.json
+      npm version "${NEW_VERSION}" --no-git-tag-version
+
+      # Update each workspace version
+      for pkg in packages/*; do
+        if [ -f "$pkg/package.json" ]; then
+          (cd "$pkg" && npm version "${NEW_VERSION}" --no-git-tag-version)
+        fi
+      done
+
+      echo "Updated all packages to version ${NEW_VERSION}"
+
+    # Update lockfile after version bump
+    - YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --mode=update-lockfile
 
     # Build packages
     - yarn build
@@ -136,6 +158,18 @@ publish:
           exit 1
         fi
       '
+
+    # Commit version bump and create tag
+    - |
+      set -euo pipefail
+      NEW_VERSION=$(node -p "require('./package.json').version")
+      git config user.name "gitlab-ci[bot]"
+      git config user.email "gitlab-ci@noreply.gitlab.com"
+      git add -A
+      git commit -m "chore(release): ${NEW_VERSION}" || echo "Nothing to commit"
+      git tag "v${NEW_VERSION}"
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
 
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"

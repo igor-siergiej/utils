@@ -42,7 +42,7 @@
         "typescript": "^5.0.0"
     },
     "publishConfig": {
-        "registry": "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
+        "registry": "https://gitlab.com/api/v4/groups/imapps/-/packages/npm/"
     },
     "repository": {
         "type": "git",
