@@ -260,50 +260,9 @@ cache:
     - git clone ${ARGONAUT_REPO} argonaut
     - cd argonaut
 
-    # Update deployment with new image tags
+    # Set version and run GitOps update script
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
-
-    # Update deployments based on provided APP_IMAGES variable
-    # APP_IMAGES should be in format "app1:image1,app2:image2"
-    - echo "APP_IMAGES=${APP_IMAGES:-}"
-    - |
-      # Create update script
-      cat > update_images.sh << 'SCRIPT_EOF'
-      #!/bin/bash
-      set -e
-
-      if [ -n "${APP_IMAGES:-}" ]; then
-        echo "Updating images: ${APP_IMAGES}"
-        IFS=',' read -ra IMAGES <<< "$APP_IMAGES"
-        for image_info in "${IMAGES[@]}"; do
-          IFS=':' read -ra PARTS <<< "$image_info"
-          app_name="${PARTS[0]}"
-          image_name="${PARTS[1]}"
-
-          echo "Updating ${app_name} to use image ${image_name}:${VERSION}"
-
-          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
-          mkdir -p "$(dirname "$patch_file")"
-
-          cat > "$patch_file" << EOF
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: ${PROJECT_NAME}-${app_name}
-      spec:
-        template:
-          spec:
-            containers:
-            - name: ${PROJECT_NAME}-${app_name}
-              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
-      EOF
-        done
-      else
-        echo "No APP_IMAGES provided, skipping image updates"
-      fi
-      SCRIPT_EOF
-    - chmod +x update_images.sh
-    - ./update_images.sh
+    - ../scripts/update-gitops-deployments.sh
 
     # Commit and push changes
     - git add .
