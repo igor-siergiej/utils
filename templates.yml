@@ -226,9 +226,9 @@ cache:
     # Build the Docker image
     - |
       if [ -n "${BUILD_ARGS:-}" ]; then
-        docker build ${BUILD_ARGS} --secret env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+        docker build ${BUILD_ARGS} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
       else
-        docker build --secret env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+        docker build --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
       fi
 
     # Push to private registry
@@ -250,7 +250,7 @@ cache:
     - server
   image: alpine:latest
   variables:
-    ARGONAUT_REPO: "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/igor-siergiej/argonaut.git"
+    ARGONAUT_REPO: "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git"
   before_script:
     - apk add --no-cache git yq
     - git config --global user.name "gitlab-ci[bot]"
