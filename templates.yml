@@ -236,12 +236,7 @@ cache:
     - docker push ${LATEST_TAG}
 
     # Output version for downstream jobs
-    - echo "${APP_NAME}_IMAGE_TAG=${IMAGE_TAG}" > ${APP_NAME}_build_info.env
-    - echo "${APP_NAME}_VERSION=${VERSION}" >> ${APP_NAME}_build_info.env
-  artifacts:
-    reports:
-      dotenv: ${APP_NAME}_build_info.env
-    expire_in: 1 hour
+    - echo "Built ${APP_NAME} version ${VERSION} and pushed to ${IMAGE_TAG}"
 
 # Reusable GitOps update template
 .gitops-update-template:
