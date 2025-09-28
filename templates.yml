@@ -265,35 +265,30 @@ cache:
 
     # Update deployments based on provided APP_IMAGES variable
     # APP_IMAGES should be in format "app1:image1,app2:image2"
-    - |
-      if [ -n "${APP_IMAGES:-}" ]; then
-        echo "Updating images: ${APP_IMAGES}"
-        IFS=',' read -ra IMAGES <<< "$APP_IMAGES"
-        for image_info in "${IMAGES[@]}"; do
-          IFS=':' read -ra PARTS <<< "$image_info"
-          app_name="${PARTS[0]}"
-          image_name="${PARTS[1]}"
-
-          echo "Updating ${app_name} to use image ${image_name}:${VERSION}"
-
-          # Create or update deployment patch
-          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
-          mkdir -p "$(dirname "$patch_file")"
-
-          cat > "$patch_file" << EOF
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: ${PROJECT_NAME}-${app_name}
-      spec:
-        template:
-          spec:
-            containers:
-            - name: ${PROJECT_NAME}-${app_name}
-              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
-      EOF
-        done
-      fi
+    - 'if [ -n "${APP_IMAGES:-}" ]; then'
+    - 'echo "Updating images: ${APP_IMAGES}"'
+    - 'IFS="," read -ra IMAGES <<< "$APP_IMAGES"'
+    - 'for image_info in "${IMAGES[@]}"; do'
+    - 'IFS=":" read -ra PARTS <<< "$image_info"'
+    - 'app_name="${PARTS[0]}"'
+    - 'image_name="${PARTS[1]}"'
+    - 'echo "Updating ${app_name} to use image ${image_name}:${VERSION}"'
+    - 'patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"'
+    - 'mkdir -p "$(dirname "$patch_file")"'
+    - 'cat > "$patch_file" << EOF'
+    - 'apiVersion: apps/v1'
+    - 'kind: Deployment'
+    - 'metadata:'
+    - '  name: ${PROJECT_NAME}-${app_name}'
+    - 'spec:'
+    - '  template:'
+    - '    spec:'
+    - '      containers:'
+    - '      - name: ${PROJECT_NAME}-${app_name}'
+    - '        image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}'
+    - 'EOF'
+    - 'done'
+    - 'fi'
 
     # Commit and push changes
     - git add .
