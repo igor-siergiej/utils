@@ -266,7 +266,7 @@ cache:
 
     # Process APP_IMAGES if provided
     - |
-      'if [ -n "${APP_IMAGES:-}" ]; then
+      if [ -n "${APP_IMAGES:-}" ]; then
         echo "Processing APP_IMAGES: ${APP_IMAGES}"
         echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
           echo "Updating ${app_name} to use image ${image_name}:${VERSION}"
@@ -288,11 +288,11 @@ cache:
         done
       else
         echo "No APP_IMAGES provided, skipping image updates"
-      fi'
+      fi
 
     # Commit and push changes
     - git add .
-    - git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): update to version ${VERSION}" || echo "No changes to commit"
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): update to version ${VERSION}" || echo "No changes to commit"'
     - git push origin main
 
     - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
