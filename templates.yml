@@ -260,9 +260,35 @@ cache:
     - git clone ${ARGONAUT_REPO} argonaut
     - cd argonaut
 
-    # Set version and run GitOps update script
+    # Set version for deployment
     - export VERSION="${CI_COMMIT_SHORT_SHA}"
-    - ../scripts/update-gitops-deployments.sh
+    - echo "Updating ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
+
+    # Process APP_IMAGES if provided
+    - |
+      'if [ -n "${APP_IMAGES:-}" ]; then
+        echo "Processing APP_IMAGES: ${APP_IMAGES}"
+        echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
+          echo "Updating ${app_name} to use image ${image_name}:${VERSION}"
+          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
+          mkdir -p "$(dirname "$patch_file")"
+          cat > "$patch_file" << EOF
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ${PROJECT_NAME}-${app_name}
+      spec:
+        template:
+          spec:
+            containers:
+            - name: ${PROJECT_NAME}-${app_name}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
+      EOF
+          echo "Created deployment patch: $patch_file"
+        done
+      else
+        echo "No APP_IMAGES provided, skipping image updates"
+      fi'
 
     # Commit and push changes
     - git add .
