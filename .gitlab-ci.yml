@@ -138,6 +138,10 @@ publish:
     - |
       set -euo pipefail
 
+      # Configure the GitLab Package Registry
+      GITLAB_REGISTRY="https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
+      echo "Publishing to registry: ${GITLAB_REGISTRY}"
+
       # List packages that will be published
       echo "=== Packages to be published ==="
       yarn workspaces foreach -A --no-private --topological exec echo "Publishing package at $(pwd)"
@@ -148,16 +152,16 @@ publish:
 
       # Publish all non-private workspaces in dependency order with error handling
       echo "=== Publishing packages ==="
-      yarn workspaces foreach -A --no-private --topological exec sh -c '
-        PKG_NAME=$(node -p "require(\"./package.json\").name")
-        echo "=== Publishing $PKG_NAME from $(pwd) ==="
-        if yarn npm publish --tolerate-republish; then
-          echo "✅ Successfully published $PKG_NAME"
+      yarn workspaces foreach -A --no-private --topological exec sh -c "
+        PKG_NAME=\$(node -p \"require('./package.json').name\")
+        echo \"=== Publishing \$PKG_NAME from \$(pwd) ===\"
+        if yarn npm publish --registry ${GITLAB_REGISTRY} --tolerate-republish; then
+          echo \"✅ Successfully published \$PKG_NAME\"
         else
-          echo "❌ Failed to publish $PKG_NAME"
+          echo \"❌ Failed to publish \$PKG_NAME\"
           exit 1
         fi
-      '
+      "
 
     # Commit version bump and create tag
     - |

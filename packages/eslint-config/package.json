@@ -41,9 +41,6 @@
         "eslint": "^9.0.0",
         "typescript": "^5.0.0"
     },
-    "publishConfig": {
-        "registry": "https://gitlab.com/api/v4/groups/imapps/-/packages/npm/"
-    },
     "repository": {
         "type": "git",
         "url": "https://gitlab.com/imapps/utils.git"
