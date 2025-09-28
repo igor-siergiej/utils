@@ -1,6 +1,6 @@
 {
     "name": "@imapps/web-utils",
-    "version": "0.0.9",
+    "version": "0.0.11",
     "description": "Shared web utilities for frontend apps",
     "author": "igor-siergiej",
     "license": "AGPL-3.0 license",
