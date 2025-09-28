@@ -1,5 +1,5 @@
 {
-    "name": "@igor-siergiej/eslint-config",
+    "name": "@imapps/eslint-config",
     "version": "0.0.9",
     "description": "Shared ESLint configuration for IM Apps projects",
     "main": "build/index.js",
@@ -42,6 +42,10 @@
         "typescript": "^5.0.0"
     },
     "publishConfig": {
-        "registry": "https://npm.pkg.github.com"
+        "registry": "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://gitlab.com/imapps/utils.git"
     }
 }

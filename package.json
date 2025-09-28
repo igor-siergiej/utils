@@ -6,7 +6,7 @@
   "packageManager": "yarn@4.9.2",
   "lint-staged": {
     "*.{ts,mts,cts}": [
-      "yarn workspace @igor-siergiej/eslint-config build",
+      "yarn workspace @imapps/eslint-config build",
       "eslint --fix"
     ]
   },
@@ -16,14 +16,14 @@
   "scripts": {
     "build": "yarn workspaces foreach -At run build",
     "clean": "yarn workspaces foreach -A run clean",
-    "lint": "yarn workspace @igor-siergiej/eslint-config build && eslint . --ext .ts,.mts,.cts",
-    "lint:fix": "yarn workspace @igor-siergiej/eslint-config build && eslint . --ext .ts,.mts,.cts --fix",
-    "prelint": "yarn workspace @igor-siergiej/eslint-config build",
-    "prelint:fix": "yarn workspace @igor-siergiej/eslint-config build",
+    "lint": "yarn workspace @imapps/eslint-config build && eslint . --ext .ts,.mts,.cts",
+    "lint:fix": "yarn workspace @imapps/eslint-config build && eslint . --ext .ts,.mts,.cts --fix",
+    "prelint": "yarn workspace @imapps/eslint-config build",
+    "prelint:fix": "yarn workspace @imapps/eslint-config build",
     "prepare": "husky"
   },
   "devDependencies": {
-    "@igor-siergiej/eslint-config": "workspace:*",
+    "@imapps/eslint-config": "workspace:*",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.0",

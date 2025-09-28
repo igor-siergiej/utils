@@ -1,0 +1,331 @@
+stages:
+  - ci
+  - build
+  - publish
+  - deploy
+
+variables:
+  NODE_VERSION: "22"
+  YARN_CACHE_FOLDER: "$CI_PROJECT_DIR/.yarn-cache"
+
+# Cache configuration for faster builds
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .yarn-cache/
+    - node_modules/
+
+# Basic CI job (equivalent to ci.yml)
+ci:
+  stage: ci
+  tags:
+    - server
+  variables:
+    NODE_AUTH_TOKEN: $CI_JOB_TOKEN
+    YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  script:
+    - yarn lint
+    - yarn tsc --noEmit
+    - |
+      echo "🧪 Running tests for packages with test scripts..."
+
+      # Function to run tests if package has test script
+      run_tests_if_exists() {
+        local package_path="$1"
+        local package_name="$2"
+
+        if [ -f "$package_path/package.json" ]; then
+          if grep -q '"test":' "$package_path/package.json"; then
+            echo "✅ Running tests for $package_name..."
+            if [ -f "yarn.lock" ]; then
+              # Monorepo: use workspace command
+              yarn workspace "$package_name" test
+            else
+              # Single repo: run in package directory
+              (cd "$package_path" && yarn test)
+            fi
+          else
+            echo "⏭️  No tests found for $package_name"
+          fi
+        fi
+      }
+
+      # Check for different project structures
+      if [ -f "yarn.lock" ] && grep -q '"workspaces":' package.json 2>/dev/null; then
+        echo "📦 Detected monorepo structure"
+
+        # Dynamically find all packages and run their tests
+        if [ -d "packages" ]; then
+          for package_dir in packages/*/; do
+            # Remove trailing slash for cleaner path handling
+            package_dir=${package_dir%/}
+            if [ -f "${package_dir}/package.json" ]; then
+              # Extract the package name from package.json
+              package_name=$(node -p "require('./${package_dir}/package.json').name" 2>/dev/null || echo "")
+              if [ -n "$package_name" ]; then
+                run_tests_if_exists "$package_dir" "$package_name"
+              else
+                echo "⚠️  Could not determine package name for ${package_dir}"
+              fi
+            fi
+          done
+        else
+          echo "⏭️  No packages directory found"
+        fi
+      else
+        echo "📄 Detected single package structure"
+        # For single packages, check if root has tests
+        if grep -q '"test":' package.json 2>/dev/null; then
+          echo "✅ Running tests for root package..."
+          yarn test
+        else
+          echo "⏭️  No tests found in root package"
+        fi
+      fi
+
+      echo "🎉 Test execution completed!"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+# Manual package publishing (equivalent to ci-publish.yml)
+publish:
+  stage: publish
+  tags:
+    - server
+  variables:
+    NODE_AUTH_TOKEN: $CI_JOB_TOKEN
+    YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+  script:
+    # Derive next version from existing tags
+    - |
+      set -euo pipefail
+      git fetch --tags --force || true
+      # Get latest tag matching v*; if none, fall back to root package.json version
+      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+      if [ -n "$LAST_TAG" ]; then
+        echo "Last tag: $LAST_TAG"
+        BASE=${LAST_TAG#v}
+      else
+        BASE=$(node -p "require('./package.json').version")
+        echo "No tag found. Using root version: $BASE"
+      fi
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+      PATCH=$((PATCH+1))
+      NEXT="${MAJOR}.${MINOR}.${PATCH}"
+      # Ensure tag uniqueness by incrementing patch until an unused tag is found
+      while git rev-parse -q --verify "refs/tags/v${NEXT}" >/dev/null; do
+        PATCH=$((PATCH+1))
+        NEXT="${MAJOR}.${MINOR}.${PATCH}"
+      done
+      echo "NEXT_VERSION=${NEXT}" >> build.env
+      echo "Publishing version ${NEXT}"
+
+    # Build packages
+    - yarn build
+
+    # Bump versions across workspaces
+    - |
+      set -euo pipefail
+      source build.env
+      VERSION=$NEXT_VERSION
+      echo "Publishing version ${VERSION}"
+
+      # Bump root version
+      npm version "${VERSION}" --no-git-tag-version
+      # Bump each workspace version
+      for pkg in packages/*; do
+        if [ -f "$pkg/package.json" ]; then
+          (cd "$pkg" && npm version "${VERSION}" --no-git-tag-version)
+        fi
+      done
+
+    # Update lockfile after version bump
+    - YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --mode=update-lockfile
+
+    # Commit and push version bumps
+    - |
+      set -euo pipefail
+      source build.env
+      VERSION=$NEXT_VERSION
+      git config user.name "gitlab-ci[bot]"
+      git config user.email "gitlab-ci@noreply.gitlab.com"
+      git add -A
+      git commit -m "chore(release): ${VERSION}" || echo "Nothing to commit"
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
+
+    # Publish workspaces to GitLab Package Registry
+    - |
+      set -euo pipefail
+
+      # List packages that will be published
+      echo "=== Packages to be published ==="
+      yarn workspaces foreach -A --no-private --topological exec echo "Publishing package at $(pwd)"
+
+      # Ensure all packages are built before publishing
+      echo "=== Building all packages ==="
+      yarn workspaces foreach -A --no-private run build || echo "Some packages may not have build scripts"
+
+      # Publish all non-private workspaces in dependency order with error handling
+      echo "=== Publishing packages ==="
+      yarn workspaces foreach -A --no-private --topological exec sh -c '
+        PKG_NAME=$(node -p "require(\"./package.json\").name")
+        echo "=== Publishing $PKG_NAME from $(pwd) ==="
+        if yarn npm publish --tolerate-republish; then
+          echo "✅ Successfully published $PKG_NAME"
+        else
+          echo "❌ Failed to publish $PKG_NAME"
+          exit 1
+        fi
+      '
+
+    # Create and push tag for this release
+    - |
+      set -euo pipefail
+      source build.env
+      VERSION=$NEXT_VERSION
+      git config user.name "gitlab-ci[bot]"
+      git config user.email "gitlab-ci@noreply.gitlab.com"
+      git tag v"${VERSION}"
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git v"${VERSION}"
+
+  artifacts:
+    reports:
+      dotenv: build.env
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+  needs:
+    - ci
+
+# Docker build job (equivalent to docker-build.yml)
+docker-build:
+  stage: build
+  tags:
+    - server
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  before_script:
+    - docker info
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    # Setup version
+    - |
+      LATEST_VERSION=$(git tag --sort=-version:refname | head -n1 || echo "0.1.0")
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
+      COMMIT_MSG=$(git log -1 --pretty=%B)
+      if [[ "$COMMIT_MSG" == *"[major]"* ]]; then
+        MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0
+      elif [[ "$COMMIT_MSG" == *"[minor]"* ]]; then
+        MINOR=$((MINOR+1)); PATCH=0
+      else
+        PATCH=$((PATCH+1))
+      fi
+      NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+      echo "VERSION=$NEW_VERSION" >> build.env
+      echo "Building version $NEW_VERSION"
+
+    # Build and push image
+    - |
+      source build.env
+      docker build \
+        --build-arg APP_VERSION=$VERSION \
+        --build-arg PAT_TOKEN=$CI_JOB_TOKEN \
+        -t $CI_REGISTRY_IMAGE:$VERSION \
+        -t $CI_REGISTRY_IMAGE:latest \
+        -f ${DOCKERFILE:-Dockerfile} .
+      docker push $CI_REGISTRY_IMAGE:$VERSION
+      docker push $CI_REGISTRY_IMAGE:latest
+
+  artifacts:
+    reports:
+      dotenv: build.env
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - Dockerfile
+        - "**/*.ts"
+        - "**/*.js"
+        - package.json
+        - yarn.lock
+
+# GitOps update job (equivalent to gitops-update.yml)
+gitops-update:
+  stage: deploy
+  tags:
+    - server
+  variables:
+    ARGONAUT_PROJECT_ID: "your-argonaut-project-id" # Replace with actual project ID
+  script:
+    - |
+      source build.env
+      VERSION=$VERSION
+      APP_NAME=${CI_PROJECT_NAME}
+
+      # Clone the ArgonCD repository
+      git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git argonaut-repo
+      cd argonaut-repo
+      git config user.email "gitlab-ci@noreply.gitlab.com"
+      git config user.name "gitlab-ci[bot]"
+
+      # Replace the final tag on every image line; skip digest refs (with '@')
+      sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^@]+):([^:@[:space:]]+)([[:space:]]*)$|\\1:${VERSION}\\3|" apps/${APP_NAME}/overlays/staging/patch-deployment.yaml
+      git add apps/${APP_NAME}/overlays/staging/patch-deployment.yaml
+      git commit -m "Update ${APP_NAME} staging to version ${VERSION}"
+      git push origin main
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  needs:
+    - docker-build
+  dependencies:
+    - docker-build
+
+# Production deployment job (equivalent to deploy-production.yml)
+deploy-production:
+  stage: deploy
+  tags:
+    - server
+  environment:
+    name: production
+  variables:
+    ARGONAUT_PROJECT_ID: "your-argonaut-project-id" # Replace with actual project ID
+  script:
+    - |
+      APP_NAME=${CI_PROJECT_NAME}
+      VERSION=${DEPLOY_VERSION}
+
+      # Clone the ArgonCD repository
+      git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git argonaut-repo
+      cd argonaut-repo
+      git config user.email "gitlab-ci@noreply.gitlab.com"
+      git config user.name "gitlab-ci[bot]"
+
+      # Replace the final tag on every image line; skip digest refs (with '@')
+      sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^@]+):([^:@[:space:]]+)([[:space:]]*)$|\\1:${VERSION}\\3|" apps/${APP_NAME}/overlays/production/patch-deployment.yaml
+      git add apps/${APP_NAME}/overlays/production/patch-deployment.yaml
+      git commit -m "Update ${APP_NAME} production to version ${VERSION}"
+      git push origin main
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+      allow_failure: false
+  variables:
+    DEPLOY_VERSION:
+      description: "Version to deploy to production"

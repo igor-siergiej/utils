@@ -1,15 +1,15 @@
 {
-    "name": "@igor-siergiej/web-utils",
+    "name": "@imapps/web-utils",
     "version": "0.0.9",
     "description": "Shared web utilities for frontend apps",
     "author": "igor-siergiej",
     "license": "AGPL-3.0 license",
     "repository": {
         "type": "git",
-        "url": "https://github.com/igor-siergiej/im-apps-utils.git"
+        "url": "https://gitlab.com/imapps/utils.git"
     },
     "publishConfig": {
-        "registry": "https://npm.pkg.github.com/"
+        "registry": "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
     },
     "main": "build/index.cjs",
     "module": "build/index.js",
