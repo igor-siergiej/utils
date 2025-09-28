@@ -356,9 +356,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@igor-siergiej/api-utils@workspace:packages/api-utils":
+"@imapps/api-utils@workspace:packages/api-utils":
   version: 0.0.0-use.local
-  resolution: "@igor-siergiej/api-utils@workspace:packages/api-utils"
+  resolution: "@imapps/api-utils@workspace:packages/api-utils"
   dependencies:
     "@eslint/js": "npm:^9.33.0"
     "@stylistic/eslint-plugin": "npm:^5.2.3"
@@ -377,9 +377,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@igor-siergiej/eslint-config@workspace:*, @igor-siergiej/eslint-config@workspace:packages/eslint-config":
+"@imapps/eslint-config@workspace:*, @imapps/eslint-config@workspace:packages/eslint-config":
   version: 0.0.0-use.local
-  resolution: "@igor-siergiej/eslint-config@workspace:packages/eslint-config"
+  resolution: "@imapps/eslint-config@workspace:packages/eslint-config"
   dependencies:
     "@eslint/js": "npm:^9.33.0"
     "@stylistic/eslint-plugin": "npm:^5.2.3"
@@ -400,9 +400,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@igor-siergiej/web-utils@workspace:packages/web-utils":
+"@imapps/web-utils@workspace:packages/web-utils":
   version: 0.0.0-use.local
-  resolution: "@igor-siergiej/web-utils@workspace:packages/web-utils"
+  resolution: "@imapps/web-utils@workspace:packages/web-utils"
   dependencies:
     "@types/react": "npm:^19.1.13"
     react: "npm:^19.1.1"
@@ -2800,7 +2800,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "im-apps-utils@workspace:."
   dependencies:
-    "@igor-siergiej/eslint-config": "workspace:*"
+    "@imapps/eslint-config": "workspace:*"
     eslint: "npm:^9.33.0"
     husky: "npm:^9.1.7"
     lint-staged: "npm:^16.2.0"

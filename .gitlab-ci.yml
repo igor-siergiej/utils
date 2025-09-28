@@ -93,7 +93,7 @@ ci:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-# Manual package publishing (equivalent to ci-publish.yml)
+# Package publishing using current tag
 publish:
   stage: publish
   tags:
@@ -106,62 +106,14 @@ publish:
     - corepack enable
     - yarn install --immutable
   script:
-    # Derive next version from existing tags
+    # Get current version from package.json
     - |
-      set -euo pipefail
-      git fetch --tags --force || true
-      # Get latest tag matching v*; if none, fall back to root package.json version
-      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -n "$LAST_TAG" ]; then
-        echo "Last tag: $LAST_TAG"
-        BASE=${LAST_TAG#v}
-      else
-        BASE=$(node -p "require('./package.json').version")
-        echo "No tag found. Using root version: $BASE"
-      fi
-      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
-      PATCH=$((PATCH+1))
-      NEXT="${MAJOR}.${MINOR}.${PATCH}"
-      # Ensure tag uniqueness by incrementing patch until an unused tag is found
-      while git rev-parse -q --verify "refs/tags/v${NEXT}" >/dev/null; do
-        PATCH=$((PATCH+1))
-        NEXT="${MAJOR}.${MINOR}.${PATCH}"
-      done
-      echo "NEXT_VERSION=${NEXT}" >> build.env
-      echo "Publishing version ${NEXT}"
+      CURRENT_VERSION=$(node -p "require('./package.json').version")
+      echo "Publishing current version: ${CURRENT_VERSION}"
+      echo "CURRENT_VERSION=${CURRENT_VERSION}" >> build.env
 
     # Build packages
     - yarn build
-
-    # Bump versions across workspaces
-    - |
-      set -euo pipefail
-      source build.env
-      VERSION=$NEXT_VERSION
-      echo "Publishing version ${VERSION}"
-
-      # Bump root version
-      npm version "${VERSION}" --no-git-tag-version
-      # Bump each workspace version
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          (cd "$pkg" && npm version "${VERSION}" --no-git-tag-version)
-        fi
-      done
-
-    # Update lockfile after version bump
-    - YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --mode=update-lockfile
-
-    # Commit and push version bumps
-    - |
-      set -euo pipefail
-      source build.env
-      VERSION=$NEXT_VERSION
-      git config user.name "gitlab-ci[bot]"
-      git config user.email "gitlab-ci@noreply.gitlab.com"
-      git add -A
-      git commit -m "chore(release): ${VERSION}" || echo "Nothing to commit"
-      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
 
     # Publish workspaces to GitLab Package Registry
     - |
@@ -188,22 +140,19 @@ publish:
         fi
       '
 
-    # Create and push tag for this release
-    - |
-      set -euo pipefail
-      source build.env
-      VERSION=$NEXT_VERSION
-      git config user.name "gitlab-ci[bot]"
-      git config user.email "gitlab-ci@noreply.gitlab.com"
-      git tag v"${VERSION}"
-      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git v"${VERSION}"
-
   artifacts:
     reports:
       dotenv: build.env
   rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "web"
       when: manual
+      allow_failure: true
   needs:
     - ci
 
