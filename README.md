@@ -3,8 +3,8 @@
 Shared utilities monorepo for IM Apps projects.
 
 Packages:
-- @igor-siergiej/api-utils — utilities for Node/API services
-- @igor-siergiej/web-utils — utilities for frontend web apps
+- @imapps/api-utils — utilities for Node/API services
+- @imapps/web-utils — utilities for frontend web apps
 
 ## Development
 
@@ -16,24 +16,21 @@ yarn build
 
 ## Publishing
 
-Publishing is automated via GitHub Actions (manual dispatch).
+Publishing is automated via GitLab CI/CD (manual button).
 
-- Where: Actions → Publish (manual) → Run workflow
+- Where: GitLab CI/CD → After CI passes → Manual "publish" button
 - What it does (high level):
-  - Derives the next patch version from the latest `v*` tag (or falls back to root `package.json`), ensuring uniqueness.
-  - Bumps the root and all workspace `package.json` versions to that version and commits the change.
-  - Builds all workspaces.
-  - Publishes all non-private workspaces to GitHub Packages in topological order:
-    - `yarn workspaces foreach -A --no-private --topological exec yarn npm publish --tolerate-republish`
-  - Creates and pushes a `vX.Y.Z` git tag only if all publishes succeed.
-  - If any package fails to publish, the job fails and no tag is created.
+  - Uses current version from `package.json` files
+  - Builds all workspaces
+  - Publishes all non-private workspaces to GitLab Package Registry in topological order
+  - Uses `--tolerate-republish` to handle already-published versions
 
-Required repository secrets:
-- `PAT_TOKEN`: GitHub Personal Access Token with permission to publish to GitHub Packages (used as `PAT_TOKEN`, `NODE_AUTH_TOKEN`, and `YARN_NPM_AUTH_TOKEN`).
+Required repository configuration:
+- Uses `CI_JOB_TOKEN` which is automatically provided by GitLab CI/CD
 
 Notes:
-- Registry is GitHub Packages (`https://npm.pkg.github.com`) and is configured via `.yarnrc.yml`.
-- Dist-tag defaults to `latest` (no custom release channel is used).
+- Registry is GitLab Package Registry and is configured via `publishConfig` in each package.json
+- Dist-tag defaults to `latest`
 
 ### Manual local publish (optional)
 
@@ -50,14 +47,14 @@ cd ../web-utils && yarn version patch && yarn npm publish
 Install in consumers (e.g. Shoppingo, jewellery-catalogue, kivo):
 
 ```bash
-yarn add @igor-siergiej/api-utils @igor-siergiej/web-utils
+yarn add @imapps/api-utils @imapps/web-utils
 ```
 
 Then import:
 
 ```ts
-import { createPaginatedResponse } from '@igor-siergiej/api-utils';
-import { cn } from '@igor-siergiej/web-utils';
+import { createPaginatedResponse } from '@imapps/api-utils';
+import { cn } from '@imapps/web-utils';
 ```
 
 

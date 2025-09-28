@@ -1,8 +1,6 @@
 stages:
   - ci
-  - build
   - publish
-  - deploy
 
 variables:
   NODE_VERSION: "22"
@@ -15,7 +13,7 @@ cache:
     - .yarn-cache/
     - node_modules/
 
-# Basic CI job (equivalent to ci.yml)
+# CI job - lint and test
 ci:
   stage: ci
   tags:
@@ -93,7 +91,7 @@ ci:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
 
-# Package publishing using current tag
+# Package publishing using current version
 publish:
   stage: publish
   tags:
@@ -110,7 +108,6 @@ publish:
     - |
       CURRENT_VERSION=$(node -p "require('./package.json').version")
       echo "Publishing current version: ${CURRENT_VERSION}"
-      echo "CURRENT_VERSION=${CURRENT_VERSION}" >> build.env
 
     # Build packages
     - yarn build
@@ -140,9 +137,6 @@ publish:
         fi
       '
 
-  artifacts:
-    reports:
-      dotenv: build.env
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
       when: manual
@@ -155,134 +149,3 @@ publish:
       allow_failure: true
   needs:
     - ci
-
-# Docker build job (equivalent to docker-build.yml)
-docker-build:
-  stage: build
-  tags:
-    - server
-  image: docker:24.0.5
-  services:
-    - docker:24.0.5-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
-  before_script:
-    - docker info
-    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  script:
-    # Setup version
-    - |
-      LATEST_VERSION=$(git tag --sort=-version:refname | head -n1 || echo "0.1.0")
-      IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
-      COMMIT_MSG=$(git log -1 --pretty=%B)
-      if [[ "$COMMIT_MSG" == *"[major]"* ]]; then
-        MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0
-      elif [[ "$COMMIT_MSG" == *"[minor]"* ]]; then
-        MINOR=$((MINOR+1)); PATCH=0
-      else
-        PATCH=$((PATCH+1))
-      fi
-      NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-      echo "VERSION=$NEW_VERSION" >> build.env
-      echo "Building version $NEW_VERSION"
-
-    # Build and push image
-    - |
-      source build.env
-      docker build \
-        --build-arg APP_VERSION=$VERSION \
-        --build-arg PAT_TOKEN=$CI_JOB_TOKEN \
-        -t $CI_REGISTRY_IMAGE:$VERSION \
-        -t $CI_REGISTRY_IMAGE:latest \
-        -f ${DOCKERFILE:-Dockerfile} .
-      docker push $CI_REGISTRY_IMAGE:$VERSION
-      docker push $CI_REGISTRY_IMAGE:latest
-
-  artifacts:
-    reports:
-      dotenv: build.env
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "web"
-      when: manual
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - Dockerfile
-        - "**/*.ts"
-        - "**/*.js"
-        - package.json
-        - yarn.lock
-
-# GitOps update job (equivalent to gitops-update.yml)
-gitops-update:
-  stage: deploy
-  tags:
-    - server
-  image: node:22
-  variables:
-    ARGONAUT_PROJECT_ID: "your-argonaut-project-id" # Replace with actual project ID
-  script:
-    - |
-      source build.env
-      VERSION=$VERSION
-      APP_NAME=${CI_PROJECT_NAME}
-
-      # Clone the ArgonCD repository
-      git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git argonaut-repo
-      cd argonaut-repo
-      git config user.email "gitlab-ci@noreply.gitlab.com"
-      git config user.name "gitlab-ci[bot]"
-
-      # Replace the final tag on every image line; skip digest refs (with '@')
-      sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^@]+):([^:@[:space:]]+)([[:space:]]*)$|\\1:${VERSION}\\3|" apps/${APP_NAME}/overlays/staging/patch-deployment.yaml
-      git add apps/${APP_NAME}/overlays/staging/patch-deployment.yaml
-      git commit -m "Update ${APP_NAME} staging to version ${VERSION}"
-      git push origin main
-
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - Dockerfile
-        - "**/*.ts"
-        - "**/*.js"
-        - package.json
-        - yarn.lock
-  needs:
-    - job: docker-build
-      optional: true
-  dependencies:
-    - docker-build
-
-# Production deployment job (equivalent to deploy-production.yml)
-deploy-production:
-  stage: deploy
-  tags:
-    - server
-  image: node:22
-  environment:
-    name: production
-  variables:
-    ARGONAUT_PROJECT_ID: "your-argonaut-project-id" # Replace with actual project ID
-  script:
-    - |
-      APP_NAME=${CI_PROJECT_NAME}
-      VERSION=${DEPLOY_VERSION}
-
-      # Clone the ArgonCD repository
-      git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git argonaut-repo
-      cd argonaut-repo
-      git config user.email "gitlab-ci@noreply.gitlab.com"
-      git config user.name "gitlab-ci[bot]"
-
-      # Replace the final tag on every image line; skip digest refs (with '@')
-      sed -i -E "s|^([[:space:]]*image:[[:space:]]*[^@]+):([^:@[:space:]]+)([[:space:]]*)$|\\1:${VERSION}\\3|" apps/${APP_NAME}/overlays/production/patch-deployment.yaml
-      git add apps/${APP_NAME}/overlays/production/patch-deployment.yaml
-      git commit -m "Update ${APP_NAME} production to version ${VERSION}"
-      git push origin main
-
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: manual
-      allow_failure: false

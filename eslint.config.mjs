@@ -1,4 +1,4 @@
-import { nodeAppConfig } from '@igor-siergiej/eslint-config';
+import { nodeAppConfig } from '@imapps/eslint-config';
 
 export default [
     ...nodeAppConfig,
