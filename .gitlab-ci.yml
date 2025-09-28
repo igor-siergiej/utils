@@ -150,12 +150,16 @@ publish:
       echo "=== Building all packages ==="
       yarn workspaces foreach -A --no-private run build || echo "Some packages may not have build scripts"
 
+      # Set npm registry for publishing
+      npm config set registry ${GITLAB_REGISTRY}
+      npm config set //gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken ${CI_JOB_TOKEN}
+
       # Publish all non-private workspaces in dependency order with error handling
       echo "=== Publishing packages ==="
       yarn workspaces foreach -A --no-private --topological exec sh -c "
         PKG_NAME=\$(node -p \"require('./package.json').name\")
         echo \"=== Publishing \$PKG_NAME from \$(pwd) ===\"
-        if yarn npm publish --registry ${GITLAB_REGISTRY} --tolerate-republish; then
+        if npm publish; then
           echo \"✅ Successfully published \$PKG_NAME\"
         else
           echo \"❌ Failed to publish \$PKG_NAME\"
