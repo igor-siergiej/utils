@@ -6,6 +6,7 @@
 stages:
   - ci
   - publish
+  - version-calculation
   - docker-build
   - gitops-update
   - production-deploy
@@ -99,6 +100,96 @@ cache:
       fi
 
       echo "🎉 Test execution completed!"
+
+# Reusable version calculation template
+.version-calculation-template:
+  stage: version-calculation
+  tags:
+    - server
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache git jq
+    - git config --global user.name "${DEPLOY_USER:-gitlab-ci[bot]}"
+    - git config --global user.email "${DEPLOY_EMAIL:-gitlab-ci@noreply.gitlab.com}"
+  script:
+    # Calculate next semantic version
+    - |
+      set -euo pipefail
+
+      echo "🔍 Fetching tags from repository..."
+      git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force || true
+
+      # Get latest tag matching v*; if none, fall back to root package.json version
+      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+      if [ -n "$LAST_TAG" ]; then
+        echo "📌 Last tag: $LAST_TAG"
+        BASE=${LAST_TAG#v}
+      else
+        if [ -f "package.json" ]; then
+          BASE=$(jq -r '.version' package.json)
+          echo "📦 No tag found. Using package.json version: $BASE"
+        else
+          BASE="0.1.0"
+          echo "⚠️  No tag or package.json found. Starting from: $BASE"
+        fi
+      fi
+
+      # Determine version increment based on commit message
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+      COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+
+      if echo "$COMMIT_MESSAGE" | grep -qi "major"; then
+        echo "🔼 Found 'major' in commit message, incrementing major version"
+        MAJOR=$((MAJOR+1))
+        MINOR=0
+        PATCH=0
+      elif echo "$COMMIT_MESSAGE" | grep -qi "minor"; then
+        echo "🔼 Found 'minor' in commit message, incrementing minor version"
+        MINOR=$((MINOR+1))
+        PATCH=0
+      else
+        echo "🔼 No version keywords found, incrementing patch version"
+        PATCH=$((PATCH+1))
+      fi
+
+      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+      # Ensure tag uniqueness by incrementing patch until an unused tag is found
+      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; do
+        echo "⚠️  Tag v${NEW_VERSION} already exists, incrementing patch..."
+        PATCH=$((PATCH+1))
+        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+      done
+
+      echo "✨ New version: v${NEW_VERSION}"
+
+      # Update package.json with the new version if it exists
+      if [ -f "package.json" ]; then
+        jq --arg ver "${NEW_VERSION}" '.version = $ver' package.json | tee package.json.tmp >/dev/null
+        mv package.json.tmp package.json
+        echo "📝 Updated package.json to version ${NEW_VERSION}"
+
+        # Commit the version update
+        git add package.json
+        git commit -m "chore: bump version to v${NEW_VERSION} [skip ci]" || echo "No changes to commit"
+      fi
+
+      # Create and push the version tag and commit to the project repository
+      git tag "v${NEW_VERSION}"
+      echo "🏷️  Created tag v${NEW_VERSION}"
+
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME} --tags
+      echo "📤 Pushed tag and commit to repository"
+
+      # Export version for downstream jobs (without 'v' prefix for Docker tags)
+      echo "VERSION=${NEW_VERSION}" >> version.env
+      echo "VERSION_TAG=v${NEW_VERSION}" >> version.env
+
+      echo "✅ Version calculation complete: ${NEW_VERSION}"
+  artifacts:
+    reports:
+      dotenv: version.env
+    expire_in: 1 hour
 
 # Reusable publish job template
 .publish-template:
@@ -216,27 +307,32 @@ cache:
     DOCKER_TLS_CERTDIR: "/certs"
   before_script:
     - docker info
-    - echo "Building ${APP_NAME} image"
+    - echo "🐳 Building ${APP_NAME} image"
   script:
-    # Generate version tag based on commit SHA
-    - export VERSION="${CI_COMMIT_SHORT_SHA}"
-    - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${VERSION}"
-    - export LATEST_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:latest"
+    # Use semantic version from version-calculation job
+    - |
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
+        exit 1
+      fi
+      echo "📦 Using semantic version: ${VERSION}"
 
-    # Build the Docker image
+    - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${VERSION}"
+
+    # Build the Docker image with semantic version tag
+    - echo "🔨 Building Docker image..."
     - |
       if [ -n "${BUILD_ARGS:-}" ]; then
-        docker build ${BUILD_ARGS} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+        docker build ${BUILD_ARGS} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       else
-        docker build --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} -t ${LATEST_TAG} .
+        docker build --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       fi
 
     # Push to private registry
+    - echo "📤 Pushing image to registry..."
     - docker push ${IMAGE_TAG}
-    - docker push ${LATEST_TAG}
 
-    # Output version for downstream jobs
-    - echo "Built ${APP_NAME} version ${VERSION} and pushed to ${IMAGE_TAG}"
+    - echo "✅ Built and pushed ${APP_NAME}:${VERSION} to ${IMAGE_TAG}"
 
 # Reusable GitOps update template
 .gitops-update-template:
@@ -306,7 +402,7 @@ cache:
     ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
     ENVIRONMENT: "staging"
   before_script:
-    - apk add --no-cache git openssh yq jq
+    - apk add --no-cache git openssh yq
     - mkdir -p ~/.ssh
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
@@ -314,122 +410,57 @@ cache:
     - git config --global user.name "${DEPLOY_USER}"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
-    # Generate version tag
+    # Validate VERSION from version-calculation job
     - |
-      set -euo pipefail
-      git fetch --tags --force || true
-
-      # Get latest tag matching v*; if none, fall back to root package.json version
-      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -n "$LAST_TAG" ]; then
-        echo "Last tag: $LAST_TAG"
-        BASE=${LAST_TAG#v}
-      else
-        BASE=$(jq -r '.version' package.json)
-        echo "No tag found. Using root version: $BASE"
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
+        exit 1
       fi
-
-      # Determine version increment based on commit message
-      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
-      COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-
-      if echo "$COMMIT_MESSAGE" | grep -qi "major"; then
-        echo "Found 'major' in commit message, incrementing major version"
-        MAJOR=$((MAJOR+1))
-        MINOR=0
-        PATCH=0
-      elif echo "$COMMIT_MESSAGE" | grep -qi "minor"; then
-        echo "Found 'minor' in commit message, incrementing minor version"
-        MINOR=$((MINOR+1))
-        PATCH=0
-      else
-        echo "No version keywords found, incrementing patch version"
-        PATCH=$((PATCH+1))
-      fi
-
-      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-
-      # Ensure tag uniqueness by incrementing patch until an unused tag is found
-      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null; do
-        PATCH=$((PATCH+1))
-        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-      done
-
-      echo "Creating version: v${NEW_VERSION}"
-
-      # Update package.json with the new version
-      if [ -f "package.json" ]; then
-        jq --arg ver "${NEW_VERSION}" '.version = $ver' package.json > package.json.tmp
-        mv package.json.tmp package.json
-        echo "Updated package.json to version ${NEW_VERSION}"
-      fi
-
-      # Commit the version update
-      git add package.json
-      git commit -m "chore: bump version to v${NEW_VERSION} [skip ci]" || echo "No changes to commit"
-
-      # Create and push the version tag and commit to the project repository
-      git tag "v${NEW_VERSION}"
-      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME} --tags
-
-      # Export version for use in deployment
-      export VERSION="v${NEW_VERSION}"
-      echo "VERSION=${VERSION}" >> deploy.env
+      echo "📦 Deploying version ${VERSION} to ${ENVIRONMENT}"
 
     # Clone argonaut repository
     - git clone ${ARGONAUT_REPO} argonaut
     - cd argonaut
 
-    # Set version for deployment using the tagged version
-    - |
-      if [ -f "../deploy.env" ]; then
-        source ../deploy.env
-        echo "Using tagged version: ${VERSION}"
-      else
-        export VERSION="staging-$(date +%Y%m%d-%H%M%S)"
-        echo "Fallback version: ${VERSION}"
-      fi
-      echo "Updating ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
-
     # Process APP_IMAGES if provided
     - |
       if [ -n "${APP_IMAGES:-}" ]; then
-        echo "Processing APP_IMAGES: ${APP_IMAGES}"
+        echo "🔄 Processing APP_IMAGES: ${APP_IMAGES}"
         echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
-          echo "Updating ${app_name} to use image ${image_name}:${CI_COMMIT_SHORT_SHA} with deployment version ${VERSION}"
+          echo "   📝 Updating ${app_name} to use image ${image_name}:${VERSION}"
           patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
           mkdir -p "$(dirname "$patch_file")"
-          cat > "$patch_file" << 'EOF'
+          cat > "$patch_file" << EOF
       apiVersion: apps/v1
       kind: Deployment
       metadata:
         name: ${PROJECT_NAME}-${app_name}
         labels:
-          version: "${VERSION}"
+          app.kubernetes.io/version: "${VERSION}"
       spec:
         template:
           metadata:
             labels:
-              version: "${VERSION}"
+              app.kubernetes.io/version: "${VERSION}"
           spec:
             containers:
             - name: ${PROJECT_NAME}-${app_name}
-              image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
       EOF
-          echo "Created deployment patch: $patch_file"
+          echo "   ✅ Created deployment patch: $patch_file"
         done
       else
-        echo "No APP_IMAGES provided, skipping image updates"
+        echo "⚠️  No APP_IMAGES provided, skipping image updates"
       fi
 
-    # Commit and push changes with the tagged version
+    # Commit and push changes
     - git add .
     - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy version ${VERSION}" || echo "No changes to commit"'
     - git push origin main
 
-    - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
+    - echo "🎉 Successfully deployed ${PROJECT_NAME} ${ENVIRONMENT} version ${VERSION}"
 
-# Reusable production deployment template (manual) - now uses staged versions
+# Reusable production deployment template (manual) - uses semantic versions
 .production-deploy-template:
   stage: production-deploy
   tags:
@@ -447,27 +478,14 @@ cache:
     - git config --global user.name "${DEPLOY_USER}"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
-    # Get the version from the previous job or use latest tag
+    # Validate VERSION is available (should come from staging)
     - |
-      set -euo pipefail
-      git fetch --tags --force || true
-
-      if [ -n "${VERSION:-}" ]; then
-        echo "Using version from staging deployment: ${VERSION}"
-        PRODUCTION_VERSION="${VERSION}"
-      else
-        # Fallback: get latest tag
-        LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-        if [ -n "$LAST_TAG" ]; then
-          PRODUCTION_VERSION="${LAST_TAG}"
-          echo "Using latest tag: ${PRODUCTION_VERSION}"
-        else
-          echo "Error: No version found"
-          exit 1
-        fi
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Production deployment should receive version from staging job."
+        echo "💡 Tip: Make sure production depends on staging and staging passes VERSION via artifacts."
+        exit 1
       fi
-
-      echo "Deploying to production with version: ${PRODUCTION_VERSION}"
+      echo "🚀 Deploying version ${VERSION} to ${ENVIRONMENT}"
 
     # Clone argonaut repository
     - git clone ${ARGONAUT_REPO} argonaut
@@ -476,40 +494,40 @@ cache:
     # Process APP_IMAGES if provided
     - |
       if [ -n "${APP_IMAGES:-}" ]; then
-        echo "Processing APP_IMAGES: ${APP_IMAGES}"
+        echo "🔄 Processing APP_IMAGES: ${APP_IMAGES}"
         echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
-          echo "Updating ${app_name} for production with version ${PRODUCTION_VERSION}"
+          echo "   📝 Updating ${app_name} to use image ${image_name}:${VERSION}"
           patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
           mkdir -p "$(dirname "$patch_file")"
-          cat > "$patch_file" << 'EOF'
+          cat > "$patch_file" << EOF
       apiVersion: apps/v1
       kind: Deployment
       metadata:
         name: ${PROJECT_NAME}-${app_name}
         labels:
-          version: "${PRODUCTION_VERSION}"
+          app.kubernetes.io/version: "${VERSION}"
       spec:
         template:
           metadata:
             labels:
-              version: "${PRODUCTION_VERSION}"
+              app.kubernetes.io/version: "${VERSION}"
           spec:
             containers:
             - name: ${PROJECT_NAME}-${app_name}
-              image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
       EOF
-          echo "Created deployment patch: $patch_file"
+          echo "   ✅ Created deployment patch: $patch_file"
         done
       else
-        echo "No APP_IMAGES provided, skipping image updates"
+        echo "⚠️  No APP_IMAGES provided, skipping image updates"
       fi
 
     # Commit and push changes
     - git add .
-    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy version ${PRODUCTION_VERSION}" || echo "No changes to commit"'
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy version ${VERSION}" || echo "No changes to commit"'
     - git push origin main
 
-    - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${PRODUCTION_VERSION}"
+    - echo "🎉 Successfully deployed ${PROJECT_NAME} ${ENVIRONMENT} version ${VERSION}"
   rules:
     - when: manual
       allow_failure: true
