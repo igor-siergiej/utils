@@ -181,6 +181,10 @@ cache:
       git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME} --tags
       echo "📤 Pushed tag and commit to repository"
 
+      # Export for downstream jobs
+      echo "VERSION=${NEW_VERSION}" > build.env
+      echo "VERSION_TAG=v${NEW_VERSION}" >> build.env
+
       echo "✅ Version calculation complete: ${NEW_VERSION}"
 
 # Reusable publish job template
@@ -217,7 +221,7 @@ cache:
       NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
       # Ensure tag uniqueness by incrementing patch until an unused tag is found
-      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null; do
+      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; do
         PATCH=$((PATCH+1))
         NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
       done
@@ -299,18 +303,13 @@ cache:
     DOCKER_TLS_CERTDIR: "/certs"
   before_script:
     - docker info
-    - apk add --no-cache git
     - echo "🐳 Building ${APP_NAME} image"
-    # Fetch the latest version tag from repository
     - |
-      git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force
-      LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -z "$LATEST_TAG" ]; then
-        echo "❌ ERROR: No version tag found. Make sure version-calculation job runs before this job."
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
         exit 1
       fi
-      export VERSION=${LATEST_TAG#v}
-      echo "📦 Using semantic version: ${VERSION} (from tag ${LATEST_TAG})"
+      echo "📦 Using semantic version: ${VERSION}"
   script:
     - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${VERSION}"
 
@@ -404,16 +403,12 @@ cache:
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
     - git config --global user.name "${DEPLOY_USER}"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
-    # Fetch the latest version tag from repository
     - |
-      git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force
-      LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -z "$LATEST_TAG" ]; then
-        echo "❌ ERROR: No version tag found. Make sure version-calculation job runs before this job."
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
         exit 1
       fi
-      export VERSION=${LATEST_TAG#v}
-      echo "📦 Deploying version ${VERSION} (from tag ${LATEST_TAG}) to ${ENVIRONMENT}"
+      echo "📦 Deploying version ${VERSION} to ${ENVIRONMENT}"
   script:
     # Clone argonaut repository
     - git clone ${ARGONAUT_REPO} argonaut
@@ -474,16 +469,12 @@ cache:
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
     - git config --global user.name "${DEPLOY_USER}"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
-    # Fetch the latest version tag from repository
     - |
-      git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force
-      LATEST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -z "$LATEST_TAG" ]; then
-        echo "❌ ERROR: No version tag found. Make sure version-calculation job created a tag."
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
         exit 1
       fi
-      export VERSION=${LATEST_TAG#v}
-      echo "🚀 Deploying version ${VERSION} (from tag ${LATEST_TAG}) to ${ENVIRONMENT}"
+      echo "🚀 Deploying version ${VERSION} to ${ENVIRONMENT}"
   script:
     # Clone argonaut repository
     - git clone ${ARGONAUT_REPO} argonaut
