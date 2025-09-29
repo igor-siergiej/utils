@@ -243,7 +243,7 @@ cache:
   stage: gitops-update
   tags:
     - server
-  image: alpine/git:latest
+  image: bitnami/git:latest
   variables:
     ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
   before_script:
