@@ -182,10 +182,13 @@ cache:
       echo "📤 Pushed tag and commit to repository"
 
       # Export for downstream jobs
-      echo "VERSION=${NEW_VERSION}" > build.env
-      echo "VERSION_TAG=v${NEW_VERSION}" >> build.env
+      echo "VERSION=${NEW_VERSION:-}" > build.env
+      echo "VERSION_TAG=v${NEW_VERSION:-}" >> build.env
 
       echo "✅ Version calculation complete: ${NEW_VERSION}"
+  artifacts:
+    reports:
+      dotenv: build.env
 
 # Reusable publish job template
 .publish-template:
