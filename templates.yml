@@ -373,23 +373,23 @@ cache:
           echo "Updating ${app_name} to use image ${image_name}:${CI_COMMIT_SHORT_SHA} with deployment version ${VERSION}"
           patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
           mkdir -p "$(dirname "$patch_file")"
-          cat > "$patch_file" << EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${PROJECT_NAME}-${app_name}
-  labels:
-    version: "${VERSION}"
-spec:
-  template:
-    metadata:
-      labels:
-        version: "${VERSION}"
-    spec:
-      containers:
-      - name: ${PROJECT_NAME}-${app_name}
-        image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
-EOF
+          cat > "$patch_file" << 'EOF'
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ${PROJECT_NAME}-${app_name}
+        labels:
+          version: "${VERSION}"
+      spec:
+        template:
+          metadata:
+            labels:
+              version: "${VERSION}"
+          spec:
+            containers:
+            - name: ${PROJECT_NAME}-${app_name}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+      EOF
           echo "Created deployment patch: $patch_file"
         done
       else
@@ -459,23 +459,23 @@ EOF
           echo "Updating ${app_name} for production with version ${PRODUCTION_VERSION}"
           patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
           mkdir -p "$(dirname "$patch_file")"
-          cat > "$patch_file" << EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ${PROJECT_NAME}-${app_name}
-  labels:
-    version: "${PRODUCTION_VERSION}"
-spec:
-  template:
-    metadata:
-      labels:
-        version: "${PRODUCTION_VERSION}"
-    spec:
-      containers:
-      - name: ${PROJECT_NAME}-${app_name}
-        image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
-EOF
+          cat > "$patch_file" << 'EOF'
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: ${PROJECT_NAME}-${app_name}
+        labels:
+          version: "${PRODUCTION_VERSION}"
+      spec:
+        template:
+          metadata:
+            labels:
+              version: "${PRODUCTION_VERSION}"
+          spec:
+            containers:
+            - name: ${PROJECT_NAME}-${app_name}
+              image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+      EOF
           echo "Created deployment patch: $patch_file"
         done
       else
