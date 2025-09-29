@@ -114,7 +114,7 @@ cache:
   script:
     # Calculate next semantic version
     - |
-      set -euo pipefail
+      set -eo pipefail
 
       # Initialize build.env early to ensure artifact exists
       echo "VERSION=" > build.env
