@@ -116,9 +116,15 @@ cache:
     - |
       set -eo pipefail
 
+      # Initialize variables to ensure they're always defined
+      NEW_VERSION="0.1.0"
+      MAJOR=0
+      MINOR=1
+      PATCH=0
+
       # Initialize build.env early to ensure artifact exists
-      echo "VERSION=" > build.env
-      echo "VERSION_TAG=" >> build.env
+      echo "VERSION=${NEW_VERSION}" > build.env
+      echo "VERSION_TAG=v${NEW_VERSION}" >> build.env
 
       echo "🔍 Fetching tags from repository..."
       git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force || true
@@ -130,7 +136,12 @@ cache:
         BASE=${LAST_TAG#v}
       else
         if [ -f "package.json" ]; then
-          BASE=$(jq -r '.version' package.json)
+          BASE=$(jq -r '.version // "0.1.0"' package.json)
+          # Validate that BASE is a valid semantic version format
+          if ! echo "$BASE" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "⚠️  Invalid version in package.json: $BASE. Using default: 0.1.0"
+            BASE="0.1.0"
+          fi
           echo "📦 No tag found. Using package.json version: $BASE"
         else
           BASE="0.1.0"
@@ -138,8 +149,15 @@ cache:
         fi
       fi
 
-      # Determine version increment based on commit message
+      # Parse version components with validation
       IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+
+      # Ensure all components are numeric
+      MAJOR=${MAJOR:-0}
+      MINOR=${MINOR:-0}
+      PATCH=${PATCH:-0}
+
+      # Determine version increment based on commit message
       COMMIT_MESSAGE=$(git log -1 --pretty=%B)
 
       if echo "$COMMIT_MESSAGE" | grep -qi "major"; then
@@ -186,8 +204,8 @@ cache:
       echo "📤 Pushed tag and commit to repository"
 
       # Export for downstream jobs
-      echo "VERSION=${NEW_VERSION:-}" > build.env
-      echo "VERSION_TAG=v${NEW_VERSION:-}" >> build.env
+      echo "VERSION=${NEW_VERSION}" > build.env
+      echo "VERSION_TAG=v${NEW_VERSION}" >> build.env
 
       echo "✅ Version calculation complete: ${NEW_VERSION}"
   artifacts:
