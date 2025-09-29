@@ -329,9 +329,24 @@ cache:
         echo "No tag found. Using root version: $BASE"
       fi
 
-      # Increment patch version
+      # Determine version increment based on commit message
       IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
-      PATCH=$((PATCH+1))
+      COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+
+      if echo "$COMMIT_MESSAGE" | grep -qi "major"; then
+        echo "Found 'major' in commit message, incrementing major version"
+        MAJOR=$((MAJOR+1))
+        MINOR=0
+        PATCH=0
+      elif echo "$COMMIT_MESSAGE" | grep -qi "minor"; then
+        echo "Found 'minor' in commit message, incrementing minor version"
+        MINOR=$((MINOR+1))
+        PATCH=0
+      else
+        echo "No version keywords found, incrementing patch version"
+        PATCH=$((PATCH+1))
+      fi
+
       NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
       # Ensure tag uniqueness by incrementing patch until an unused tag is found
@@ -342,7 +357,7 @@ cache:
 
       echo "Creating version: v${NEW_VERSION}"
 
-      # Create and push the version tag
+      # Create and push the version tag to the project repository
       git tag "v${NEW_VERSION}"
       git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
 
