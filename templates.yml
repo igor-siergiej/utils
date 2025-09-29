@@ -113,7 +113,7 @@ cache:
     - git config --global user.email "${DEPLOY_EMAIL:-gitlab-ci@noreply.gitlab.com}"
   script:
     # Calculate next semantic version using external script
-    - bash utils/scripts/calculate-version.sh
+    - sh utils/scripts/calculate-version.sh
   artifacts:
     reports:
       dotenv: build.env
