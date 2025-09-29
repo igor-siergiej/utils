@@ -296,12 +296,198 @@ cache:
 
     - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
 
-# Reusable production deployment template (manual)
-.production-deploy-template:
-  extends: .gitops-update-template
-  stage: production-deploy
+# Reusable staging GitOps template with versioning
+.gitops-staging-template:
+  stage: gitops-update
+  tags:
+    - server
+  image: alpine:latest
   variables:
+    ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
+    ENVIRONMENT: "staging"
+  before_script:
+    - apk add --no-cache git openssh yq
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - git config --global user.name "${DEPLOY_USER}"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+  script:
+    # Generate version tag
+    - |
+      set -euo pipefail
+      git fetch --tags --force || true
+
+      # Get latest tag matching v*; if none, fall back to root package.json version
+      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+      if [ -n "$LAST_TAG" ]; then
+        echo "Last tag: $LAST_TAG"
+        BASE=${LAST_TAG#v}
+      else
+        BASE=$(node -p "require('./package.json').version")
+        echo "No tag found. Using root version: $BASE"
+      fi
+
+      # Increment patch version
+      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+      PATCH=$((PATCH+1))
+      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+      # Ensure tag uniqueness by incrementing patch until an unused tag is found
+      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null; do
+        PATCH=$((PATCH+1))
+        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+      done
+
+      echo "Creating version: v${NEW_VERSION}"
+
+      # Create and push the version tag
+      git tag "v${NEW_VERSION}"
+      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
+
+      # Export version for use in deployment
+      export VERSION="v${NEW_VERSION}"
+      echo "VERSION=${VERSION}" >> deploy.env
+
+    # Clone argonaut repository
+    - git clone ${ARGONAUT_REPO} argonaut
+    - cd argonaut
+
+    # Set version for deployment using the tagged version
+    - |
+      if [ -f "../deploy.env" ]; then
+        source ../deploy.env
+        echo "Using tagged version: ${VERSION}"
+      else
+        export VERSION="staging-$(date +%Y%m%d-%H%M%S)"
+        echo "Fallback version: ${VERSION}"
+      fi
+      echo "Updating ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
+
+    # Process APP_IMAGES if provided
+    - |
+      if [ -n "${APP_IMAGES:-}" ]; then
+        echo "Processing APP_IMAGES: ${APP_IMAGES}"
+        echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
+          echo "Updating ${app_name} to use image ${image_name}:${CI_COMMIT_SHORT_SHA} with deployment version ${VERSION}"
+          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
+          mkdir -p "$(dirname "$patch_file")"
+          cat > "$patch_file" << EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROJECT_NAME}-${app_name}
+  labels:
+    version: "${VERSION}"
+spec:
+  template:
+    metadata:
+      labels:
+        version: "${VERSION}"
+    spec:
+      containers:
+      - name: ${PROJECT_NAME}-${app_name}
+        image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+EOF
+          echo "Created deployment patch: $patch_file"
+        done
+      else
+        echo "No APP_IMAGES provided, skipping image updates"
+      fi
+
+    # Commit and push changes with the tagged version
+    - git add .
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy version ${VERSION}" || echo "No changes to commit"'
+    - git push origin main
+
+    - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
+  artifacts:
+    reports:
+      dotenv: deploy.env
+    expire_in: 1 hour
+
+# Reusable production deployment template (manual) - now uses staged versions
+.production-deploy-template:
+  stage: production-deploy
+  tags:
+    - server
+  image: alpine:latest
+  variables:
+    ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
     ENVIRONMENT: "production"
+  before_script:
+    - apk add --no-cache git openssh yq
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - git config --global user.name "${DEPLOY_USER}"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+  script:
+    # Get the version from the previous job or use latest tag
+    - |
+      set -euo pipefail
+      git fetch --tags --force || true
+
+      if [ -n "${VERSION:-}" ]; then
+        echo "Using version from staging deployment: ${VERSION}"
+        PRODUCTION_VERSION="${VERSION}"
+      else
+        # Fallback: get latest tag
+        LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          PRODUCTION_VERSION="${LAST_TAG}"
+          echo "Using latest tag: ${PRODUCTION_VERSION}"
+        else
+          echo "Error: No version found"
+          exit 1
+        fi
+      fi
+
+      echo "Deploying to production with version: ${PRODUCTION_VERSION}"
+
+    # Clone argonaut repository
+    - git clone ${ARGONAUT_REPO} argonaut
+    - cd argonaut
+
+    # Process APP_IMAGES if provided
+    - |
+      if [ -n "${APP_IMAGES:-}" ]; then
+        echo "Processing APP_IMAGES: ${APP_IMAGES}"
+        echo "${APP_IMAGES}" | tr "," "\n" | while IFS=: read -r app_name image_name; do
+          echo "Updating ${app_name} for production with version ${PRODUCTION_VERSION}"
+          patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/deployment-${app_name}-patch.yaml"
+          mkdir -p "$(dirname "$patch_file")"
+          cat > "$patch_file" << EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROJECT_NAME}-${app_name}
+  labels:
+    version: "${PRODUCTION_VERSION}"
+spec:
+  template:
+    metadata:
+      labels:
+        version: "${PRODUCTION_VERSION}"
+    spec:
+      containers:
+      - name: ${PROJECT_NAME}-${app_name}
+        image: ${PRIVATE_REGISTRY}/${image_name}:${CI_COMMIT_SHORT_SHA}
+EOF
+          echo "Created deployment patch: $patch_file"
+        done
+      else
+        echo "No APP_IMAGES provided, skipping image updates"
+      fi
+
+    # Commit and push changes
+    - git add .
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy version ${PRODUCTION_VERSION}" || echo "No changes to commit"'
+    - git push origin main
+
+    - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${PRODUCTION_VERSION}"
   rules:
     - when: manual
       allow_failure: true
