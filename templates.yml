@@ -243,11 +243,11 @@ cache:
   stage: gitops-update
   tags:
     - server
-  image: bitnami/git:latest
+  image: alpine:latest
   variables:
     ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
   before_script:
-    - apk add --no-cache git yq
+    - apk add --no-cache git openssh yq
     - mkdir -p ~/.ssh
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
