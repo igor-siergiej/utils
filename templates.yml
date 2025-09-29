@@ -116,6 +116,10 @@ cache:
     - |
       set -euo pipefail
 
+      # Initialize build.env early to ensure artifact exists
+      echo "VERSION=" > build.env
+      echo "VERSION_TAG=" >> build.env
+
       echo "🔍 Fetching tags from repository..."
       git fetch https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git --tags --force || true
 
