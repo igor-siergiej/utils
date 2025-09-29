@@ -402,10 +402,6 @@ cache:
     - git push origin main
 
     - echo "✅ Updated ${PROJECT_NAME} ${ENVIRONMENT} deployment to version ${VERSION}"
-  artifacts:
-    reports:
-      dotenv: deploy.env
-    expire_in: 1 hour
 
 # Reusable production deployment template (manual) - now uses staged versions
 .production-deploy-template:
