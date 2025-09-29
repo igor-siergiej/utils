@@ -306,7 +306,7 @@ cache:
     ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
     ENVIRONMENT: "staging"
   before_script:
-    - apk add --no-cache git openssh yq
+    - apk add --no-cache git openssh yq jq
     - mkdir -p ~/.ssh
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
@@ -325,7 +325,7 @@ cache:
         echo "Last tag: $LAST_TAG"
         BASE=${LAST_TAG#v}
       else
-        BASE=$(node -p "require('./package.json').version")
+        BASE=$(jq -r '.version' package.json)
         echo "No tag found. Using root version: $BASE"
       fi
 
