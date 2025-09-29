@@ -245,7 +245,7 @@ cache:
     - server
   image: alpine:latest
   variables:
-    ARGONAUT_REPO: "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/imapps/argonaut.git"
+    ARGONAUT_REPO: "https://${DEPLOY_USER}:${DEPLOY_TOKEN}@gitlab.com/imapps/argonaut.git"
   before_script:
     - apk add --no-cache git yq
     - git config --global user.name "gitlab-ci[bot]"
