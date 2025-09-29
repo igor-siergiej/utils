@@ -165,7 +165,7 @@ cache:
 
       # Update package.json with the new version if it exists
       if [ -f "package.json" ]; then
-        jq --arg ver "${NEW_VERSION}" '.version = $ver' package.json | tee package.json.tmp >/dev/null
+        jq --arg ver "${NEW_VERSION}" '.version = $ver' package.json > package.json.tmp
         mv package.json.tmp package.json
         echo "📝 Updated package.json to version ${NEW_VERSION}"
 
