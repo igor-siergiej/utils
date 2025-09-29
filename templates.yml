@@ -297,6 +297,9 @@ cache:
 # Reusable Docker build job template
 .docker-build-template:
   stage: docker-build
+  needs:
+    - job: version-calculation
+      artifacts: true
   tags:
     - server
   image: docker:27-dind
@@ -392,6 +395,9 @@ cache:
 # Reusable staging GitOps template with versioning
 .gitops-staging-template:
   stage: gitops-update
+  needs:
+    - job: version-calculation
+      artifacts: true
   tags:
     - server
   image: alpine:latest
@@ -458,6 +464,9 @@ cache:
 # Reusable production deployment template (manual) - uses semantic versions
 .production-deploy-template:
   stage: production-deploy
+  needs:
+    - job: version-calculation
+      artifacts: true
   tags:
     - server
   image: alpine:latest
