@@ -17,7 +17,8 @@
     [
       "semantic-release-yarn",
       {
-        "npmPublish": true
+        "npmPublish": true,
+        "npmPublishRegistry": "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/"
       }
     ],
     [
@@ -37,6 +38,7 @@
       "@semantic-release/gitlab",
       {
         "gitlabUrl": "https://gitlab.com",
+        "gitlabApiPathPrefix": "/api/v4",
         "assets": []
       }
     ]
