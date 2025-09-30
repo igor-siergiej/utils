@@ -106,14 +106,35 @@ cache:
   stage: version-calculation
   tags:
     - server
-  image: alpine:latest
+  image: node:22
+  variables:
+    NODE_AUTH_TOKEN: $CI_JOB_TOKEN
+    YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
+    GITLAB_TOKEN: $CI_JOB_TOKEN
   before_script:
-    - apk add --no-cache git jq
+    - corepack enable
+    - yarn install --immutable
     - git config --global user.name "${DEPLOY_USER:-gitlab-ci[bot]}"
     - git config --global user.email "${DEPLOY_EMAIL:-gitlab-ci@noreply.gitlab.com}"
   script:
-    # Calculate next semantic version using external script
-    - sh utils/scripts/calculate-version.sh
+    # Use semantic-release in dry-run mode to calculate next version
+    - |
+      set -euo pipefail
+
+      # Run semantic-release in dry-run mode to get the next version
+      NEXT_VERSION=$(yarn semantic-release --dry-run --no-ci 2>&1 | grep -oP 'Published release \K[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "")
+
+      if [ -z "$NEXT_VERSION" ]; then
+        echo "⚠️  No release will be published (no relevant commits or already released)"
+        # Get current version from package.json as fallback
+        NEXT_VERSION=$(node -p "require('./package.json').version")
+      fi
+
+      echo "📦 Next version: ${NEXT_VERSION}"
+
+      # Export for downstream jobs
+      echo "VERSION=${NEXT_VERSION}" > build.env
+      echo "VERSION_TAG=v${NEXT_VERSION}" >> build.env
   artifacts:
     reports:
       dotenv: build.env
@@ -127,100 +148,33 @@ cache:
   variables:
     NODE_AUTH_TOKEN: $CI_JOB_TOKEN
     YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
+    GITLAB_TOKEN: $CI_JOB_TOKEN
   before_script:
     - corepack enable
     - yarn install --immutable
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
-    # Determine next version based on git tags
+    # Configure GitLab Package Registry for semantic-release-yarn
     - |
       set -euo pipefail
-      git fetch --tags --force || true
-
-      # Get latest tag matching v*; if none, fall back to root package.json version
-      LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-      if [ -n "$LAST_TAG" ]; then
-        echo "Last tag: $LAST_TAG"
-        BASE=${LAST_TAG#v}
-      else
-        BASE=$(node -p "require('./package.json').version")
-        echo "No tag found. Using root version: $BASE"
-      fi
-
-      # Increment patch version
-      IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
-      PATCH=$((PATCH+1))
-      NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-
-      # Ensure tag uniqueness by incrementing patch until an unused tag is found
-      while git rev-parse -q --verify "refs/tags/v${NEW_VERSION}" >/dev/null 2>&1; do
-        PATCH=$((PATCH+1))
-        NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-      done
-
-      echo "New version: ${NEW_VERSION}"
-
-      # Update root package.json
-      npm version "${NEW_VERSION}" --no-git-tag-version
-
-      # Update each workspace version
-      for pkg in packages/*; do
-        if [ -f "$pkg/package.json" ]; then
-          (cd "$pkg" && npm version "${NEW_VERSION}" --no-git-tag-version)
-        fi
-      done
-
-      echo "Updated all packages to version ${NEW_VERSION}"
-
-    # Update lockfile after version bump
-    - YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install --mode=update-lockfile
-
-    # Build packages
-    - yarn build
-
-    # Publish workspaces to GitLab Package Registry
-    - |
-      set -euo pipefail
-
-      # Configure the GitLab Package Registry
       GITLAB_REGISTRY="https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
       echo "Publishing to registry: ${GITLAB_REGISTRY}"
-
-      # List packages that will be published
-      echo "=== Packages to be published ==="
-      yarn workspaces foreach -A --no-private --topological exec echo "Publishing package at $(pwd)"
-
-      # Ensure all packages are built before publishing
-      echo "=== Building all packages ==="
-      yarn workspaces foreach -A --no-private run build || echo "Some packages may not have build scripts"
 
       # Set npm registry for publishing
       npm config set registry ${GITLAB_REGISTRY}
       npm config set //gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken ${CI_JOB_TOKEN}
 
-      # Publish all non-private workspaces in dependency order with error handling
-      echo "=== Publishing packages ==="
-      yarn workspaces foreach -A --no-private --topological exec sh -c "
-        PKG_NAME=\$(node -p \"require('./package.json').name\")
-        echo \"=== Publishing \$PKG_NAME from \$(pwd) ===\"
-        if npm publish; then
-          echo \"✅ Successfully published \$PKG_NAME\"
-        else
-          echo \"❌ Failed to publish \$PKG_NAME\"
-          exit 1
-        fi
-      "
+    # Build all packages before release
+    - yarn build
 
-    # Commit version bump and create tag
+    # Run semantic-release (handles versioning, changelog, git commits, tags, and publishing)
     - |
       set -euo pipefail
-      NEW_VERSION=$(node -p "require('./package.json').version")
-      git config user.name "gitlab-ci[bot]"
-      git config user.email "gitlab-ci@noreply.gitlab.com"
-      git add -A
-      git commit -m "chore(release): ${NEW_VERSION}" || echo "Nothing to commit"
-      git tag "v${NEW_VERSION}"
-      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
-      git push https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
+      echo "🚀 Running semantic-release..."
+      yarn semantic-release
+
+      echo "✅ Release completed successfully"
 
 # Reusable Docker build job template
 .docker-build-template:

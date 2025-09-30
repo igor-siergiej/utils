@@ -1,0 +1,44 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "angular",
+        "releaseRules": [
+          {
+            "type": "release",
+            "release": "major"
+          }
+        ]
+      }
+    ],
+    "@semantic-release/release-notes-generator",
+    [
+      "semantic-release-yarn",
+      {
+        "npmPublish": true
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["package.json", "packages/*/package.json", "yarn.lock", "CHANGELOG.md"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    [
+      "@semantic-release/gitlab",
+      {
+        "gitlabUrl": "https://gitlab.com",
+        "assets": []
+      }
+    ]
+  ]
+}
