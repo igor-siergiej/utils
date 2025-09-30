@@ -170,13 +170,34 @@ cache:
     # Build all packages before release
     - yarn build
 
-    # Run semantic-release (handles versioning, changelog, git commits, tags, and publishing)
+    # Run semantic-release (handles versioning, changelog, git commits, and tags)
     - |
       set -euo pipefail
-      echo "🚀 Running semantic-release..."
+      echo "🚀 Running semantic-release for versioning..."
       yarn semantic-release
 
-      echo "✅ Release completed successfully"
+      echo "✅ Semantic release completed"
+
+    # Manually publish workspace packages to GitLab Package Registry
+    - |
+      set -euo pipefail
+      echo "📦 Publishing workspace packages to GitLab Package Registry..."
+
+      # Publish all non-private workspaces
+      yarn workspaces foreach --no-private --topological exec bash -c '
+        PACKAGE_NAME=$(node -p "require(\"./package.json\").name")
+        PACKAGE_VERSION=$(node -p "require(\"./package.json\").version")
+        echo "Publishing ${PACKAGE_NAME}@${PACKAGE_VERSION}..."
+
+        if yarn npm publish --tolerate-republish; then
+          echo "✅ Successfully published ${PACKAGE_NAME}@${PACKAGE_VERSION}"
+        else
+          echo "❌ Failed to publish ${PACKAGE_NAME}"
+          exit 1
+        fi
+      '
+
+      echo "✅ All packages published successfully"
 
 # Reusable Docker build job template
 .docker-build-template:

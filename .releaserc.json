@@ -17,7 +17,7 @@
     [
       "semantic-release-yarn",
       {
-        "npmPublish": true
+        "npmPublish": false
       }
     ],
     [
