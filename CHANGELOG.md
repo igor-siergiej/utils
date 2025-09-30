@@ -1,3 +1,10 @@
+## [0.1.1](https://gitlab.com/imapps/utils/compare/v0.1.0...v0.1.1) (2025-09-30)
+
+
+### Bug Fixes
+
+* publish each package in monorepo ([e778057](https://gitlab.com/imapps/utils/commit/e778057dc0daba73bc77df4509ace20b753d8af6))
+
 # [0.1.0](https://gitlab.com/imapps/utils/compare/v0.0.12...v0.1.0) (2025-09-30)
 
 
