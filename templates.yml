@@ -6,10 +6,9 @@
 stages:
   - ci
   - publish
-  - version-calculation
+  - version-release
   - docker-build
   - gitops-update
-  - version-release
   - production-deploy
 
 variables:
@@ -102,44 +101,6 @@ cache:
 
       echo "🎉 Test execution completed!"
 
-# Reusable version calculation template
-.version-calculation-template:
-  stage: version-calculation
-  tags:
-    - server
-  image: node:22
-  variables:
-    NODE_AUTH_TOKEN: $CI_JOB_TOKEN
-    YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
-    GITLAB_TOKEN: $CI_JOB_TOKEN
-  before_script:
-    - corepack enable
-    - yarn install --immutable
-    - git config --global user.name "gitlab-ci[bot]"
-    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
-  script:
-    # Use semantic-release in dry-run mode to calculate next version
-    - |
-      set -euo pipefail
-
-      # Run semantic-release in dry-run mode to get the next version
-      NEXT_VERSION=$(yarn semantic-release --dry-run --no-ci 2>&1 | grep -oP 'Published release \K[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "")
-
-      if [ -z "$NEXT_VERSION" ]; then
-        echo "⚠️  No release will be published (no relevant commits or already released)"
-        # Get current version from package.json as fallback
-        NEXT_VERSION=$(node -p "require('./package.json').version")
-      fi
-
-      echo "📦 Next version: ${NEXT_VERSION}"
-
-      # Export for downstream jobs
-      echo "VERSION=${NEXT_VERSION}" > build.env
-      echo "VERSION_TAG=v${NEXT_VERSION}" >> build.env
-  artifacts:
-    reports:
-      dotenv: build.env
-
 # Reusable publish job template
 .publish-template:
   stage: publish
@@ -223,11 +184,21 @@ cache:
 
       echo "✅ Semantic release completed - version bumped, changelog updated, and tag created"
 
+    # Export version for downstream jobs
+    - |
+      VERSION=$(node -p "require('./package.json').version")
+      echo "📦 Released version: ${VERSION}"
+      echo "VERSION=${VERSION}" > build.env
+      echo "VERSION_TAG=v${VERSION}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+
 # Reusable Docker build job template
 .docker-build-template:
   stage: docker-build
   needs:
-    - job: version-calculation
+    - job: version-release
       artifacts: true
   tags:
     - server
@@ -325,7 +296,7 @@ cache:
 .gitops-staging-template:
   stage: gitops-update
   needs:
-    - job: version-calculation
+    - job: version-release
       artifacts: true
   tags:
     - server
@@ -385,7 +356,7 @@ cache:
 .production-deploy-template:
   stage: production-deploy
   needs:
-    - job: version-calculation
+    - job: version-release
       artifacts: true
   tags:
     - server
