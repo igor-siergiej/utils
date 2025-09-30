@@ -333,32 +333,16 @@ cache:
       if [ -n "${APP_IMAGES:-}" ]; then
         echo "🔄 Processing APP_IMAGES: ${APP_IMAGES}"
         patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/patch-deployment.yaml"
-        mkdir -p "$(dirname "$patch_file")"
 
-        # Clear the file
-        > "$patch_file"
+        if [ ! -f "$patch_file" ]; then
+          echo "❌ ERROR: Deployment patch file not found: $patch_file"
+          exit 1
+        fi
 
-        # Process each app
+        # Update version for each image
         echo "${APP_IMAGES}" | tr ',' '\n' | while IFS=':' read -r app_name image_name; do
-          echo "   📝 Updating ${app_name} to use image ${image_name}:${VERSION}"
-
-          # Add separator if file already has content
-          if [ -s "$patch_file" ]; then
-            echo "---" >> "$patch_file"
-          fi
-
-          cat >> "$patch_file" << EOF
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: ${PROJECT_NAME}-${app_name}
-      spec:
-        template:
-          spec:
-            containers:
-              - name: ${PROJECT_NAME}-${app_name}
-                image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
-      EOF
+          echo "   📝 Updating ${image_name} to version ${VERSION}"
+          sed -i "s|image: ${PRIVATE_REGISTRY}/${image_name}:.*|image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}|g" "$patch_file"
         done
 
         echo "   ✅ Updated deployment patch: $patch_file"
@@ -409,32 +393,16 @@ cache:
       if [ -n "${APP_IMAGES:-}" ]; then
         echo "🔄 Processing APP_IMAGES: ${APP_IMAGES}"
         patch_file="apps/${PROJECT_NAME}/overlays/${ENVIRONMENT}/patch-deployment.yaml"
-        mkdir -p "$(dirname "$patch_file")"
 
-        # Clear the file
-        > "$patch_file"
+        if [ ! -f "$patch_file" ]; then
+          echo "❌ ERROR: Deployment patch file not found: $patch_file"
+          exit 1
+        fi
 
-        # Process each app
+        # Update version for each image
         echo "${APP_IMAGES}" | tr ',' '\n' | while IFS=':' read -r app_name image_name; do
-          echo "   📝 Updating ${app_name} to use image ${image_name}:${VERSION}"
-
-          # Add separator if file already has content
-          if [ -s "$patch_file" ]; then
-            echo "---" >> "$patch_file"
-          fi
-
-          cat >> "$patch_file" << EOF
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: ${PROJECT_NAME}-${app_name}
-      spec:
-        template:
-          spec:
-            containers:
-              - name: ${PROJECT_NAME}-${app_name}
-                image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}
-      EOF
+          echo "   📝 Updating ${image_name} to version ${VERSION}"
+          sed -i "s|image: ${PRIVATE_REGISTRY}/${image_name}:.*|image: ${PRIVATE_REGISTRY}/${image_name}:${VERSION}|g" "$patch_file"
         done
 
         echo "   ✅ Updated deployment patch: $patch_file"
