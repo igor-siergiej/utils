@@ -114,8 +114,8 @@ cache:
   before_script:
     - corepack enable
     - yarn install --immutable
-    - git config --global user.name "${DEPLOY_USER:-gitlab-ci[bot]}"
-    - git config --global user.email "${DEPLOY_EMAIL:-gitlab-ci@noreply.gitlab.com}"
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
     # Use semantic-release in dry-run mode to calculate next version
     - |
@@ -253,7 +253,7 @@ cache:
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-    - git config --global user.name "${DEPLOY_USER}"
+    - git config --global user.name "gitlab-ci[bot]"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
     # Clone argonaut repository
@@ -315,7 +315,7 @@ cache:
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-    - git config --global user.name "${DEPLOY_USER}"
+    - git config --global user.name "gitlab-ci[bot]"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
     - |
       if [ -z "${VERSION:-}" ]; then
@@ -384,7 +384,7 @@ cache:
     - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
     - chmod 600 ~/.ssh/id_ed25519
     - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
-    - git config --global user.name "${DEPLOY_USER}"
+    - git config --global user.name "gitlab-ci[bot]"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
     - |
       if [ -z "${VERSION:-}" ]; then
