@@ -1,5 +1,5 @@
 {
-  "name": "im-apps-utils",
+  "name": "utils",
   "private": true,
   "version": "0.0.12",
   "description": "Monorepo for shared utilities across IM Apps projects",

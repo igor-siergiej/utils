@@ -4294,27 +4294,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"im-apps-utils@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "im-apps-utils@workspace:."
-  dependencies:
-    "@imapps/eslint-config": "workspace:*"
-    "@semantic-release/changelog": "npm:^6.0.3"
-    "@semantic-release/commit-analyzer": "npm:^13.0.0"
-    "@semantic-release/git": "npm:^10.0.1"
-    "@semantic-release/gitlab": "npm:^13.2.8"
-    "@semantic-release/release-notes-generator": "npm:^14.0.1"
-    eslint: "npm:^9.33.0"
-    husky: "npm:^9.1.7"
-    lint-staged: "npm:^16.2.0"
-    rimraf: "npm:^6.0.1"
-    semantic-release: "npm:^24.2.0"
-    semantic-release-yarn: "npm:^3.0.2"
-    tsup: "npm:^8.3.0"
-    typescript: "npm:^5.6.3"
-  languageName: unknown
-  linkType: soft
-
 "import-fresh@npm:^3.2.1, import-fresh@npm:^3.3.0":
   version: 3.3.1
   resolution: "import-fresh@npm:3.3.1"
@@ -8674,6 +8653,27 @@ __metadata:
   checksum: 10c0/c27054de2cea2229a66c09522d0fa1415fb12d861d08523a8846bf2e4cbf0079d4c3f725f09dcb87493549bcbf05f5798dce1688b53c6c17201a45759e7253f3
   languageName: node
   linkType: hard
+
+"utils@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "utils@workspace:."
+  dependencies:
+    "@imapps/eslint-config": "workspace:*"
+    "@semantic-release/changelog": "npm:^6.0.3"
+    "@semantic-release/commit-analyzer": "npm:^13.0.0"
+    "@semantic-release/git": "npm:^10.0.1"
+    "@semantic-release/gitlab": "npm:^13.2.8"
+    "@semantic-release/release-notes-generator": "npm:^14.0.1"
+    eslint: "npm:^9.33.0"
+    husky: "npm:^9.1.7"
+    lint-staged: "npm:^16.2.0"
+    rimraf: "npm:^6.0.1"
+    semantic-release: "npm:^24.2.0"
+    semantic-release-yarn: "npm:^3.0.2"
+    tsup: "npm:^8.3.0"
+    typescript: "npm:^5.6.3"
+  languageName: unknown
+  linkType: soft
 
 "validate-npm-package-license@npm:^3.0.4":
   version: 3.0.4

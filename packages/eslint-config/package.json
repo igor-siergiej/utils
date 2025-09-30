@@ -2,6 +2,9 @@
     "name": "@imapps/eslint-config",
     "version": "0.1.0",
     "description": "Shared ESLint configuration for IM Apps projects",
+    "publishConfig": {
+        "access": "public"
+    },
     "main": "build/index.js",
     "module": "build/index.mjs",
     "types": "build/index.d.ts",

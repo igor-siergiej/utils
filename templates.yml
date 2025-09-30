@@ -148,28 +148,24 @@ cache:
   variables:
     NODE_AUTH_TOKEN: $CI_JOB_TOKEN
     YARN_NPM_AUTH_TOKEN: $CI_JOB_TOKEN
+    YARN_NPM_PUBLISH_REGISTRY: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
     GL_TOKEN: $CI_JOB_TOKEN
     GITLAB_TOKEN: $CI_JOB_TOKEN
-    CI_API_V4_URL: "https://gitlab.com/api/v4"
   before_script:
     - corepack enable
     - yarn install --immutable
     - git config --global user.name "gitlab-ci[bot]"
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
   script:
-    # Configure GitLab Package Registry for semantic-release-yarn
+    # Configure GitLab Package Registry for Yarn
     - |
       set -euo pipefail
       GITLAB_REGISTRY="https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
-      echo "Publishing to registry: ${GITLAB_REGISTRY}"
+      echo "📦 Publishing to registry: ${GITLAB_REGISTRY}"
 
-      # Configure Yarn to use GitLab Package Registry
-      yarn config set npmRegistryServer "${GITLAB_REGISTRY}"
+      # Configure Yarn registry in .yarnrc.yml
+      yarn config set npmPublishRegistry "${GITLAB_REGISTRY}"
       yarn config set npmAuthToken "${CI_JOB_TOKEN}"
-
-      # Also set npm config as fallback
-      npm config set registry ${GITLAB_REGISTRY}
-      npm config set //gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken ${CI_JOB_TOKEN}
 
     # Build all packages before release
     - yarn build
