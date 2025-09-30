@@ -1,3 +1,10 @@
+## [0.1.3](https://gitlab.com/imapps/utils/compare/v0.1.2...v0.1.3) (2025-09-30)
+
+
+### Bug Fixes
+
+* publish all packages ([1909baf](https://gitlab.com/imapps/utils/commit/1909baf99bc18d2d830d5b06366f4667d3776518))
+
 ## [0.1.2](https://gitlab.com/imapps/utils/compare/v0.1.1...v0.1.2) (2025-09-30)
 
 
