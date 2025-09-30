@@ -184,7 +184,7 @@ cache:
       echo "📦 Publishing workspace packages to GitLab Package Registry..."
 
       # Publish all non-private workspaces
-      yarn workspaces foreach --no-private --topological exec bash -c '
+      yarn workspaces foreach -A --no-private --topological exec bash -c '
         PACKAGE_NAME=$(node -p "require(\"./package.json\").name")
         PACKAGE_VERSION=$(node -p "require(\"./package.json\").version")
         echo "Publishing ${PACKAGE_NAME}@${PACKAGE_VERSION}..."
