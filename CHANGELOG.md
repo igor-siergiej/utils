@@ -1,3 +1,10 @@
+## [0.1.2](https://gitlab.com/imapps/utils/compare/v0.1.1...v0.1.2) (2025-09-30)
+
+
+### Bug Fixes
+
+* manually publish packages ([4b1f628](https://gitlab.com/imapps/utils/commit/4b1f6281aab817a82da7c2eecba88941ff166f6d))
+
 ## [0.1.1](https://gitlab.com/imapps/utils/compare/v0.1.0...v0.1.1) (2025-09-30)
 
 
