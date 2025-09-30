@@ -9,6 +9,7 @@ stages:
   - version-calculation
   - docker-build
   - gitops-update
+  - version-release
   - production-deploy
 
 variables:
@@ -201,7 +202,7 @@ cache:
 
 # Reusable version release template (for apps that don't need npm publishing)
 .version-release-template:
-  stage: publish
+  stage: version-release
   tags:
     - server
   image: node:22
