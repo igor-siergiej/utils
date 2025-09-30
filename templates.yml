@@ -199,6 +199,29 @@ cache:
 
       echo "✅ All packages published successfully"
 
+# Reusable version release template (for apps that don't need npm publishing)
+.version-release-template:
+  stage: publish
+  tags:
+    - server
+  image: node:22
+  variables:
+    GL_TOKEN: $CI_JOB_TOKEN
+    GITLAB_TOKEN: $CI_JOB_TOKEN
+  before_script:
+    - corepack enable
+    - yarn install --immutable
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+  script:
+    # Run semantic-release (handles versioning, changelog, git commits, and tags)
+    - |
+      set -euo pipefail
+      echo "🚀 Running semantic-release for versioning..."
+      yarn semantic-release
+
+      echo "✅ Semantic release completed - version bumped, changelog updated, and tag created"
+
 # Reusable Docker build job template
 .docker-build-template:
   stage: docker-build
