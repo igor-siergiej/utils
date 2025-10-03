@@ -21,6 +21,7 @@ export const baseConfig = tseslint.config(
             '**/build/**',
             '**/coverage/**',
             '**/.yarn/**',
+            '**/dev-dist/**',
             '**/test-results/**',
             '**/playwright-report/**',
             '**/*.tsbuildinfo',
