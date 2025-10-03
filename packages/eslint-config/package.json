@@ -1,6 +1,6 @@
 {
     "name": "@imapps/eslint-config",
-    "version": "0.1.3",
+    "version": "0.2.0",
     "description": "Shared ESLint configuration for IM Apps projects",
     "publishConfig": {
         "access": "public"

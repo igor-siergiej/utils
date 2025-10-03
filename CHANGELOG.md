@@ -1,3 +1,20 @@
+# [0.2.0](https://gitlab.com/imapps/utils/compare/v0.1.3...v0.2.0) (2025-10-03)
+
+
+### Bug Fixes
+
+* add version-release step ([368bd7e](https://gitlab.com/imapps/utils/commit/368bd7ec21f57c349b556e9127d19cd9a62932d3))
+* only update versions ([3ca8403](https://gitlab.com/imapps/utils/commit/3ca84031e2acbebac425bbc9318a7db01f46acc7))
+* simplify versions steps ([35d1bd6](https://gitlab.com/imapps/utils/commit/35d1bd62dff7a8df09d9d2ab5f1da962d1490964))
+* update staging versions in the right place ([12d1357](https://gitlab.com/imapps/utils/commit/12d13570d99879d031dbbfb6a599211b0c28d90b))
+* use hard coded deploy user ([8edca7a](https://gitlab.com/imapps/utils/commit/8edca7a0b4215b29ddbf1f0f663d59d3c1154d2a))
+
+
+### Features
+
+* add dev-dist to ignore paths ([508284d](https://gitlab.com/imapps/utils/commit/508284da1494410404845514e047e1bf782d54af))
+* add version release template ([aa9fc1f](https://gitlab.com/imapps/utils/commit/aa9fc1fd7d02ce0444f74214aaf5c078f750dae4))
+
 ## [0.1.3](https://gitlab.com/imapps/utils/compare/v0.1.2...v0.1.3) (2025-09-30)
 
 
