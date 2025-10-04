@@ -177,6 +177,8 @@ cache:
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
     # Switch git remote to HTTPS with CI_JOB_TOKEN for pushing commits/tags
     - git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
+    # Fetch all tags from remote to ensure we have the latest state
+    - git fetch --tags --force
   script:
     # Run semantic-release (handles versioning, changelog, git commits, and tags)
     - |
