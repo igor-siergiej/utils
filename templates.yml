@@ -227,9 +227,9 @@ cache:
     - echo "🔨 Building Docker image..."
     - |
       if [ -n "${BUILD_ARGS:-}" ]; then
-        docker build ${BUILD_ARGS} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
+        docker build ${BUILD_ARGS} --build-arg APP_VERSION=${VERSION} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       else
-        docker build --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
+        docker build --build-arg APP_VERSION=${VERSION} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       fi
 
     # Push to private registry
