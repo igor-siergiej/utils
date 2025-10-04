@@ -211,7 +211,15 @@ cache:
     - docker:27-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
+    GIT_STRATEGY: clone
   before_script:
+    - apk add --no-cache git
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+    - |
+      echo "🔄 Fetching latest code with version bump..."
+      git fetch origin
+      git checkout v${VERSION} || git checkout main && git pull origin main
     - docker info
     - echo "🐳 Building ${APP_NAME} image"
     - |
