@@ -1,5 +1,6 @@
 {
   "branches": ["main"],
+  "repositoryUrl": "https://gitlab.com/imapps/utils.git",
   "plugins": [
     [
       "@semantic-release/commit-analyzer",
@@ -32,6 +33,7 @@
         "assets": ["package.json", "packages/*/package.json", "yarn.lock", "CHANGELOG.md"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
-    ]
+    ],
+    "@semantic-release/gitlab"
   ]
 }

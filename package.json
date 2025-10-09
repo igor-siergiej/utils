@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.12",
   "description": "Monorepo for shared utilities across IM Apps projects",
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/imapps/utils.git"
+  },
   "packageManager": "yarn@4.9.2",
   "lint-staged": {
     "*.{ts,mts,cts,json}": [
