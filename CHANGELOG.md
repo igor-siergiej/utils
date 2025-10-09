@@ -1,3 +1,18 @@
+# [0.3.0](https://gitlab.com/imapps/utils/compare/v0.2.0...v0.3.0) (2025-10-09)
+
+
+### Bug Fixes
+
+* add app version to build step ([83b1d15](https://gitlab.com/imapps/utils/commit/83b1d1508c9e2633aba9e706271705de156d7756))
+* build from new tag ([4178956](https://gitlab.com/imapps/utils/commit/4178956093f6e54c6b0a29171fc49508e86c5269))
+* force fetch tags in version-release to prevent cache issues ([24b475f](https://gitlab.com/imapps/utils/commit/24b475f125ee1670347dcf2bd9b2aec316f238a4))
+* use HTTPS with CI_JOB_TOKEN for semantic-release git operations ([853b91a](https://gitlab.com/imapps/utils/commit/853b91a567f2c7ea45a88228adadb01dbe9abc81))
+
+
+### Features
+
+* replace eslint with biome ([ae9f161](https://gitlab.com/imapps/utils/commit/ae9f161d5414c6c656bc1f64940874a465f79603))
+
 # [0.2.0](https://gitlab.com/imapps/utils/compare/v0.1.3...v0.2.0) (2025-10-03)
 
 
