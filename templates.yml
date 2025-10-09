@@ -6,7 +6,7 @@
 stages:
   - ci
   - publish
-  - docker-build-test
+  - docker-build
   - version-release
   - docker-publish
   - gitops-update
@@ -200,8 +200,8 @@ cache:
       dotenv: build.env
 
 # Reusable Docker build test job template (builds and pushes with SHA tag)
-.docker-build-test-template:
-  stage: docker-build-test
+.docker-build-template:
+  stage: docker-build
   needs:
     - ci
   tags:
@@ -271,54 +271,6 @@ cache:
     - docker push ${VERSION_TAG}
 
     - echo "✅ Published ${APP_NAME}:${VERSION} to ${VERSION_TAG}"
-
-# Legacy Docker build template (deprecated - use docker-build-test + docker-publish instead)
-.docker-build-template:
-  stage: docker-build-test
-  needs:
-    - job: version-release
-      artifacts: true
-  tags:
-    - server
-  image: docker:27-dind
-  services:
-    - docker:27-dind
-  variables:
-    DOCKER_TLS_CERTDIR: "/certs"
-    GIT_STRATEGY: clone
-  before_script:
-    - apk add --no-cache git
-    - git config --global user.name "gitlab-ci[bot]"
-    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
-    - |
-      echo "🔄 Fetching latest code with version bump..."
-      git fetch origin
-      git checkout v${VERSION} || git checkout main && git pull origin main
-    - docker info
-    - echo "🐳 Building ${APP_NAME} image"
-    - |
-      if [ -z "${VERSION:-}" ]; then
-        echo "❌ ERROR: VERSION not found. Make sure version-calculation job runs before this job."
-        exit 1
-      fi
-      echo "📦 Using semantic version: ${VERSION}"
-  script:
-    - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${VERSION}"
-
-    # Build the Docker image with semantic version tag
-    - echo "🔨 Building Docker image..."
-    - |
-      if [ -n "${BUILD_ARGS:-}" ]; then
-        docker build ${BUILD_ARGS} --build-arg APP_VERSION=${VERSION} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
-      else
-        docker build --build-arg APP_VERSION=${VERSION} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
-      fi
-
-    # Push to private registry
-    - echo "📤 Pushing image to registry..."
-    - docker push ${IMAGE_TAG}
-
-    - echo "✅ Built and pushed ${APP_NAME}:${VERSION} to ${IMAGE_TAG}"
 
 # Reusable GitOps update template
 .gitops-update-template:
