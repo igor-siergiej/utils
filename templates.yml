@@ -182,7 +182,7 @@ cache:
     # Switch git remote to HTTPS with CI_JOB_TOKEN for pushing commits/tags
     - git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
     # Fetch tags from remote (semantic-release needs them to determine the last release)
-    - git fetch origin --tags
+    - git fetch origin --tags --force
   script:
     # Run semantic-release (handles versioning, changelog, git commits, and tags)
     - |
