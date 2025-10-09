@@ -1,6 +1,6 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { AuthContextType } from '../types';
+import type { AuthContextType } from '../types';
 import { getStorageItem, removeStorageItem, setStorageItem } from '../utils';
 import { useAuthConfig } from './AuthConfigContext';
 import { useUser } from './UserContext';
@@ -25,10 +25,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [accessToken, updateUserFromToken, clearUser]);
 
-    const login = useCallback((token: string) => {
-        setAccessToken(token);
-        setStorageItem(config.accessTokenKey!, token, config.storageType);
-    }, [config.accessTokenKey, config.storageType]);
+    const login = useCallback(
+        (token: string) => {
+            setAccessToken(token);
+            setStorageItem(config.accessTokenKey!, token, config.storageType);
+        },
+        [config.accessTokenKey, config.storageType]
+    );
 
     const logout = useCallback(async () => {
         try {
@@ -53,15 +56,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             accessToken,
             isAuthenticated: isAuth,
             login,
-            logout
+            logout,
         };
     }, [accessToken, login, logout]);
 
-    return (
-        <AuthContext.Provider value={contextValue}>
-            {children}
-        </AuthContext.Provider>
-    );
+    return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = (): AuthContextType => {

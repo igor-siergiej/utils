@@ -1,4 +1,4 @@
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ObjectStoreConnection } from './index';
@@ -6,7 +6,9 @@ import type { ObjectStoreConfig } from './types';
 
 const state = vi.hoisted(() => ({
     getObject: vi.fn<(...args: Array<any>) => any>(() => Readable.from('ok')),
-    statObject: vi.fn<(...args: Array<any>) => any>(() => Promise.resolve({ metaData: { 'content-type': 'image/webp' } })),
+    statObject: vi.fn<(...args: Array<any>) => any>(() =>
+        Promise.resolve({ metaData: { 'content-type': 'image/webp' } })
+    ),
     putObject: vi.fn<(...args: Array<any>) => any>(() => Promise.resolve()),
     ctorArgs: [] as Array<any>,
 }));
@@ -58,14 +60,26 @@ describe('ObjectStoreConnection', () => {
 
         await conn.connect({ endpoint: 'minio.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
         expect(state.ctorArgs).toHaveLength(1);
-        expect(state.ctorArgs[0]).toMatchObject({ endPoint: 'minio.local', port: 9000, useSSL: false, accessKey: 'ak', secretKey: 'sk' });
+        expect(state.ctorArgs[0]).toMatchObject({
+            endPoint: 'minio.local',
+            port: 9000,
+            useSSL: false,
+            accessKey: 'ak',
+            secretKey: 'sk',
+        });
 
         // Reuse when endpoint unchanged
         await conn.connect({ endpoint: 'minio.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'other' });
         expect(state.ctorArgs).toHaveLength(1);
 
         // Recreate when endpoint changes or explicit port provided
-        await conn.connect({ endpoint: 'minio.other', port: 7001, accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
+        await conn.connect({
+            endpoint: 'minio.other',
+            port: 7001,
+            accessKey: 'ak',
+            secretKey: 'sk',
+            bucketName: 'bkt',
+        });
         expect(state.ctorArgs).toHaveLength(2);
         expect(state.ctorArgs[1]).toMatchObject({ endPoint: 'minio.other', port: 7001, useSSL: false });
     });
@@ -102,7 +116,13 @@ describe('ObjectStoreConnection', () => {
 
         await conn.putObject('key', buf, { contentType: 'text/plain', metaData: { 'x-amz-meta-k': 'v' } });
 
-        expect(state.putObject).toHaveBeenCalledWith('bucket', 'key', buf, buf.length, expect.objectContaining({ 'Content-Type': 'text/plain', 'x-amz-meta-k': 'v' }));
+        expect(state.putObject).toHaveBeenCalledWith(
+            'bucket',
+            'key',
+            buf,
+            buf.length,
+            expect.objectContaining({ 'Content-Type': 'text/plain', 'x-amz-meta-k': 'v' })
+        );
     });
 
     it('uploads stream with unknown size and metadata headers', async () => {
@@ -114,6 +134,12 @@ describe('ObjectStoreConnection', () => {
 
         await conn.putObject('key', stream, { metaData: { a: '1' } });
 
-        expect(state.putObject).toHaveBeenCalledWith('bucket', 'key', stream, undefined, expect.objectContaining({ a: '1' }));
+        expect(state.putObject).toHaveBeenCalledWith(
+            'bucket',
+            'key',
+            stream,
+            undefined,
+            expect.objectContaining({ a: '1' })
+        );
     });
 });

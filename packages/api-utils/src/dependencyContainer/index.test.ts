@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DependencyContainer } from '.';
 
-class Foo { constructor(public readonly n: number) {} }
+class Foo {
+    constructor(public readonly n: number) {}
+}
 
 interface Deps extends Record<string, unknown> {
     foo: Foo;

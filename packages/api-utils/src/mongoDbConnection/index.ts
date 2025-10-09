@@ -1,6 +1,6 @@
-import { Collection, Db, Document, MongoClient } from 'mongodb';
+import { type Collection, type Db, type Document, MongoClient } from 'mongodb';
 
-import { MongoConfig } from './types';
+import type { MongoConfig } from './types';
 
 export class MongoDbConnection<CMap extends Record<string, Document> = Record<string, Document>> {
     private client?: MongoClient;

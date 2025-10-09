@@ -2,16 +2,18 @@ import * as mongodb from 'mongodb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MongoDbConnection } from './index';
-import { MongoConfig } from './types';
+import type { MongoConfig } from './types';
 
 // Minimal type map
-interface TestDoc extends mongodb.Document { name: string }
+interface TestDoc extends mongodb.Document {
+    name: string;
+}
 type Map = Record<'test', TestDoc>;
 
 describe('MongoDbConnection', () => {
     const connect = vi.fn();
     const db = vi.fn();
-    const collection = vi.fn(() => ({ findOne: vi.fn() } as unknown as mongodb.Collection<any>));
+    const collection = vi.fn(() => ({ findOne: vi.fn() }) as unknown as mongodb.Collection<any>);
     let ctorUris: Array<string> = [];
     let dbShouldThrow = false;
 
@@ -32,7 +34,9 @@ describe('MongoDbConnection', () => {
 
                     return { collection } as unknown as mongodb.Db;
                 };
-            } as unknown as new (...args: Array<any>) => mongodb.MongoClient
+            } as unknown as new (
+                ...args: Array<any>
+            ) => mongodb.MongoClient
         );
     });
 
@@ -77,7 +81,8 @@ describe('MongoDbConnection', () => {
         const conn = new MongoDbConnection<Map>();
 
         dbShouldThrow = true;
-        await expect(conn.connect({ connectionUri: 'mongodb://a', databaseName: 'dbX' }))
-            .rejects.toThrow(/failed to connect to database dbX/);
+        await expect(conn.connect({ connectionUri: 'mongodb://a', databaseName: 'dbX' })).rejects.toThrow(
+            /failed to connect to database dbX/
+        );
     });
 });

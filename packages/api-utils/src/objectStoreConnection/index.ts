@@ -1,7 +1,7 @@
+import type { Readable } from 'node:stream';
 import { Client } from 'minio';
-import { Readable } from 'stream';
 
-import { IBucket, ObjectStoreConfig } from './types';
+import type { IBucket, ObjectStoreConfig } from './types';
 
 export class ObjectStoreConnection implements IBucket {
     private client?: Client;
@@ -28,7 +28,7 @@ export class ObjectStoreConnection implements IBucket {
                 port,
                 useSSL: false,
                 accessKey,
-                secretKey
+                secretKey,
             });
             this.lastEndpoint = endpoint;
         }
@@ -37,13 +37,11 @@ export class ObjectStoreConnection implements IBucket {
     }
 
     private requireConnection(): { client: Client; bucketName: string } {
-        const { client, bucketName } = this;
-
-        if (!client || !bucketName) {
+        if (!this.client || !this.bucketName) {
             throw new Error('ObjectStoreConnection: not connected');
         }
 
-        return { client, bucketName };
+        return { client: this.client, bucketName: this.bucketName };
     }
 
     public getObjectStream = async (id: string): Promise<Readable> => {

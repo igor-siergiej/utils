@@ -1,4 +1,4 @@
-import { DecodedToken, UserInfo } from '../types';
+import type { DecodedToken, UserInfo } from '../types';
 
 export const decodeJWT = (token: string): DecodedToken | null => {
     try {
@@ -10,7 +10,7 @@ export const decodeJWT = (token: string): DecodedToken | null => {
 
         const payload = parts[1];
 
-        const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+        const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
 
         const decodedPayload = atob(paddedPayload);
 
@@ -55,6 +55,6 @@ export const extractUserFromToken = (token: string): UserInfo | null => {
 
     return {
         username: decoded.username,
-        id: decoded.id
+        id: decoded.id,
     };
 };

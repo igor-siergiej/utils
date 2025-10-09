@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 
 import { useAuthConfig } from '../contexts/AuthConfigContext';
 import { useAuth } from '../contexts/AuthContext';
-import { RefreshTokenResponse } from '../types';
+import type { RefreshTokenResponse } from '../types';
 import { clearRefreshTokenCookie } from '../utils';
 
 export const useTokenRefresh = () => {
@@ -13,9 +13,9 @@ export const useTokenRefresh = () => {
     const hasRefreshToken = useCallback((): boolean => {
         if (typeof document === 'undefined') return false;
 
-        return document.cookie.split(';').some(cookie =>
-            cookie.trim().startsWith(`${config.refreshTokenCookieName}=`)
-        );
+        return document.cookie
+            .split(';')
+            .some((cookie) => cookie.trim().startsWith(`${config.refreshTokenCookieName}=`));
     }, [config.refreshTokenCookieName]);
 
     const clearTokens = useCallback(() => {

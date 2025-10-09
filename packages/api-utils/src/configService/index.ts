@@ -20,7 +20,11 @@ export const parsers = {
     json: <T>(v: string) => JSON.parse(v) as T,
 };
 
-export function getEnv<T = string>(key: string, parser: EnvParser<T> = parsers.string as EnvParser<T>, fallback?: T): T {
+export function getEnv<T = string>(
+    key: string,
+    parser: EnvParser<T> = parsers.string as EnvParser<T>,
+    fallback?: T
+): T {
     const raw = process.env[key];
 
     if (raw === undefined || raw === null || raw === '') {
@@ -45,13 +49,16 @@ export function loadBaseConfig(): BaseConfigShape {
     };
 }
 
-export interface SchemaEntry<T> { parser: EnvParser<T>; default?: T; optional?: boolean; from?: string }
+export interface SchemaEntry<T> {
+    parser: EnvParser<T>;
+    default?: T;
+    optional?: boolean;
+    from?: string;
+}
 export type ConfigSchema = Record<string, SchemaEntry<unknown>>;
 
 type InferConfig<S extends ConfigSchema> = {
-    [K in keyof S]: S[K] extends SchemaEntry<infer T>
-        ? (S[K]['optional'] extends true ? T | undefined : T)
-        : never
+    [K in keyof S]: S[K] extends SchemaEntry<infer T> ? (S[K]['optional'] extends true ? T | undefined : T) : never;
 };
 
 export class ConfigService<S extends ConfigSchema> {

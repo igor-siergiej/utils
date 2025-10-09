@@ -1,21 +1,17 @@
-import { ConstructorOfType } from './types';
+import type { ConstructorOfType } from './types';
 
-export class DependencyContainer<
-    Deps extends Record<string, unknown> = Record<string, unknown>
-> {
+export class DependencyContainer<Deps extends Record<string, unknown> = Record<string, unknown>> {
     private static instance: DependencyContainer<Record<string, unknown>>;
 
     private constructors: Partial<Record<keyof Deps & string, ConstructorOfType<unknown>>> = {};
     private instances: Partial<Record<keyof Deps & string, unknown>> = {};
 
-    public static getInstance<
-        Deps2 extends Record<string, unknown>
-    >(): DependencyContainer<Deps2> {
-        if (!this.instance) {
-            this.instance = new DependencyContainer<Record<string, unknown>>();
+    public static getInstance<Deps2 extends Record<string, unknown>>(): DependencyContainer<Deps2> {
+        if (!DependencyContainer.instance) {
+            DependencyContainer.instance = new DependencyContainer<Record<string, unknown>>();
         }
 
-        return this.instance as unknown as DependencyContainer<Deps2>;
+        return DependencyContainer.instance as unknown as DependencyContainer<Deps2>;
     }
 
     public registerSingleton<K extends keyof Deps & string>(token: K, ctor: ConstructorOfType<Deps[K]>): void {

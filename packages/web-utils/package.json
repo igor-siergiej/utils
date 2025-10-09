@@ -1,45 +1,45 @@
 {
-    "name": "@imapps/web-utils",
-    "version": "0.2.0",
-    "description": "Shared web utilities for frontend apps",
-    "author": "igor-siergiej",
-    "license": "AGPL-3.0 license",
-    "publishConfig": {
-        "access": "public"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://gitlab.com/imapps/utils.git"
-    },
-    "main": "build/index.cjs",
-    "module": "build/index.js",
-    "types": "build/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./build/index.d.ts",
-            "import": "./build/index.js",
-            "require": "./build/index.cjs"
-        }
-    },
-    "files": [
-        "build"
-    ],
-    "scripts": {
-        "build": "tsup",
-        "clean": "rimraf build",
-        "prepack": "yarn clean && yarn build"
-    },
-    "sideEffects": false,
-    "peerDependencies": {
-        "react": ">=18.0.0",
-        "react-router-dom": ">=6.0.0"
-    },
-    "devDependencies": {
-        "@types/react": "^19.1.13",
-        "react": "^19.1.1",
-        "react-router-dom": "^7.9.1",
-        "rimraf": "^6.0.1",
-        "tsup": "^8.5.0",
-        "typescript": "^5.9.2"
+  "name": "@imapps/web-utils",
+  "version": "0.2.0",
+  "description": "Shared web utilities for frontend apps",
+  "author": "igor-siergiej",
+  "license": "AGPL-3.0 license",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/imapps/utils.git"
+  },
+  "main": "build/index.cjs",
+  "module": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js",
+      "require": "./build/index.cjs"
     }
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rimraf build",
+    "prepack": "yarn clean && yarn build"
+  },
+  "sideEffects": false,
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-router-dom": ">=6.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.13",
+    "react": "^19.1.1",
+    "react-router-dom": "^7.9.1",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
 }

@@ -2,22 +2,18 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
-import { UseAuthRedirectOptions } from '../types';
+import type { UseAuthRedirectOptions } from '../types';
 
 export const useAuthRedirect = (options: UseAuthRedirectOptions = {}) => {
-    const {
-        redirectTo = '/home',
-        redirectFrom = '/',
-        condition = 'authenticated'
-    } = options;
+    const { redirectTo = '/home', redirectFrom = '/', condition = 'authenticated' } = options;
 
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated } = useAuth();
 
     useEffect(() => {
-        const shouldRedirect
-            = condition === 'authenticated'
+        const shouldRedirect =
+            condition === 'authenticated'
                 ? isAuthenticated && location.pathname === redirectFrom
                 : !isAuthenticated && location.pathname !== redirectFrom;
 

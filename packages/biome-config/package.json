@@ -1,0 +1,31 @@
+{
+  "name": "@imapps/biome-config",
+  "version": "0.2.0",
+  "description": "Shared Biome configuration for IM Apps projects",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    "./base": "./configs/base.json",
+    "./monorepo": "./configs/monorepo.json",
+    "./react": "./configs/react.json",
+    "./node": "./configs/node.json"
+  },
+  "files": [
+    "configs",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rimraf build"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1"
+  },
+  "peerDependencies": {
+    "@biomejs/biome": "^2.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/imapps/utils.git"
+  }
+}

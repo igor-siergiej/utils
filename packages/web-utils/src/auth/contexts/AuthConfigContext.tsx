@@ -1,6 +1,6 @@
-import { createContext, ReactNode, useContext } from 'react';
+import { createContext, type ReactNode, useContext } from 'react';
 
-import { AuthConfig } from '../types';
+import type { AuthConfig } from '../types';
 
 interface AuthConfigContextType {
     config: AuthConfig;
@@ -21,16 +21,12 @@ export const AuthConfigProvider = ({ children, config }: AuthConfigProviderProps
         endpoints: {
             refresh: '/refresh',
             logout: '/logout',
-            ...config.endpoints
+            ...config.endpoints,
         },
-        ...config
+        ...config,
     };
 
-    return (
-        <AuthConfigContext.Provider value={{ config: configWithDefaults }}>
-            {children}
-        </AuthConfigContext.Provider>
-    );
+    return <AuthConfigContext.Provider value={{ config: configWithDefaults }}>{children}</AuthConfigContext.Provider>;
 };
 
 export const useAuthConfig = (): AuthConfig => {

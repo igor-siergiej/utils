@@ -1,4 +1,4 @@
-import { ILogger } from './types';
+import type { ILogger } from './types';
 
 export class Logger implements ILogger {
     private format(level: string, message: string, meta: Array<unknown>): string {

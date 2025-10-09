@@ -1,4 +1,4 @@
-import { AuthConfig, RefreshTokenResponse } from '../types';
+import type { AuthConfig, RefreshTokenResponse } from '../types';
 
 export const tryRefreshToken = async (config: AuthConfig): Promise<string | null> => {
     try {
@@ -83,7 +83,10 @@ export const withTokenRefresh = async <T>(
     }
 };
 
-export const getStorageItem = (key: string, storageType: 'localStorage' | 'sessionStorage' = 'localStorage'): string | null => {
+export const getStorageItem = (
+    key: string,
+    storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
+): string | null => {
     if (typeof window === 'undefined') return null;
 
     const storage = storageType === 'localStorage' ? window.localStorage : window.sessionStorage;
@@ -91,7 +94,11 @@ export const getStorageItem = (key: string, storageType: 'localStorage' | 'sessi
     return storage.getItem(key);
 };
 
-export const setStorageItem = (key: string, value: string, storageType: 'localStorage' | 'sessionStorage' = 'localStorage'): void => {
+export const setStorageItem = (
+    key: string,
+    value: string,
+    storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
+): void => {
     if (typeof window === 'undefined') return;
 
     const storage = storageType === 'localStorage' ? window.localStorage : window.sessionStorage;
@@ -99,7 +106,10 @@ export const setStorageItem = (key: string, value: string, storageType: 'localSt
     storage.setItem(key, value);
 };
 
-export const removeStorageItem = (key: string, storageType: 'localStorage' | 'sessionStorage' = 'localStorage'): void => {
+export const removeStorageItem = (
+    key: string,
+    storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
+): void => {
     if (typeof window === 'undefined') return;
 
     const storage = storageType === 'localStorage' ? window.localStorage : window.sessionStorage;
