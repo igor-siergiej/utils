@@ -478,7 +478,7 @@ variables:
   stage: ci
   tags:
     - server
-  image: oven/bun:${BUN_VERSION}
+  image: ${PRIVATE_REGISTRY}/bun-git:${BUN_VERSION}
   variables:
     NODE_AUTH_TOKEN: $CI_JOB_TOKEN
     BUN_RUNTIME_TRANSPILER_CACHE_PATH: "$CI_PROJECT_DIR/.bun-cache"
@@ -505,7 +505,7 @@ variables:
   stage: version-release
   tags:
     - server
-  image: oven/bun:${BUN_VERSION}
+  image: ${PRIVATE_REGISTRY}/bun-git:${BUN_VERSION}
   variables:
     GL_TOKEN: $CI_JOB_TOKEN
     GITLAB_TOKEN: $CI_JOB_TOKEN
