@@ -460,10 +460,6 @@ cache:
 # BUN-SPECIFIC TEMPLATES
 # ==============================================================================
 
-variables:
-  BUN_VERSION: "1.1.38"
-  BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.bun-cache"
-
 # Cache configuration for Bun
 .bun-cache:
   cache:
@@ -478,9 +474,9 @@ variables:
   stage: ci
   tags:
     - server
-  image: ${PRIVATE_REGISTRY}/bun-git:${BUN_VERSION}
+  image: ${PRIVATE_REGISTRY}/bun-git:latest
   variables:
-    NODE_AUTH_TOKEN: $CI_JOB_TOKEN
+    PRIVATE_REGISTRY: "192.168.68.54:31834"
     BUN_RUNTIME_TRANSPILER_CACHE_PATH: "$CI_PROJECT_DIR/.bun-cache"
   before_script:
     - bun --version
@@ -505,8 +501,9 @@ variables:
   stage: version-release
   tags:
     - server
-  image: ${PRIVATE_REGISTRY}/bun-git:${BUN_VERSION}
+  image: ${PRIVATE_REGISTRY}/bun-git:latest
   variables:
+    PRIVATE_REGISTRY: "192.168.68.54:31834"
     GL_TOKEN: $CI_JOB_TOKEN
     GITLAB_TOKEN: $CI_JOB_TOKEN
   before_script:
