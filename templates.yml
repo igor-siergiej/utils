@@ -529,7 +529,7 @@ cache:
 
     # Export version for downstream jobs
     - |
-      VERSION=$(node -p "require('./package.json').version")
+      VERSION=$(bun -e "console.log(require('./package.json').version)")
       echo "📦 Released version: ${VERSION}"
       echo "VERSION=${VERSION}" > build.env
       echo "VERSION_TAG=v${VERSION}" >> build.env
