@@ -6,8 +6,8 @@
 stages:
   - ci
   - publish
-  - docker-build
   - version-release
+  - docker-build
   - docker-publish
   - gitops-update
   - production-deploy
