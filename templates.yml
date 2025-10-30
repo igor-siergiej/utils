@@ -202,18 +202,19 @@ cache:
     reports:
       dotenv: build.env
 
-# Reusable Docker build test job template (builds and pushes with SHA tag)
 .docker-build-template:
   stage: docker-build
   needs:
     - ci
   tags:
     - server
-  image: docker:27-dind
+  image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      alias: docker
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_TLS_CERTDIR: ""
     GIT_STRATEGY: clone
   before_script:
     - docker info
@@ -221,16 +222,20 @@ cache:
   script:
     - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
 
-    # Build the Docker image with SHA tag
     - echo "🔨 Building Docker image..."
     - |
       if [ -n "${BUILD_ARGS:-}" ]; then
-        docker build --network=host ${BUILD_ARGS} --build-arg APP_VERSION=${CI_COMMIT_SHORT_SHA} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
+        docker build --network=host ${BUILD_ARGS} \
+          --build-arg APP_VERSION=${CI_COMMIT_SHORT_SHA} \
+          --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN \
+          -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       else
-        docker build --network=host --build-arg APP_VERSION=${CI_COMMIT_SHORT_SHA} --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
+        docker build --network=host \
+          --build-arg APP_VERSION=${CI_COMMIT_SHORT_SHA} \
+          --secret id=CI_JOB_TOKEN,env=CI_JOB_TOKEN \
+          -f ${DOCKERFILE_PATH} -t ${IMAGE_TAG} .
       fi
 
-    # Push to private registry with SHA tag (temporary)
     - echo "📤 Pushing temporary image to registry..."
     - docker push ${IMAGE_TAG}
 
@@ -244,11 +249,14 @@ cache:
       artifacts: true
   tags:
     - server
-  image: docker:27-dind
+  image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      alias: docker
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_TLS_CERTDIR: ""
+    GIT_STRATEGY: clone  
   before_script:
     - docker info
     - |
