@@ -1,0 +1,75 @@
+services:
+  # -------------------------------------------------------------------------
+  # 1. MongoDB Service (uses hardcoded values that mimic your .env file)
+  # -------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: dev-mongodb
+    restart: always
+    ports:
+      # Expose MongoDB externally
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      # Values are hardcoded but align with what your application expects
+      MONGO_INITDB_ROOT_USERNAME: devuser
+      MONGO_INITDB_ROOT_PASSWORD: devpassword
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # -------------------------------------------------------------------------
+  # 2. MinIO Service (Storage)
+  # -------------------------------------------------------------------------
+  minio:
+    image: minio/minio
+    container_name: dev-minio
+    restart: always
+    ports:
+      # MinIO API/Access port (9000, mapped to host 7000 to match your old BUCKET_ENDPOINT: 192.168.68.54:7000)
+      - "7000:9000"
+      # MinIO Console/UI port
+      - "7001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      # Use your specific credentials directly as values
+      MINIO_ROOT_USER: xvygY2oWPN1p9TUQUZPf # Corresponds to BUCKET_ACCESS_KEY
+      MINIO_ROOT_PASSWORD: 6NPjVaTv2ElUI24PBDJItdscTV2ChwDg6JcIQWhE # Corresponds to BUCKET_SECRET_KEY
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # -------------------------------------------------------------------------
+  # 3. MinIO Client (Bucket Creation)
+  # -------------------------------------------------------------------------
+  minio-setup:
+    image: minio/mc
+    container_name: dev-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    # The application-specific values (BUCKET_NAME, BUCKET_ACCESS_KEY, etc.)
+    # are hardcoded here to ensure the correct setup happens immediately.
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      # 1. Set MinIO alias using hardcoded credentials
+      /usr/bin/mc alias set local http://minio:9000 xvygY2oWPN1p9TUQUZPf 6NPjVaTv2ElUI24PBDJItdscTV2ChwDg6JcIQWhE;
+      # 2. Create the specific bucket name
+      /usr/bin/mc mb local/jewellery-catalogue-staging --ignore-existing;
+      # 3. Set policy (e.g., allow public downloads)
+      /usr/bin/mc policy set download local/jewellery-catalogue-staging ;
+      exit 0;
+      "
+    restart: "no"
+
+volumes:
+  mongo_data:
+  minio_data:

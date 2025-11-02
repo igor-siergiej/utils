@@ -492,7 +492,7 @@ cache:
     - server
   image: ${PRIVATE_REGISTRY}/bun-git:latest
   variables:
-    PRIVATE_REGISTRY: "192.168.68.54:31834"
+    PRIVATE_REGISTRY: "192.168.68.33:5000"
     BUN_RUNTIME_TRANSPILER_CACHE_PATH: "$CI_PROJECT_DIR/.bun-cache"
   before_script:
     - bun --version
