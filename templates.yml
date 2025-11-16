@@ -15,7 +15,7 @@ stages:
 variables:
   NODE_VERSION: "22"
   YARN_CACHE_FOLDER: "$CI_PROJECT_DIR/.yarn-cache"
-  PRIVATE_REGISTRY: "192.168.68.33:5000"
+  PRIVATE_REGISTRY: "192.168.68.109:5000"
 
 # Cache configuration for faster builds
 cache:
