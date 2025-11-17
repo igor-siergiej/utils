@@ -229,7 +229,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=192.168.68.33:5000"]
+      command: ["--insecure-registry=192.168.68.109:5000"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -274,7 +274,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=192.168.68.33:5000"]
+      command: ["--insecure-registry=192.168.68.109:5000"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -321,7 +321,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=192.168.68.33:5000"]
+      command: ["--insecure-registry=192.168.68.109:5000"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -550,7 +550,7 @@ cache:
     - server
   image: ${PRIVATE_REGISTRY}/bun-git:latest
   variables:
-    PRIVATE_REGISTRY: "192.168.68.33:5000"
+    PRIVATE_REGISTRY: "192.168.68.109:5000"
     BUN_RUNTIME_TRANSPILER_CACHE_PATH: "$CI_PROJECT_DIR/.bun-cache"
   before_script:
     - bun --version
@@ -577,7 +577,7 @@ cache:
     - server
   image: ${PRIVATE_REGISTRY}/bun-git:latest
   variables:
-    PRIVATE_REGISTRY: "192.168.68.33:5000"
+    PRIVATE_REGISTRY: "192.168.68.109:5000"
     GL_TOKEN: $CI_JOB_TOKEN
     GITLAB_TOKEN: $CI_JOB_TOKEN
   before_script:
