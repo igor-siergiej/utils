@@ -610,3 +610,162 @@ cache:
   artifacts:
     reports:
       dotenv: build.env
+
+# ==============================================================================
+# HELM CHARTS TEMPLATES (For apps using Helm chart deployments)
+# ==============================================================================
+
+# Reusable GitOps staging template for Helm charts
+.gitops-staging-helm-template:
+  stage: gitops-update
+  needs:
+    - job: version-release
+      artifacts: true
+  tags:
+    - server
+  image: alpine:latest
+  variables:
+    ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
+    ENVIRONMENT: "staging"
+  before_script:
+    - apk add --no-cache git openssh yq
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+    - |
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-release job runs before this job."
+        exit 1
+      fi
+      echo "📦 Deploying Helm chart version ${VERSION} to ${ENVIRONMENT}"
+  script:
+    # Clone argonaut repository
+    - git clone ${ARGONAUT_REPO} argonaut
+    - cd argonaut
+
+    # Process HELM_VALUES if provided (format: path/to/values.yaml,image-key-path)
+    - |
+      if [ -n "${HELM_VALUES:-}" ]; then
+        echo "🔄 Processing Helm values: ${HELM_VALUES}"
+        echo "${HELM_VALUES}" | tr ';' '\n' | while IFS=',' read -r values_file image_key; do
+          echo "   📝 Updating ${image_key} in ${values_file} to version ${VERSION}"
+
+          if [ ! -f "$values_file" ]; then
+            echo "❌ ERROR: Values file not found: $values_file"
+            exit 1
+          fi
+
+          # Update the image tag using yq (handles nested keys like image.tag)
+          yq -i "${image_key}=\"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+
+          echo "   ✅ Updated $values_file"
+        done
+      fi
+
+    # Also update APP_VERSIONS if provided (format: env-key:path/to/values.yaml)
+    - |
+      if [ -n "${APP_VERSIONS:-}" ]; then
+        echo "🔄 Processing app versions: ${APP_VERSIONS}"
+        echo "${APP_VERSIONS}" | tr ';' '\n' | while IFS=':' read -r env_key values_file; do
+          echo "   📝 Updating ${env_key} in ${values_file} to version ${VERSION}"
+
+          if [ ! -f "$values_file" ]; then
+            echo "❌ ERROR: Values file not found: $values_file"
+            exit 1
+          fi
+
+          # Update the version field
+          yq -i "${env_key}=\"${VERSION}\"" "$values_file"
+
+          echo "   ✅ Updated $values_file"
+        done
+      fi
+
+    # Commit and push changes
+    - git add .
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy Helm chart version ${VERSION}" || echo "No changes to commit"'
+    - git push origin main
+
+    - echo "🎉 Successfully deployed ${PROJECT_NAME} Helm chart version ${VERSION}"
+
+# Reusable production deployment template for Helm charts
+.production-deploy-helm-template:
+  stage: production-deploy
+  needs:
+    - job: version-release
+      artifacts: true
+  tags:
+    - server
+  image: alpine:latest
+  variables:
+    ARGONAUT_REPO: "git@gitlab.com:imapps/argonaut.git"
+    ENVIRONMENT: "production"
+  before_script:
+    - apk add --no-cache git openssh yq
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+    - git config --global user.name "gitlab-ci[bot]"
+    - git config --global user.email "gitlab-ci@noreply.gitlab.com"
+    - |
+      if [ -z "${VERSION:-}" ]; then
+        echo "❌ ERROR: VERSION not found. Make sure version-release job runs before this job."
+        exit 1
+      fi
+      echo "🚀 Deploying Helm chart version ${VERSION} to ${ENVIRONMENT}"
+  script:
+    # Clone argonaut repository
+    - git clone ${ARGONAUT_REPO} argonaut
+    - cd argonaut
+
+    # Process HELM_VALUES if provided (format: path/to/values.yaml,image-key-path)
+    - |
+      if [ -n "${HELM_VALUES:-}" ]; then
+        echo "🔄 Processing Helm values: ${HELM_VALUES}"
+        echo "${HELM_VALUES}" | tr ';' '\n' | while IFS=',' read -r values_file image_key; do
+          echo "   📝 Updating ${image_key} in ${values_file} to version ${VERSION}"
+
+          if [ ! -f "$values_file" ]; then
+            echo "❌ ERROR: Values file not found: $values_file"
+            exit 1
+          fi
+
+          # Update the image tag using yq (handles nested keys like image.tag)
+          yq -i "${image_key}=\"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+
+          echo "   ✅ Updated $values_file"
+        done
+      fi
+
+    # Also update APP_VERSIONS if provided (format: env-key:path/to/values.yaml)
+    - |
+      if [ -n "${APP_VERSIONS:-}" ]; then
+        echo "🔄 Processing app versions: ${APP_VERSIONS}"
+        echo "${APP_VERSIONS}" | tr ';' '\n' | while IFS=':' read -r env_key values_file; do
+          echo "   📝 Updating ${env_key} in ${values_file} to version ${VERSION}"
+
+          if [ ! -f "$values_file" ]; then
+            echo "❌ ERROR: Values file not found: $values_file"
+            exit 1
+          fi
+
+          # Update the version field
+          yq -i "${env_key}=\"${VERSION}\"" "$values_file"
+
+          echo "   ✅ Updated $values_file"
+        done
+      fi
+
+    # Commit and push changes
+    - git add .
+    - 'git commit -m "chore(${PROJECT_NAME}-${ENVIRONMENT}): deploy Helm chart version ${VERSION}" || echo "No changes to commit"'
+    - git push origin main
+
+    - echo "🎉 Successfully deployed ${PROJECT_NAME} Helm chart version ${VERSION}"
+  rules:
+    - when: manual
+      allow_failure: true
