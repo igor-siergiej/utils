@@ -478,7 +478,7 @@ cache:
           fi
 
           # Update the image tag using yq (handles nested keys like image.tag)
-          yq -i "${image_key}=\"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+          yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
 
           echo "   ✅ Updated $values_file"
         done
@@ -497,7 +497,7 @@ cache:
           fi
 
           # Update the version field
-          yq -i "${env_key}=\"${VERSION}\"" "$values_file"
+          yq -i ".${env_key} = \"${VERSION}\"" "$values_file"
 
           echo "   ✅ Updated $values_file"
         done
@@ -554,7 +554,7 @@ cache:
           fi
 
           # Update the image tag using yq (handles nested keys like image.tag)
-          yq -i "${image_key}=\"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+          yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
 
           echo "   ✅ Updated $values_file"
         done
@@ -573,7 +573,7 @@ cache:
           fi
 
           # Update the version field
-          yq -i "${env_key}=\"${VERSION}\"" "$values_file"
+          yq -i ".${env_key} = \"${VERSION}\"" "$values_file"
 
           echo "   ✅ Updated $values_file"
         done
