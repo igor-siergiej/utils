@@ -477,10 +477,16 @@ cache:
             exit 1
           fi
 
-          # Update the image tag using yq (handles nested keys like image.tag)
-          yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
-
-          echo "   ✅ Updated $values_file"
+          # Check if this is a tag-only update (ends with .tag) or full image update
+          if [[ "${image_key}" == *.tag ]]; then
+            # Only update the tag field, not the full image
+            yq -i ".${image_key} = \"${VERSION}\"" "$values_file"
+            echo "   ✅ Updated tag in $values_file"
+          else
+            # Update full image reference (repository:tag)
+            yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+            echo "   ✅ Updated image in $values_file"
+          fi
         done
       fi
 
@@ -553,10 +559,16 @@ cache:
             exit 1
           fi
 
-          # Update the image tag using yq (handles nested keys like image.tag)
-          yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
-
-          echo "   ✅ Updated $values_file"
+          # Check if this is a tag-only update (ends with .tag) or full image update
+          if [[ "${image_key}" == *.tag ]]; then
+            # Only update the tag field, not the full image
+            yq -i ".${image_key} = \"${VERSION}\"" "$values_file"
+            echo "   ✅ Updated tag in $values_file"
+          else
+            # Update full image reference (repository:tag)
+            yq -i ".${image_key} = \"${PRIVATE_REGISTRY}/${PROJECT_NAME}:${VERSION}\"" "$values_file"
+            echo "   ✅ Updated image in $values_file"
+          fi
         done
       fi
 
