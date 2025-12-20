@@ -231,7 +231,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY"]
+      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -276,7 +276,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY"]
+      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
@@ -323,7 +323,7 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY"]
+      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
