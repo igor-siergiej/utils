@@ -181,6 +181,9 @@ cache:
     # Configure Git credentials for semantic-release to use HTTPS with token
     - git config --global credential.helper store
     - echo "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com" > ~/.git-credentials
+    # Rewrite git:// and git@ URLs to use HTTPS (prevents SSH key issues)
+    - git config --global "url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/.insteadOf" "git@gitlab.com:"
+    - git config --global "url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/.insteadOf" "https://gitlab.com/"
     # Switch git remote to HTTPS with CI_JOB_TOKEN for pushing commits/tags
     - git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
     # Fetch tags from remote (semantic-release needs them to determine the last release)
