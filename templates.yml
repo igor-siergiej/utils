@@ -236,15 +236,14 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
-    DOCKER_HOST: tcp://docker:2376
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    DOCKER_TLS_VERIFY: 0
+    DOCKER_TLS_VERIFY: ""
     DOCKER_DRIVER: overlay2
     GIT_STRATEGY: clone
   before_script:
-    - docker info
+    - until docker info; do sleep 1; done
     - echo "🐳 Building ${APP_NAME} image for testing"
   script:
     - export IMAGE_TAG="${PRIVATE_REGISTRY}/${APP_NAME}:${CI_COMMIT_SHORT_SHA}"
@@ -280,15 +279,14 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
-    DOCKER_HOST: tcp://docker:2376
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    DOCKER_TLS_VERIFY: 0
+    DOCKER_TLS_VERIFY: ""
     DOCKER_DRIVER: overlay2
     GIT_STRATEGY: clone
   before_script:
-    - docker info
+    - until docker info; do sleep 1; done
     - |
       if [ -z "${VERSION:-}" ]; then
         echo "❌ ERROR: VERSION not found. Make sure version-release job runs before this job."
@@ -326,14 +324,13 @@ cache:
   services:
     - name: docker:27-dind
       alias: docker
-      command: ["--insecure-registry=$CI_REGISTRY", "--insecure-registry=$PRIVATE_REGISTRY"]
   variables:
-    DOCKER_HOST: tcp://docker:2376
+    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    DOCKER_TLS_VERIFY: 0
+    DOCKER_TLS_VERIFY: ""
     DOCKER_DRIVER: overlay2
   before_script:
-    - docker info
+    - until docker info; do sleep 1; done
     - |
       if [ -z "${VERSION:-}" ]; then
         echo "❌ ERROR: VERSION not found. Make sure version-release job runs before this job."
