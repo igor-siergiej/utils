@@ -219,6 +219,10 @@ cache:
     - git config --global user.email "gitlab-ci@noreply.gitlab.com"
     - git config --global credential.helper store
     - echo "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com" > ~/.git-credentials
+    # Rewrite git:// and git@ URLs to use HTTPS with credentials (prevents SSH key issues)
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "git@gitlab.com:"
+    # Rewrite plain HTTPS URLs to include credentials (for semantic-release)
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
     - git fetch origin --tags --force
     # Download and run clean-orphaned-tags script
