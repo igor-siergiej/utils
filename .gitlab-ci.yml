@@ -3,7 +3,6 @@ include:
 
 stages:
   - ci
-  - docker
   - publish
 
 # CI job - extends the reusable template
@@ -13,37 +12,6 @@ ci:
     - if: $CI_PIPELINE_SOURCE == "push"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "web"
-
-# Build and push bun-git Docker image
-docker-build-bun-git:
-  stage: docker
-  image: docker:latest
-  services:
-    - docker:dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    BUN_VERSION: "1.1.38"
-    # Use external IP for building/pushing, Kubernetes services use internal DNS
-    REGISTRY_IP: "192.168.68.59"
-    REGISTRY_PORT: "5000"
-  before_script:
-    - until docker info; do sleep 1; done
-  script:
-    - echo "Building bun-git Docker image..."
-    - docker build --build-arg BUN_VERSION="${BUN_VERSION}" -f docker/bun-git.Dockerfile -t "${REGISTRY_IP}:${REGISTRY_PORT}/bun-git:${BUN_VERSION}" -t "${REGISTRY_IP}:${REGISTRY_PORT}/bun-git:latest" docker/
-    - echo "Pushing to registry at ${REGISTRY_IP}:${REGISTRY_PORT}..."
-    - docker push "${REGISTRY_IP}:${REGISTRY_PORT}/bun-git:${BUN_VERSION}"
-    - docker push "${REGISTRY_IP}:${REGISTRY_PORT}/bun-git:latest"
-    - echo "✅ Successfully pushed bun-git image"
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_PIPELINE_SOURCE == "web"
-  when: manual
-  allow_failure: true
-  retry:
-    max: 2
-    when: runner_system_failure
 
 # Package publishing - extends the reusable template
 publish:

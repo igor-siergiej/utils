@@ -3,8 +3,9 @@ set -euo pipefail
 
 # Configuration
 BUN_VERSION="1.1.38"
-# Use Kubernetes internal registry (accessible from CI/CD runners in cluster)
-PRIVATE_REGISTRY="${REGISTRY_URL:-registry.registry.svc.cluster.local:5000}"
+# Default to TrueNAS registry IP (192.168.68.59:5000)
+# Can override with: REGISTRY_URL=custom.registry.com:5000 ./build-and-push-bun-git.sh
+PRIVATE_REGISTRY="${REGISTRY_URL:-192.168.68.59:5000}"
 IMAGE_NAME="bun-git"
 FULL_IMAGE_TAG="${PRIVATE_REGISTRY}/${IMAGE_NAME}:${BUN_VERSION}"
 LATEST_TAG="${PRIVATE_REGISTRY}/${IMAGE_NAME}:latest"
