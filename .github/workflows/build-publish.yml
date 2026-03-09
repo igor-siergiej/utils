@@ -42,4 +42,5 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Image digest
-        run: echo "Published image: ${{ secrets.DOCKER_USERNAME }}/${{ steps.repo-name.outputs.repo }}:${{ steps.version.outputs.version }}"
+        run: |
+          echo "Published image: ${{ secrets.DOCKER_USERNAME }}/${{ steps.repo-name.outputs.repo }}:${{ steps.version.outputs.version }}"
