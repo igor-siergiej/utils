@@ -1,23 +1,17 @@
-include:
-  - local: 'templates.yml'
+# ⚠️  DEPRECATED: This file is no longer used
+#
+# CI/CD has been migrated to GitHub Actions.
+# See .github/workflows/ for active workflows:
+#
+# - .github/workflows/lint-test.yml       (runs on every push)
+# - .github/workflows/build-publish.yml   (runs on version tags)
+# - .github/workflows/npm-publish.yml     (runs on version tags)
+#
+# To publish a new version:
+# 1. Update version in packages/*/package.json
+# 2. Commit: git commit -m "chore: bump to v1.5.0"
+# 3. Tag: git tag v1.5.0
+# 4. Push: git push origin main --tags
+# 5. GitHub Actions will automatically publish to npm and Docker Hub
 
-stages:
-  - ci
-  - publish
-
-# CI job - extends the reusable template
-ci:
-  extends: .ci-template
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_PIPELINE_SOURCE == "web"
-
-# Package publishing - extends the reusable template
-publish:
-  extends: .publish-template
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - ci
+# This file is kept for reference only and will not be executed
