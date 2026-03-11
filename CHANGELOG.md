@@ -1,3 +1,10 @@
+## [0.4.10](https://github.com/igor-siergiej/utils/compare/v0.4.9...v0.4.10) (2026-03-11)
+
+
+### Bug Fixes
+
+* sync package versions with git tag before publishing ([5961c66](https://github.com/igor-siergiej/utils/commit/5961c66be9b7d82f6535e7f2562a737a42c8668f))
+
 ## [0.4.9](https://github.com/igor-siergiej/utils/compare/v0.4.8...v0.4.9) (2026-03-11)
 
 

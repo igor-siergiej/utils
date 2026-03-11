@@ -1,6 +1,6 @@
 {
   "name": "@igor-siergiej/biome-config",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Shared Biome configuration for IM Apps projects",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
