@@ -14,8 +14,6 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: yarn install --immutable
-        env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
 
   test:
@@ -28,8 +26,6 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: yarn install --immutable
-        env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @igor-siergiej/api-utils test
 
   release:
@@ -47,8 +43,6 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: yarn install --immutable
-        env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,8 +58,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: corepack enable
       - run: yarn install --immutable
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn build
       - name: Publish api-utils
         if: hashFiles('packages/api-utils/package.json') != ''
