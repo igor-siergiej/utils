@@ -5,6 +5,7 @@
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
   "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "repository": {

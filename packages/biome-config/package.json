@@ -3,6 +3,7 @@
   "version": "0.4.6",
   "description": "Shared Biome configuration for IM Apps projects",
   "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "exports": {
