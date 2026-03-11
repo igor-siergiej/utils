@@ -1,6 +1,6 @@
 {
   "branches": ["main"],
-  "repositoryUrl": "https://gitlab.com/imapps/utils.git",
+  "repositoryUrl": "https://github.com/igor-siergiej/utils.git",
   "plugins": [
     [
       "@semantic-release/commit-analyzer",
@@ -34,6 +34,6 @@
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
-    "@semantic-release/gitlab"
+    "@semantic-release/github"
   ]
 }
