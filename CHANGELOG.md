@@ -1,3 +1,10 @@
+## [0.4.8](https://github.com/igor-siergiej/utils/compare/v0.4.7...v0.4.8) (2026-03-11)
+
+
+### Bug Fixes
+
+* ensure publish-npm checks out latest commits from release job ([53f4e45](https://github.com/igor-siergiej/utils/commit/53f4e453a5579c095c5b6e391a6a1b37fd81e8a6))
+
 ## [0.4.7](https://github.com/igor-siergiej/utils/compare/v0.4.6...v0.4.7) (2026-03-11)
 
 
