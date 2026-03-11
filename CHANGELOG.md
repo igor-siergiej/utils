@@ -1,3 +1,10 @@
+## [0.4.4](https://github.com/igor-siergiej/utils/compare/v0.4.3...v0.4.4) (2026-03-11)
+
+
+### Bug Fixes
+
+* remove NPM_TOKEN from .yarnrc.yml, rely on .npmrc for auth ([6fccd03](https://github.com/igor-siergiej/utils/commit/6fccd03dcc0dda4f0bec55870b49420da341ae62))
+
 ## [0.4.3](https://github.com/igor-siergiej/utils/compare/v0.4.2...v0.4.3) (2026-03-11)
 
 
