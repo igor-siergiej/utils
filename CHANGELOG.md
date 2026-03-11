@@ -1,3 +1,10 @@
+## [0.4.2](https://github.com/igor-siergiej/utils/compare/v0.4.1...v0.4.2) (2026-03-11)
+
+
+### Bug Fixes
+
+* update all [@imapps](https://github.com/imapps) references to [@igor-siergiej](https://github.com/igor-siergiej) in config and workflows ([d6fcf26](https://github.com/igor-siergiej/utils/commit/d6fcf26f24a460101a5ebab86488d1350a935db9))
+
 ## [0.4.1](https://github.com/igor-siergiej/utils/compare/v0.4.0...v0.4.1) (2026-03-11)
 
 
