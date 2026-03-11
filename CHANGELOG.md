@@ -1,3 +1,10 @@
+## [0.4.5](https://github.com/igor-siergiej/utils/compare/v0.4.4...v0.4.5) (2026-03-11)
+
+
+### Bug Fixes
+
+* create .npmrc in repo root instead of home directory ([3ec3fb1](https://github.com/igor-siergiej/utils/commit/3ec3fb10b0bcadda57fbab9be1e3d9fa6ddca7f1))
+
 ## [0.4.4](https://github.com/igor-siergiej/utils/compare/v0.4.3...v0.4.4) (2026-03-11)
 
 
