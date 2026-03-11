@@ -73,20 +73,20 @@ jobs:
         if: hashFiles('packages/api-utils/package.json') != ''
         run: |
           cd packages/api-utils
-          yarn npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish web-utils
         if: hashFiles('packages/web-utils/package.json') != ''
         run: |
           cd packages/web-utils
-          yarn npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish biome-config
         if: hashFiles('packages/biome-config/package.json') != ''
         run: |
           cd packages/biome-config
-          yarn npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
