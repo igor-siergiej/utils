@@ -1,3 +1,10 @@
+## [0.4.6](https://github.com/igor-siergiej/utils/compare/v0.4.5...v0.4.6) (2026-03-11)
+
+
+### Bug Fixes
+
+* add packages:write permission to publish-npm job ([4cd4165](https://github.com/igor-siergiej/utils/commit/4cd4165887a5bdb4391e28ff15af22900d81a77c))
+
 ## [0.4.5](https://github.com/igor-siergiej/utils/compare/v0.4.4...v0.4.5) (2026-03-11)
 
 
