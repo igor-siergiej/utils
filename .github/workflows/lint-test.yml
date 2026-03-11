@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call:
+    inputs:
+      package-manager:
+        type: string
+        default: yarn
+        description: "Package manager to use: yarn or bun"
+    secrets:
+      GH_TOKEN:
+        required: false
+        description: "GitHub token for private package registry access"
 
 jobs:
   lint-test:
@@ -20,14 +30,23 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Enable Corepack
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Enable Corepack (Yarn)
+        if: inputs.package-manager == 'yarn'
         run: corepack enable
 
-      - name: Get yarn cache directory
+      - name: Get yarn cache directory (Yarn)
+        if: inputs.package-manager == 'yarn'
         id: yarn-cache-dir
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
 
-      - name: Cache yarn dependencies
+      - name: Cache yarn dependencies (Yarn)
+        if: inputs.package-manager == 'yarn'
         uses: actions/cache@v3
         with:
           path: ${{ steps.yarn-cache-dir.outputs.dir }}
@@ -35,44 +54,67 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
-      - name: Install dependencies
+      - name: Install dependencies (Yarn)
+        if: inputs.package-manager == 'yarn'
         run: yarn install --immutable
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Install dependencies (Bun)
+        if: inputs.package-manager == 'bun'
+        run: bun install --frozen-lockfile
+        env:
+          BUN_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Lint
-        run: yarn lint
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun run lint
+          else
+            yarn lint
+          fi
 
       - name: Typecheck
-        run: yarn tsc --noEmit
+        run: |
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun run tsc --noEmit
+          else
+            yarn tsc --noEmit
+          fi
 
       - name: Run tests
         run: |
           echo "🧪 Running tests for packages..."
 
-          # Check for monorepo
-          if [ -f "yarn.lock" ] && grep -q '"workspaces":' package.json 2>/dev/null; then
-            echo "📦 Detected monorepo structure"
+          if [ "${{ inputs.package-manager }}" = "bun" ]; then
+            bun test
+          else
+            # Check for monorepo
+            if [ -f "yarn.lock" ] && grep -q '"workspaces":' package.json 2>/dev/null; then
+              echo "📦 Detected monorepo structure"
 
-            if [ -d "packages" ]; then
-              for package_dir in packages/*/; do
-                package_dir=${package_dir%/}
-                if [ -f "${package_dir}/package.json" ]; then
-                  package_name=$(node -p "require('./${package_dir}/package.json').name" 2>/dev/null || echo "")
-                  if [ -n "$package_name" ]; then
-                    if grep -q '"test":' "${package_dir}/package.json"; then
-                      echo "✅ Running tests for $package_name..."
-                      yarn workspace "$package_name" test
-                    else
-                      echo "⏭️  No tests found for $package_name"
+              if [ -d "packages" ]; then
+                for package_dir in packages/*/; do
+                  package_dir=${package_dir%/}
+                  if [ -f "${package_dir}/package.json" ]; then
+                    package_name=$(node -p "require('./${package_dir}/package.json').name" 2>/dev/null || echo "")
+                    if [ -n "$package_name" ]; then
+                      if grep -q '"test":' "${package_dir}/package.json"; then
+                        echo "✅ Running tests for $package_name..."
+                        yarn workspace "$package_name" test
+                      else
+                        echo "⏭️  No tests found for $package_name"
+                      fi
                     fi
                   fi
-                fi
-              done
-            fi
-          else
-            echo "📄 Detected single package structure"
-            if grep -q '"test":' package.json 2>/dev/null; then
-              yarn test
+                done
+              fi
             else
-              echo "⏭️  No tests defined"
+              echo "📄 Detected single package structure"
+              if grep -q '"test":' package.json 2>/dev/null; then
+                yarn test
+              else
+                echo "⏭️  No tests defined"
+              fi
             fi
           fi
