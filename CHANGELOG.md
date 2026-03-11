@@ -1,3 +1,10 @@
+## [0.4.11](https://github.com/igor-siergiej/utils/compare/v0.4.10...v0.4.11) (2026-03-11)
+
+
+### Bug Fixes
+
+* pull latest code in publish job to get updated versions from release ([868745e](https://github.com/igor-siergiej/utils/commit/868745ea7fd6522484dd9ff10842c1697c44d9c6))
+
 ## [0.4.10](https://github.com/igor-siergiej/utils/compare/v0.4.9...v0.4.10) (2026-03-11)
 
 
