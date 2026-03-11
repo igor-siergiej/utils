@@ -1,3 +1,10 @@
+## [0.4.7](https://github.com/igor-siergiej/utils/compare/v0.4.6...v0.4.7) (2026-03-11)
+
+
+### Bug Fixes
+
+* remove unnecessary auth token env vars from workflow for public npm ([6762c08](https://github.com/igor-siergiej/utils/commit/6762c08d3660b0766ba9211f0ffffda023c208b4))
+
 ## [0.4.6](https://github.com/igor-siergiej/utils/compare/v0.4.5...v0.4.6) (2026-03-11)
 
 
