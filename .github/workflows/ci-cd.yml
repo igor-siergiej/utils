@@ -63,6 +63,7 @@ jobs:
           node-version: 22
           registry-url: 'https://npm.pkg.github.com/'
           scope: '@igor-siergiej'
+          token: ${{ secrets.GITHUB_TOKEN }}
       - run: corepack enable
       - run: yarn install --immutable
         env:
