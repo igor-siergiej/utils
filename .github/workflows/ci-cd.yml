@@ -15,7 +15,7 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn lint
 
   test:
@@ -29,7 +29,7 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn workspace @igor-siergiej/api-utils test
 
   release:
@@ -48,7 +48,7 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn build
       - name: Publish api-utils
         if: hashFiles('packages/api-utils/package.json') != ''
@@ -72,18 +72,18 @@ jobs:
           cd packages/api-utils
           yarn npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish web-utils
         if: hashFiles('packages/web-utils/package.json') != ''
         run: |
           cd packages/web-utils
           yarn npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish biome-config
         if: hashFiles('packages/biome-config/package.json') != ''
         run: |
           cd packages/biome-config
           yarn npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
