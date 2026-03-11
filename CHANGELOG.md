@@ -1,3 +1,16 @@
+## [0.4.3](https://github.com/igor-siergiej/utils/compare/v0.4.2...v0.4.3) (2026-03-11)
+
+
+### Bug Fixes
+
+* explicitly create .npmrc with GitHub Packages registry in publish job ([60eac4b](https://github.com/igor-siergiej/utils/commit/60eac4b997c6f2775d7c533bf36e9b2e00be21f3))
+* explicitly pass registry URL to yarn npm publish command ([609475c](https://github.com/igor-siergiej/utils/commit/609475c11950fa940e55725773af5a16d6a53b50))
+* make NPM_TOKEN optional in .yarnrc.yml with fallback to empty string ([446e2f7](https://github.com/igor-siergiej/utils/commit/446e2f77d4db5c6c2b2f876a6d0724031dcb9277))
+* pass GITHUB_TOKEN to setup-node action for GitHub Packages authentication ([7647966](https://github.com/igor-siergiej/utils/commit/7647966d890b18100318e1c327fe418bae242bbb))
+* rely on .yarnrc.yml for GitHub Packages registry config instead of setup-node ([419d599](https://github.com/igor-siergiej/utils/commit/419d599d47936e2141a027e042061da67919d5a8))
+* use npm publish instead of yarn npm publish with .npmrc auth ([c88f8e7](https://github.com/igor-siergiej/utils/commit/c88f8e74cc981d6b0e04523f8cd3ae99c51f8c8b))
+* use NPM_TOKEN instead of NODE_AUTH_TOKEN for GitHub Packages authentication ([1e65267](https://github.com/igor-siergiej/utils/commit/1e652676b07b2795baa398fb5e3ab1457163ffc7))
+
 ## [0.4.2](https://github.com/igor-siergiej/utils/compare/v0.4.1...v0.4.2) (2026-03-11)
 
 
