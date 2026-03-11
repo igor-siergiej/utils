@@ -62,8 +62,8 @@ jobs:
         with:
           node-version: 22
       - run: |
-          echo "@igor-siergiej:registry=https://npm.pkg.github.com/" > ~/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          echo "@igor-siergiej:registry=https://npm.pkg.github.com/" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> .npmrc
       - run: corepack enable
       - run: yarn install --immutable
         env:
