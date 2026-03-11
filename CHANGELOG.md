@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/igor-siergiej/utils/compare/v0.4.0...v0.4.1) (2026-03-11)
+
+
+### Bug Fixes
+
+* add NODE_AUTH_TOKEN to publish-npm yarn install step ([a357b18](https://github.com/igor-siergiej/utils/commit/a357b18f3bf52582e8cdd375a7de005038c233d4))
+
 # [0.4.0](https://github.com/igor-siergiej/utils/compare/v0.3.0...v0.4.0) (2026-03-11)
 
 

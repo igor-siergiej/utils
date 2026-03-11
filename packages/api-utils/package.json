@@ -1,6 +1,6 @@
 {
   "name": "@imapps/api-utils",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Shared API utilities for Node services",
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
