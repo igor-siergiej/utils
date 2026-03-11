@@ -65,6 +65,13 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
       - run: yarn build
+      - name: Update package versions from tag
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          echo "Publishing version: $VERSION"
+          for pkg in packages/*/package.json; do
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$pkg"
+          done
       - name: Publish api-utils
         if: hashFiles('packages/api-utils/package.json') != ''
         run: |
