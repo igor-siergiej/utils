@@ -348,9 +348,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@imapps/api-utils@workspace:packages/api-utils":
+"@igor-siergiej/api-utils@workspace:packages/api-utils":
   version: 0.0.0-use.local
-  resolution: "@imapps/api-utils@workspace:packages/api-utils"
+  resolution: "@igor-siergiej/api-utils@workspace:packages/api-utils"
   dependencies:
     "@types/node": "npm:^24.3.0"
     "@vitest/coverage-v8": "npm:^3.2.4"
@@ -363,9 +363,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@imapps/biome-config@workspace:*, @imapps/biome-config@workspace:packages/biome-config":
+"@igor-siergiej/biome-config@workspace:*, @igor-siergiej/biome-config@workspace:packages/biome-config":
   version: 0.0.0-use.local
-  resolution: "@imapps/biome-config@workspace:packages/biome-config"
+  resolution: "@igor-siergiej/biome-config@workspace:packages/biome-config"
   dependencies:
     rimraf: "npm:^6.0.1"
   peerDependencies:
@@ -373,9 +373,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@imapps/web-utils@workspace:packages/web-utils":
+"@igor-siergiej/web-utils@workspace:packages/web-utils":
   version: 0.0.0-use.local
-  resolution: "@imapps/web-utils@workspace:packages/web-utils"
+  resolution: "@igor-siergiej/web-utils@workspace:packages/web-utils"
   dependencies:
     "@types/react": "npm:^19.1.13"
     react: "npm:^19.1.1"
@@ -6789,7 +6789,7 @@ __metadata:
   resolution: "utils@workspace:."
   dependencies:
     "@biomejs/biome": "npm:2.2.5"
-    "@imapps/biome-config": "workspace:*"
+    "@igor-siergiej/biome-config": "workspace:*"
     "@semantic-release/changelog": "npm:^6.0.3"
     "@semantic-release/commit-analyzer": "npm:^13.0.0"
     "@semantic-release/git": "npm:^10.0.1"

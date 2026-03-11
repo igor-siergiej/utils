@@ -30,7 +30,7 @@ jobs:
       - run: yarn install --immutable
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn workspace @imapps/api-utils test
+      - run: yarn workspace @igor-siergiej/api-utils test
 
   release:
     runs-on: ubuntu-latest
