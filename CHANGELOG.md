@@ -1,3 +1,10 @@
+## [0.4.9](https://github.com/igor-siergiej/utils/compare/v0.4.8...v0.4.9) (2026-03-11)
+
+
+### Bug Fixes
+
+* explicitly pass GitHub Packages registry to npm publish commands ([5bc7635](https://github.com/igor-siergiej/utils/commit/5bc7635171135c6fbaa51bfeda2bd1e1bb229434))
+
 ## [0.4.8](https://github.com/igor-siergiej/utils/compare/v0.4.7...v0.4.8) (2026-03-11)
 
 
