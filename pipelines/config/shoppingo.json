@@ -1,0 +1,13 @@
+{
+  "service": "shoppingo",
+  "dockerfiles": [
+    {
+      "dockerfile": "./Dockerfile.api",
+      "tag": "shoppingo-api"
+    },
+    {
+      "dockerfile": "./Dockerfile.web",
+      "tag": "shoppingo-web"
+    }
+  ]
+}

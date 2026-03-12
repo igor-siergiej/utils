@@ -1,0 +1,9 @@
+{
+  "service": "kivo",
+  "dockerfiles": [
+    {
+      "dockerfile": "./Dockerfile",
+      "tag": "kivo"
+    }
+  ]
+}

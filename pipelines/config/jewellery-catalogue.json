@@ -1,0 +1,13 @@
+{
+  "service": "jewellery-catalogue",
+  "dockerfiles": [
+    {
+      "dockerfile": "./Dockerfile.api",
+      "tag": "jewellery-catalogue-api"
+    },
+    {
+      "dockerfile": "./Dockerfile.web",
+      "tag": "jewellery-catalogue-web"
+    }
+  ]
+}
