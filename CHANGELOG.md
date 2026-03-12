@@ -1,3 +1,10 @@
+## [0.5.1](https://github.com/igor-siergiej/utils/compare/v0.5.0...v0.5.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* push Docker images to Docker Hub (igurusama/imapps) instead of GHCR ([1fd0d12](https://github.com/igor-siergiej/utils/commit/1fd0d1241b21f6d563a2ead27f7747af11a93d24))
+
 # [0.5.0](https://github.com/igor-siergiej/utils/compare/v0.4.11...v0.5.0) (2026-03-12)
 
 
