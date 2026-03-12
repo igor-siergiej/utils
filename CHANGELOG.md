@@ -1,3 +1,15 @@
+# [0.5.0](https://github.com/igor-siergiej/utils/compare/v0.4.11...v0.5.0) (2026-03-12)
+
+
+### Bug Fixes
+
+* use GitHub Container Registry (ghcr.io) instead of Docker Hub ([8bddfb2](https://github.com/igor-siergiej/utils/commit/8bddfb2f66fdc2c7ade7089e0cbd49668fc77d06))
+
+
+### Features
+
+* **pipelines:** add shared CI/CD scripts and service configs ([ecfe29e](https://github.com/igor-siergiej/utils/commit/ecfe29e5f14c98074edfd1deeae57f19591abde7))
+
 ## [0.4.11](https://github.com/igor-siergiej/utils/compare/v0.4.10...v0.4.11) (2026-03-11)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@igor-siergiej/api-utils",
-  "version": "0.4.11",
+  "version": "0.5.0",
   "description": "Shared API utilities for Node services",
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
