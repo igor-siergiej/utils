@@ -26,8 +26,8 @@ echo "🐳 Building $SERVICE_NAME:$VERSION from $DOCKERFILE_PATH"
 docker buildx build \
   --push \
   --file "$DOCKERFILE_PATH" \
-  --tag "igurusama/imapps:${BASE_TAG}-${VERSION}" \
-  --tag "igurusama/imapps:${BASE_TAG}-latest" \
+  --tag "ghcr.io/igor-siergiej/${BASE_TAG}:${VERSION}" \
+  --tag "ghcr.io/igor-siergiej/${BASE_TAG}:latest" \
   --platform linux/amd64 \
   --build-arg NODE_AUTH_TOKEN="${NODE_AUTH_TOKEN}" \
   --cache-from "type=gha" \
@@ -35,5 +35,5 @@ docker buildx build \
   .
 
 echo "✅ Successfully built and pushed:"
-echo "  - igurusama/imapps:${BASE_TAG}-${VERSION}"
-echo "  - igurusama/imapps:${BASE_TAG}-latest"
+echo "  - ghcr.io/igor-siergiej/${BASE_TAG}:${VERSION}"
+echo "  - ghcr.io/igor-siergiej/${BASE_TAG}:latest"
