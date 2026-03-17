@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://gitlab.com/imapps/utils.git"
   },
-  "packageManager": "yarn@4.9.2",
+  "packageManager": "bun@latest",
   "lint-staged": {
     "*.{ts,mts,cts,json}": [
       "biome check --fix --unsafe"
@@ -17,18 +17,18 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn workspaces foreach -At run build",
-    "clean": "yarn workspaces foreach -A run clean",
+    "build": "bun run --filter '*' build",
+    "clean": "bun run --filter '*' clean",
     "lint": "biome check .",
     "lint:fix": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "prepare": "husky",
-    "release": "semantic-release",
-    "release:dry": "semantic-release --dry-run --no-ci"
+    "release": "bunx semantic-release",
+    "release:dry": "bunx semantic-release --dry-run --no-ci"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
-    "@igor-siergiej/biome-config": "workspace:*",
+    "@imapps/biome-config": "workspace:*",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/git": "^10.0.1",

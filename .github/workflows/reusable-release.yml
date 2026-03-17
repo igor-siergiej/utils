@@ -1,0 +1,50 @@
+name: Release (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        type: string
+        description: 'Package manager to use (yarn or bun)'
+        default: yarn
+    secrets:
+      GH_TOKEN:
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        if: inputs.package-manager == 'yarn'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        if: inputs.package-manager == 'yarn'
+        run: corepack enable
+
+      - name: Install (yarn)
+        if: inputs.package-manager == 'yarn'
+        run: yarn install --immutable
+
+      - name: Install (bun)
+        if: inputs.package-manager == 'bun'
+        run: bun install --frozen-lockfile
+
+      - name: Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

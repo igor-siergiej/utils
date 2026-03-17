@@ -1,0 +1,88 @@
+name: Lint & Test (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        type: string
+        description: 'Package manager to use (yarn or bun)'
+        default: yarn
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        if: inputs.package-manager == 'yarn'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        if: inputs.package-manager == 'yarn'
+        run: corepack enable
+
+      - name: Get yarn cache dir
+        if: inputs.package-manager == 'yarn'
+        id: yarn-cache
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn deps
+        if: inputs.package-manager == 'yarn'
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-yarn-
+
+      - name: Install (yarn)
+        if: inputs.package-manager == 'yarn'
+        run: yarn install --immutable
+
+      - name: Install (bun)
+        if: inputs.package-manager == 'bun'
+        run: bun install --frozen-lockfile
+
+      - name: Lint (yarn)
+        if: inputs.package-manager == 'yarn'
+        run: yarn lint
+
+      - name: Lint (bun)
+        if: inputs.package-manager == 'bun'
+        run: bun run lint
+
+      - name: Typecheck (yarn)
+        if: inputs.package-manager == 'yarn'
+        run: yarn tsc --noEmit
+
+      - name: Typecheck (bun)
+        if: inputs.package-manager == 'bun'
+        run: bun run typecheck
+
+      - name: Test (yarn - monorepo aware)
+        if: inputs.package-manager == 'yarn'
+        run: |
+          if [ -f "yarn.lock" ] && grep -q '"workspaces":' package.json 2>/dev/null; then
+            for package_dir in packages/*/; do
+              package_dir=${package_dir%/}
+              if [ -f "${package_dir}/package.json" ]; then
+                package_name=$(node -p "require('./${package_dir}/package.json').name" 2>/dev/null || echo "")
+                if [ -n "$package_name" ] && grep -q '"test":' "${package_dir}/package.json"; then
+                  yarn workspace "$package_name" test
+                fi
+              fi
+            done
+          else
+            if grep -q '"test":' package.json 2>/dev/null; then yarn test; fi
+          fi
+
+      - name: Test (bun)
+        if: inputs.package-manager == 'bun'
+        run: |
+          if grep -q '"test":' package.json 2>/dev/null; then bun test; fi

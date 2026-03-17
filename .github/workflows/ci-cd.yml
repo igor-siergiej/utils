@@ -9,24 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: corepack enable
-      - run: yarn install --immutable
-      - run: yarn lint
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
 
   test:
     runs-on: ubuntu-latest
     needs: lint
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: corepack enable
-      - run: yarn install --immutable
-      - run: yarn workspace @igor-siergiej/api-utils test
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter '@imapps/api-utils' test
 
   release:
     runs-on: ubuntu-latest
@@ -38,12 +32,9 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: corepack enable
-      - run: yarn install --immutable
-      - run: npx semantic-release
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -51,8 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     if: success()
-    permissions:
-      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,30 +49,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://npm.pkg.github.com/'
-          scope: '@igor-siergiej'
+          registry-url: 'https://registry.npmjs.org/'
+          scope: '@imapps'
+      - uses: oven-sh/setup-bun@v2
       - run: git pull origin main
-      - run: corepack enable
-      - run: yarn install --immutable
-      - run: yarn build
+      - run: bun install --frozen-lockfile
+      - run: bun run build
       - name: Publish api-utils
         if: hashFiles('packages/api-utils/package.json') != ''
         run: |
           cd packages/api-utils
-          npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish web-utils
         if: hashFiles('packages/web-utils/package.json') != ''
         run: |
           cd packages/web-utils
-          npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish biome-config
         if: hashFiles('packages/biome-config/package.json') != ''
         run: |
           cd packages/biome-config
-          npm publish --registry https://npm.pkg.github.com/
+          npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

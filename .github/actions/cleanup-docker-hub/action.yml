@@ -1,0 +1,29 @@
+name: 'Cleanup Docker Hub Registry'
+description: 'Remove old Docker image tags, keeping latest 5 versions + latest tag'
+
+inputs:
+  image:
+    description: 'Docker Hub image name (e.g., igurusama/imapps)'
+    required: true
+  tag-prefix:
+    description: 'Tag prefix to filter (e.g., shoppingo-web)'
+    required: true
+  keep-count:
+    description: 'Number of latest versions to keep'
+    required: false
+    default: '5'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cleanup old Docker images
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        TAG_PREFIX: ${{ inputs.tag-prefix }}
+        KEEP_COUNT: ${{ inputs.keep-count }}
+        DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
+      run: |
+        chmod +x ${{ github.action_path }}/cleanup.sh
+        ${{ github.action_path }}/cleanup.sh

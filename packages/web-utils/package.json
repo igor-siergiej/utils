@@ -28,7 +28,7 @@
   "scripts": {
     "build": "tsup",
     "clean": "rimraf build",
-    "prepack": "yarn clean && yarn build"
+    "prepack": "bun run clean && bun run build"
   },
   "sideEffects": false,
   "peerDependencies": {
