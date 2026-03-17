@@ -27,6 +27,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/igor-siergiej/utils"
+    "url": "git+https://github.com/igor-siergiej/utils.git"
   }
 }
