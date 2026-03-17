@@ -1,3 +1,10 @@
+## [0.5.3](https://github.com/igor-siergiej/utils/compare/v0.5.2...v0.5.3) (2026-03-17)
+
+
+### Bug Fixes
+
+* normalize repository URLs to git+https format for npm ([747a015](https://github.com/igor-siergiej/utils/commit/747a0153d5c34cd1cee69e8ef5907eed2d27c1a2))
+
 ## [0.5.2](https://github.com/igor-siergiej/utils/compare/v0.5.1...v0.5.2) (2026-03-17)
 
 
