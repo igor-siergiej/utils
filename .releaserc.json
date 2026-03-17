@@ -16,12 +16,6 @@
     ],
     "@semantic-release/release-notes-generator",
     [
-      "semantic-release-yarn",
-      {
-        "npmPublish": false
-      }
-    ],
-    [
       "@semantic-release/changelog",
       {
         "changelogFile": "CHANGELOG.md"
@@ -30,7 +24,7 @@
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "packages/*/package.json", "yarn.lock", "CHANGELOG.md"],
+        "assets": ["package.json", "packages/*/package.json", "bun.lock", "CHANGELOG.md"],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
