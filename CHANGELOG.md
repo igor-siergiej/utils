@@ -1,3 +1,11 @@
+## [0.5.2](https://github.com/igor-siergiej/utils/compare/v0.5.1...v0.5.2) (2026-03-17)
+
+
+### Bug Fixes
+
+* remove semantic-release-yarn plugin incompatible with Bun ([fce9422](https://github.com/igor-siergiej/utils/commit/fce942213c29052cf390a103c43348a8909f273c))
+* revert package names to [@imapps](https://github.com/imapps) scope ([794f3d9](https://github.com/igor-siergiej/utils/commit/794f3d9288ca1ab415fe9597401ad4d919e44c2b))
+
 ## [0.5.1](https://github.com/igor-siergiej/utils/compare/v0.5.0...v0.5.1) (2026-03-12)
 
 
