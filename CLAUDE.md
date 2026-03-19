@@ -1,14 +1,15 @@
 # IM Apps Utils - Shared Utilities Monorepo - Claude Code Context
 
 ## Project Overview
-im-apps-utils is a shared utilities monorepo containing common code, pipelines, and infrastructure utilities used across all IM Apps projects (shoppingo, kivo, jewellery-catalogue, etc.). It provides reusable components to maintain consistency and reduce code duplication.
+im-apps-utils is a shared utilities monorepo containing common code and infrastructure utilities used across all IM Apps projects (shoppingo, kivo, jewellery-catalogue, etc.). It provides reusable components to maintain consistency and reduce code duplication.
 
 ## Architecture
-- **Monorepo Structure**: Yarn 4 workspaces with shared linting and build configuration
-- **Publishing**: Automated GitLab Package Registry publishing via GitLab CI/CD
+- **Monorepo Structure**: Bun workspaces with shared linting and build configuration
+- **Publishing**: Automated GitHub Actions publishing to npmjs.org
 - **Build System**: TypeScript + tsup for dual CommonJS/ESM builds
 - **Testing**: Vitest with coverage reporting
-- **Registry**: GitLab Package Registry (`https://gitlab.com/api/v4/packages/npm/`)
+- **Linting**: Biome for code formatting and linting
+- **Registry**: npmjs.org (`https://registry.npmjs.org/`)
 
 ## Project Structure
 ```
@@ -22,20 +23,21 @@ im-apps-utils/
 │   │   │   ├── mongoDbConnection/  # MongoDB connection helpers
 │   │   │   └── objectStoreConnection/ # MinIO/S3 object storage utilities
 │   │   └── package.json
+│   ├── biome-config/        # Shared Biome configuration
+│   │   └── biome.json
 │   └── web-utils/           # Frontend utilities for React apps
 │       ├── src/
 │       │   └── index.ts    # Class name utilities, browser detection, math helpers
 │       └── package.json
-├── .gitlab-ci.yml         # GitLab CI/CD pipeline
-│   # Includes: CI checks, package publishing, Docker builds, GitOps updates
-├── build/                 # Build output directory
-├── package.json          # Root workspace configuration
-└── README.md            # Comprehensive documentation
+├── .github/workflows/      # GitHub Actions CI/CD pipelines
+├── build/                  # Build output directory
+├── package.json           # Root workspace configuration
+└── README.md             # Comprehensive documentation
 ```
 
 ## Published Packages
 
-### @imapps/api-utils (v0.0.9)
+### @imapps/api-utils
 Backend utilities for Node.js/API services:
 
 **Key Features:**
@@ -59,7 +61,7 @@ import {
 } from '@imapps/api-utils';
 ```
 
-### @imapps/web-utils (v0.0.9)
+### @imapps/web-utils
 Frontend utilities for React/web applications:
 
 **Key Features:**
@@ -76,55 +78,54 @@ const inBrowser = isBrowser();
 const clampedValue = clamp(value, 0, 100);
 ```
 
+### @imapps/biome-config
+Shared Biome configuration package for consistent linting and formatting across projects.
+
 ## Development Workflow
 
 ### Key Scripts (run from root)
-- `yarn build` - Build all packages
-- `yarn clean` - Clean all build outputs
-- `yarn lint` - Run ESLint across all packages
-- `yarn lint:fix` - Auto-fix ESLint issues
+- `bun run build` - Build all packages
+- `bun run clean` - Clean all build outputs
+- `bun run lint` - Check code with Biome
+- `bun run lint:fix` - Auto-fix code with Biome
+- `bun run format` - Format code with Biome
 
 ### Package-specific Scripts
-- `yarn workspace @imapps/api-utils test` - Run tests with coverage
-- `yarn workspace @imapps/api-utils test:watch` - Watch mode testing
+- `bun run --filter '@imapps/api-utils' test` - Run tests with coverage
+- `bun run --filter '@imapps/api-utils' test:watch` - Watch mode testing
 
 ## Publishing & CI/CD
 
-### Automated Publishing (Recommended)
-Publishing is fully automated via GitLab CI/CD:
+### Automated Publishing
+Publishing is fully automated via GitHub Actions:
 
-1. **Trigger**: Manual job from GitLab CI/CD → "publish" → Run manually
+1. **Trigger**: Push to main branch or manual GitHub release
 2. **Process**:
-   - Auto-derives next patch version from latest `v*` tag
+   - GitHub Actions runs semantic-release via `bunx semantic-release`
+   - Auto-derives next version from commit messages (conventional commits)
    - Updates all package.json versions and commits changes
    - Builds all workspaces
-   - Publishes to GitLab Package Registry in topological order
+   - Publishes to npmjs.org in topological order
    - Creates and pushes git tag only if all publishes succeed
 
-### Required Variables
-- `CI_JOB_TOKEN`: Automatically provided by GitLab CI/CD for package publishing
-
-### Manual Local Publishing (Alternative)
-```bash
-# From repo root
-cd packages/api-utils && yarn version patch && yarn npm publish
-cd ../web-utils && yarn version patch && yarn npm publish
-```
+### Required Setup
+- GitHub repository with write permissions for CI
+- npm token configured as GitHub secret `NPM_TOKEN` for package publishing
 
 ## CI/CD Pipelines
 
-### GitLab CI/CD Pipeline
-- **ci stage**: Lint, typecheck, and automated testing
-- **publish stage**: Automated package publishing with version management
-- **build stage**: Docker image building for containerized deployments
-- **deploy stage**: GitOps deployment automation and production deployment
+### GitHub Actions Workflows
+- **ci-cd.yml**: Main CI pipeline - lint, typecheck, and automated testing
+- **reusable-lint-test.yml**: Reusable workflow for linting and testing
+- **reusable-release.yml**: Reusable workflow for semantic-release publishing
+- **reusable-docker-build-publish.yml**: Docker image building and publishing
 
 ## Consumer Integration
 
 ### Installation in Projects
 ```bash
 # Add to package.json dependencies
-yarn add @imapps/api-utils @imapps/web-utils
+bun add @imapps/api-utils @imapps/web-utils
 ```
 
 ### Current Usage
@@ -132,45 +133,23 @@ yarn add @imapps/api-utils @imapps/web-utils
 - **kivo**: Could benefit from shared API utilities for common patterns
 - **jewellery-catalogue**: Potential consumer of both packages
 
-## Configuration Requirements
-
-### Registry Setup (.yarnrc.yml)
-```yaml
-npmScopes:
-  imapps:
-    npmRegistryServer: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
-```
-
-### Authentication
-Requires GitLab access token with packages:read permission for installation.
-
 ## Development Standards
 - **TypeScript**: Strict configuration with full type safety
-- **ESLint**: Shared configuration with import sorting and unused import detection
+- **Biome**: Shared configuration for linting, formatting, and import sorting
 - **Build**: Dual CommonJS/ESM output via tsup
 - **Testing**: Vitest with coverage reporting for api-utils
-- **Versioning**: Semantic versioning with automated patch bumps
+- **Package Manager**: Bun for fast, reliable dependency management
+- **Versioning**: Semantic versioning with automated patch bumps via semantic-release
 
 ## Useful Commands for Claude
-- **Build all packages**: `yarn build`
-- **Test API utilities**: `yarn workspace @imapps/api-utils test`
+- **Build all packages**: `bun run build`
+- **Test API utilities**: `bun run --filter '@imapps/api-utils' test`
 - **Check package structure**: Main exports in each `src/index.ts`
-- **Lint all code**: `yarn lint`
+- **Lint all code**: `bun run lint`
+- **Auto-fix linting issues**: `bun run lint:fix`
 - **Package status**: Check `build/` directories after building
-
-## GitOps Integration
-The repository includes CI/CD pipelines that integrate with the deployment infrastructure:
-- **docker-build job**: Builds container images for utilities that need containerization
-- **gitops-update job**: Updates Kubernetes manifests in the `argonaut` GitOps repository
-- **Integration**: Works with ArgoCD for automated deployment of utility services
-- **GitLab Integration**: Uses GitLab CI/CD tokens for seamless access to argonaut repository
-- See `../argonaut/CLAUDE.md` for GitOps deployment infrastructure documentation
 
 ## Related Services
 - **Primary Consumers**: `shoppingo`, `kivo`, `jewellery-catalogue` applications
-- **GitOps Deployment**: Container builds integrated with `argonaut` Kubernetes GitOps
-- **Registry**: Published packages available to all services in the IM Apps GitLab group
-- See individual service CLAUDE.md files for specific integration details
-
-## Integration Notes
-This monorepo serves as the foundation for shared functionality across the IM Apps ecosystem. When working on shoppingo, kivo, or other projects, consider whether new utilities should be added here for reuse across projects. Container-based utilities can be deployed via the GitLab CI/CD pipeline to the Kubernetes cluster managed through the GitOps workflow.
+- **Registry**: Published packages available on npmjs.org to all services
+- **CI/CD**: GitHub Actions orchestrates testing and publishing
