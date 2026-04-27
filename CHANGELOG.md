@@ -1,3 +1,10 @@
+## [0.5.4](https://github.com/igor-siergiej/utils/compare/v0.5.3...v0.5.4) (2026-04-27)
+
+
+### Bug Fixes
+
+* **docker:** update minio to use standard port and credentials for local dev ([a0b7691](https://github.com/igor-siergiej/utils/commit/a0b7691af378287eb6632e3cdbc263a112261022))
+
 ## [0.5.3](https://github.com/igor-siergiej/utils/compare/v0.5.2...v0.5.3) (2026-03-17)
 
 
