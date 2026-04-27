@@ -29,16 +29,14 @@ services:
     container_name: dev-minio
     restart: always
     ports:
-      # MinIO API/Access port (9000, mapped to host 7000 to match your old BUCKET_ENDPOINT: 192.168.68.54:7000)
-      - "7000:9000"
-      # MinIO Console/UI port
+      - "9000:9000"
       - "7001:9001"
     volumes:
       - minio_data:/data
     environment:
       # Use your specific credentials directly as values
-      MINIO_ROOT_USER: xvygY2oWPN1p9TUQUZPf # Corresponds to BUCKET_ACCESS_KEY
-      MINIO_ROOT_PASSWORD: 6NPjVaTv2ElUI24PBDJItdscTV2ChwDg6JcIQWhE # Corresponds to BUCKET_SECRET_KEY
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -60,12 +58,13 @@ services:
     entrypoint: >
       /bin/sh -c "
       sleep 5;
-      # 1. Set MinIO alias using hardcoded credentials
-      /usr/bin/mc alias set local http://minio:9000 xvygY2oWPN1p9TUQUZPf 6NPjVaTv2ElUI24PBDJItdscTV2ChwDg6JcIQWhE;
-      # 2. Create the specific bucket name
+      /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin;
       /usr/bin/mc mb local/jewellery-catalogue-staging --ignore-existing;
-      # 3. Set policy (e.g., allow public downloads)
-      /usr/bin/mc policy set download local/jewellery-catalogue-staging ;
+      /usr/bin/mc mb local/jewellery-catalogue --ignore-existing;
+      /usr/bin/mc mb local/shoppingo --ignore-existing;
+      /usr/bin/mc policy set download local/jewellery-catalogue-staging;
+      /usr/bin/mc policy set download local/jewellery-catalogue;
+      /usr/bin/mc policy set download local/shoppingo;
       exit 0;
       "
     restart: "no"
