@@ -21,6 +21,9 @@
         "changelogFile": "CHANGELOG.md"
       }
     ],
+    ["@semantic-release/npm", { "pkgRoot": "packages/api-utils" }],
+    ["@semantic-release/npm", { "pkgRoot": "packages/web-utils" }],
+    ["@semantic-release/npm", { "pkgRoot": "packages/biome-config" }],
     [
       "@semantic-release/git",
       {
