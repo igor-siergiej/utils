@@ -8,3 +8,6 @@ build
 **/coverage
 .turbo/
 
+
+# runtime npm auth (CI publish)
+.npmrc
