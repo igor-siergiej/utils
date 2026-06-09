@@ -49,28 +49,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org/'
-          scope: '@imapps'
       - uses: oven-sh/setup-bun@v2
       - run: git pull origin main
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - name: Publish api-utils
-        run: cd packages/api-utils && npm publish
+      - name: Configure npm auth for bun
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish web-utils
-        run: cd packages/web-utils && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish biome-config
-        run: cd packages/biome-config && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish dev-scripts
-        run: cd packages/dev-scripts && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish changed packages
+        run: bash scripts/publish-packages.sh
