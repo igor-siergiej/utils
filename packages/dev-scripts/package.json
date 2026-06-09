@@ -1,0 +1,20 @@
+{
+  "name": "@imapps/dev-scripts",
+  "version": "0.1.0",
+  "description": "Shared dev/CI scripts for IM Apps projects",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "bin": {
+    "fallow-audit": "./bin/fallow-audit.sh"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igor-siergiej/utils.git"
+  }
+}

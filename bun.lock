@@ -47,6 +47,13 @@
         "@biomejs/biome": "^2.0.0",
       },
     },
+    "packages/dev-scripts": {
+      "name": "@imapps/dev-scripts",
+      "version": "0.1.0",
+      "bin": {
+        "fallow-audit": "./bin/fallow-audit.sh",
+      },
+    },
     "packages/web-utils": {
       "name": "@imapps/web-utils",
       "version": "0.5.1",
@@ -154,6 +161,8 @@
     "@imapps/api-utils": ["@imapps/api-utils@workspace:packages/api-utils"],
 
     "@imapps/biome-config": ["@imapps/biome-config@workspace:packages/biome-config"],
+
+    "@imapps/dev-scripts": ["@imapps/dev-scripts@workspace:packages/dev-scripts"],
 
     "@imapps/web-utils": ["@imapps/web-utils@workspace:packages/web-utils"],
 
