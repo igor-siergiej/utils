@@ -70,3 +70,7 @@ jobs:
         run: cd packages/biome-config && npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish dev-scripts
+        run: cd packages/dev-scripts && npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
