@@ -58,19 +58,7 @@ jobs:
       - run: git pull origin main
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - name: Publish api-utils
-        run: cd packages/api-utils && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish web-utils
-        run: cd packages/web-utils && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish biome-config
-        run: cd packages/biome-config && npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Publish dev-scripts
-        run: cd packages/dev-scripts && npm publish
+      - name: Publish changed packages
+        run: bash scripts/publish-packages.sh
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
