@@ -1,3 +1,15 @@
+# [0.6.0](https://github.com/igor-siergiej/utils/compare/v0.5.4...v0.6.0) (2026-06-09)
+
+
+### Features
+
+* **dev-scripts:** add @imapps/dev-scripts with fallow-audit bin ([#4](https://github.com/igor-siergiej/utils/issues/4)) ([bed8e8a](https://github.com/igor-siergiej/utils/commit/bed8e8ae0991f0774e076d706899f4e43f5817bd))
+
+
+### Reverts
+
+* restore reusable workflows to package-manager input interface ([#3](https://github.com/igor-siergiej/utils/issues/3)) ([34b382e](https://github.com/igor-siergiej/utils/commit/34b382e7da527fb0373ac0080b08162c2a1083a7)), closes [#2](https://github.com/igor-siergiej/utils/issues/2)
+
 ## [0.5.4](https://github.com/igor-siergiej/utils/compare/v0.5.3...v0.5.4) (2026-04-27)
 
 
