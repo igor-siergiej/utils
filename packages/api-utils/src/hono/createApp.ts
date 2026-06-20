@@ -15,7 +15,9 @@ export const createApp = ({ logger, allowedOrigins }: CreateAppOptions): Hono =>
     app.use(
         '*',
         cors({
-            origin: (origin) => (allowedOrigins.includes(origin) ? origin : '*'),
+            // Reflect only allow-listed origins; non-allowed get no ACAO header
+            // (returning '*' alongside credentials is rejected by browsers).
+            origin: (origin) => (allowedOrigins.includes(origin) ? origin : null),
             credentials: true,
             allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
             allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],

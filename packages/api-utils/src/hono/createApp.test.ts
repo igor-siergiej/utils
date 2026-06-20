@@ -23,4 +23,12 @@ describe('createApp', () => {
         const res = await app.request('/ok', { headers: { Origin: 'https://allowed.test' } });
         expect(res.headers.get('access-control-allow-origin')).toBe('https://allowed.test');
     });
+
+    it('does not emit a wildcard ACAO for non-allowed origins (credentials safety)', async () => {
+        const app = createApp({ logger, allowedOrigins: ['https://allowed.test'] });
+        app.get('/ok', (c) => c.text('ok'));
+
+        const res = await app.request('/ok', { headers: { Origin: 'https://evil.test' } });
+        expect(res.headers.get('access-control-allow-origin')).not.toBe('*');
+    });
 });
