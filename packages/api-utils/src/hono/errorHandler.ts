@@ -1,5 +1,4 @@
 import type { Context } from 'hono';
-import type { StatusCode } from 'hono/utils/http-status';
 
 export class APIError extends Error {
     public status: number;
@@ -12,7 +11,7 @@ export class APIError extends Error {
 
 export const errorHandler = (err: Error, c: Context): Response => {
     const e = err as { status?: number; message?: string };
-    const status = (e.status ?? 500) as StatusCode;
+    const statusCode = (e.status ?? 500) as any;
 
-    return c.json({ error: e.message ?? 'Internal Server Error' }, status);
+    return c.json({ error: e.message ?? 'Internal Server Error' }, statusCode);
 };
