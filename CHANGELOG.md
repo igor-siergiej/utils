@@ -1,3 +1,15 @@
+# [0.7.0](https://github.com/igor-siergiej/utils/compare/v0.6.0...v0.7.0) (2026-06-20)
+
+
+### Bug Fixes
+
+* use '*' not 'workspace:*' for biome-config dep ([#9](https://github.com/igor-siergiej/utils/issues/9)) ([5292242](https://github.com/igor-siergiej/utils/commit/529224224bb13a25de3778fe97908aa7caa61d9e))
+
+
+### Features
+
+* **api-utils:** Hono scaffolding subpath + per-package versioning ([#7](https://github.com/igor-siergiej/utils/issues/7)) ([61252d8](https://github.com/igor-siergiej/utils/commit/61252d845b507a0ab85c22c1840becb06a1d8259))
+
 # [0.6.0](https://github.com/igor-siergiej/utils/compare/v0.5.4...v0.6.0) (2026-06-09)
 
 
