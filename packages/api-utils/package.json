@@ -1,6 +1,6 @@
 {
   "name": "@imapps/api-utils",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Shared API utilities for Node services",
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
@@ -20,6 +20,11 @@
       "import": "./build/index.mjs",
       "require": "./build/index.js",
       "types": "./build/index.d.ts"
+    },
+    "./hono": {
+      "import": "./build/hono/index.mjs",
+      "require": "./build/hono/index.js",
+      "types": "./build/hono/index.d.ts"
     }
   },
   "files": [
@@ -42,6 +47,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "hono": "^4.6.14",
     "minio": "^8.0.0",
     "mongodb": "^6.19.0"
   }
