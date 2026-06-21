@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/igor-siergiej/utils/compare/v0.7.0...v0.8.0) (2026-06-21)
+
+
+### Features
+
+* add mixtape image pipeline config ([7054b60](https://github.com/igor-siergiej/utils/commit/7054b60d56a6a275617d33b893ff0b138229c4d7))
+
 # [0.7.0](https://github.com/igor-siergiej/utils/compare/v0.6.0...v0.7.0) (2026-06-20)
 
 
