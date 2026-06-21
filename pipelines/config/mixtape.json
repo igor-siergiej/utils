@@ -1,0 +1,13 @@
+{
+  "service": "mixtape",
+  "dockerfiles": [
+    {
+      "dockerfile": "./Dockerfile.api",
+      "tag": "mixtape-api"
+    },
+    {
+      "dockerfile": "./Dockerfile.web",
+      "tag": "mixtape-web"
+    }
+  ]
+}
