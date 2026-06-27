@@ -69,6 +69,26 @@ services:
       "
     restart: "no"
 
+  # -------------------------------------------------------------------------
+  # 4. Navidrome (music server — used by mixtape local dev)
+  # -------------------------------------------------------------------------
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: dev-navidrome
+    restart: unless-stopped
+    ports:
+      - "4533:4533"
+    environment:
+      ND_MUSICFOLDER: /music
+      ND_SCANSCHEDULE: 1m
+      ND_LOGLEVEL: info
+    volumes:
+      # mixtape (run locally via `bun run start`) writes mp3s here with MUSIC_ROOT=mixtape/music.
+      # Path is relative to this compose file (utils/docker) → ../../mixtape/music.
+      - ../../mixtape/music:/music
+      - navidrome_data:/data
+
 volumes:
   mongo_data:
   minio_data:
+  navidrome_data:

@@ -22,6 +22,12 @@
       }
     ],
     [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "node scripts/stamp-versions.mjs ${nextRelease.version} && bun install"
+      }
+    ],
+    [
       "@semantic-release/git",
       {
         "assets": ["package.json", "packages/*/package.json", "bun.lock", "CHANGELOG.md"],
