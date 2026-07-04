@@ -1,0 +1,53 @@
+{
+  "name": "@imapps/kanban-cli",
+  "version": "0.6.0",
+  "description": "CLI that drives the kanban-worker skill: parses a Kanban markdown board and runs the deterministic steps (PR/CI/deploy/e2e) around an autonomous work loop",
+  "author": "igor-siergiej",
+  "license": "AGPL-3.0 license",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igor-siergiej/utils.git"
+  },
+  "main": "build/index.js",
+  "module": "build/index.mjs",
+  "types": "build/index.d.ts",
+  "bin": {
+    "kanban-cli": "./build/cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./build/index.mjs",
+      "require": "./build/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
+  "files": [
+    "build",
+    "skill",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rimraf build",
+    "prepack": "bun run clean && bun run build",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1"
+  }
+}
