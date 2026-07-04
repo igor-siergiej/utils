@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/igor-siergiej/utils/compare/v0.8.0...v0.9.0) (2026-07-04)
+
+
+### Features
+
+* **kanban-cli:** add kanban-worker skill and CLI for autonomous backlog work ([#12](https://github.com/igor-siergiej/utils/issues/12)) ([9159af3](https://github.com/igor-siergiej/utils/commit/9159af34d62a80766094a48e6ab0707b37a33e48))
+
 # [0.8.0](https://github.com/igor-siergiej/utils/compare/v0.7.0...v0.8.0) (2026-06-21)
 
 
