@@ -1,3 +1,14 @@
+# [0.10.0](https://github.com/igor-siergiej/utils/compare/v0.9.0...v0.10.0) (2026-07-20)
+
+
+### Features
+
+* **kanban-cli:** add pure usage-window evaluation logic ([9379612](https://github.com/igor-siergiej/utils/commit/937961262864e772060aa079098bc524024e744b))
+* **kanban-cli:** add record-usage command ([0a33897](https://github.com/igor-siergiej/utils/commit/0a33897215fa51185924bd401138175df24f6688))
+* **kanban-cli:** add usage-check command ([4de789f](https://github.com/igor-siergiej/utils/commit/4de789faf9bac6b50df84555801641508ed9b751))
+* **kanban-cli:** add usage-state file persistence ([d6c6b7f](https://github.com/igor-siergiej/utils/commit/d6c6b7f9d73531450bfe4ee493bc1da51d1a6891))
+* **kanban-cli:** parse five-hour rate limit from statusline payload ([aee8cbc](https://github.com/igor-siergiej/utils/commit/aee8cbc6326651e9e1a1da78860d73d0508a14c8))
+
 # [0.9.0](https://github.com/igor-siergiej/utils/compare/v0.8.0...v0.9.0) (2026-07-04)
 
 
