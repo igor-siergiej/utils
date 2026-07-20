@@ -15,6 +15,7 @@ import { prCreate } from './commands/prCreate';
 import { prMerge } from './commands/prMerge';
 import { prRevert } from './commands/prRevert';
 import { prStatus } from './commands/prStatus';
+import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
 import type { RetryGate } from './kanban/types';
 
@@ -34,7 +35,8 @@ const USAGE =
     'Commands: next, show <id>, move <id> <column>, update <id>, columns,\n' +
     '          repo-check <repoPath>, install-skill --target <dir>,\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
-    '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>';
+    '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
+    '          record-usage (reads statusline JSON from stdin), usage-check';
 
 async function runE2e(rest: string[]): Promise<unknown> {
     const [sub, ...subRest] = rest;
@@ -273,6 +275,11 @@ async function main(): Promise<void> {
         case 'deploy':
             printSuccess(await runDeploy(rest));
             return;
+        case 'record-usage': {
+            const stdinText = await Bun.stdin.text();
+            printSuccess(recordUsage(stdinText));
+            return;
+        }
         case undefined:
         case '--help':
         case '-h':

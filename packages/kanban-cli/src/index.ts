@@ -22,3 +22,7 @@ export * from './process/shell';
 export * from './repoConfig/errors';
 export * from './repoConfig/loader';
 export * from './repoConfig/types';
+export * from './usage/evaluateUsage';
+export * from './usage/state';
+export * from './usage/statuslinePayload';
+export * from './usage/types';
