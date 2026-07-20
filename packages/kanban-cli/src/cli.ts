@@ -17,6 +17,7 @@ import { prRevert } from './commands/prRevert';
 import { prStatus } from './commands/prStatus';
 import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
+import { usageCheck } from './commands/usageCheck';
 import type { RetryGate } from './kanban/types';
 
 const DEFAULT_BOARD_PATH = process.env.KANBAN_CLI_BOARD ?? './KANBAN.md';
@@ -278,6 +279,19 @@ async function main(): Promise<void> {
         case 'record-usage': {
             const stdinText = await Bun.stdin.text();
             printSuccess(recordUsage(stdinText));
+            return;
+        }
+        case 'usage-check': {
+            const { values } = parseArgs({
+                args: rest,
+                options: { threshold: { type: 'string' }, 'max-staleness-ms': { type: 'string' } },
+            });
+            printSuccess(
+                usageCheck({
+                    thresholdPct: values.threshold ? Number(values.threshold) : undefined,
+                    maxStalenessMs: values['max-staleness-ms'] ? Number(values['max-staleness-ms']) : undefined,
+                })
+            );
             return;
         }
         case undefined:
