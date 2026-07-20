@@ -112,6 +112,32 @@ If a repo has no `.kanban-cli.json` yet, `kanban-cli repo-check <repoPath>` repo
 `configFound: false` rather than erroring — the `kanban-worker` skill treats that as a
 one-time setup step to walk you through before continuing.
 
+## Pausing on the 5-hour usage limit
+
+The `kanban-worker` skill can run for hours across many board items in one
+Claude Code session. To avoid running until the Claude subscription's rolling
+5-hour usage window hard-blocks mid-work, wire your Claude Code `statusLine`
+hook to also feed `kanban-cli record-usage`:
+
+```sh
+# inside your statusLine script, alongside its existing rendering logic
+if command -v kanban-cli >/dev/null 2>&1; then
+    printf '%s' "$input" | kanban-cli record-usage >/dev/null 2>&1 &
+fi
+```
+
+(`$input` is the JSON the statusLine hook already receives on stdin — the
+same payload `rate_limits.five_hour.used_percentage` comes from, if your
+statusline already renders a usage bar.) This persists the window's
+utilization and reset time to `~/.claude/kanban-cli/usage-state.json`
+(override with `KANBAN_CLI_USAGE_STATE_PATH`) every time the statusline
+renders — effectively continuously, for as long as a pty stays attached to
+the session.
+
+Without this wired up, `kanban-cli usage-check` always reports `unknown` and
+the `kanban-worker` skill just keeps working — the pause/resume behavior is
+opt-in, not required to use the rest of the CLI.
+
 ## Requirements
 
 `gh` (GitHub CLI) must be installed and authenticated wherever `kanban-cli`'s PR/CI/
@@ -147,6 +173,9 @@ kanban-cli pr revert <repoPath> --commit <sha> --base <branch> --title <t> --sum
 
 kanban-cli ci wait <repoPath> <prNumber> [--timeout <ms>] [--interval <ms>] [--required <name>]
 kanban-cli deploy wait <repoPath> --workflow <name> --commit <sha> [--timeout <ms>] [--interval <ms>]
+
+kanban-cli record-usage                 # reads statusline JSON from stdin, persists the 5hr usage window
+kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
 ```
 
 ## Known limitations

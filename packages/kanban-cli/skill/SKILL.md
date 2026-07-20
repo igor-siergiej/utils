@@ -46,11 +46,28 @@ and retry counters aren't lost. Full example lives in the package README.
 
 ## Per-item loop
 
-Repeat from step 1 until `kanban-cli next` returns `item: null`, then stop and report
+Repeat from step 0 until `kanban-cli next` returns `item: null`, then stop and report
 a summary of what was completed/blocked this session.
 
 **[CLI]** = shell out to kanban-cli (deterministic, no judgment). **[Claude]** = your
 own reasoning/tool use.
+
+0. **[CLI]** `kanban-cli usage-check`. This reads a state file that a companion
+   line in the user's statusline hook keeps fresh with the Claude subscription's
+   rolling 5-hour usage window — it has nothing to do with this board or repo.
+   - `result.status: "pause"`: the window is past the safety threshold (default
+     90%). **[Claude]** Do not start step 1 / new item work. Write a short
+     summary of what shipped or is still `In Progress` this session (do **not**
+     move or touch the in-flight item — this check only gates the boundary
+     *between* items). Then call the `ScheduleWakeup` tool with `delaySeconds`
+     set from `result.resetsAt` (clamp to the tool's [60, 3600] range — if
+     `resetsAt` is more than an hour out, this same Step 0 check just re-fires
+     and re-schedules on the next wake, cheaply, until the window has actually
+     reset) and end your turn. Do not attempt to keep working past this point.
+   - `result.status: "ok"` or `"unknown"`: continue to step 1 as normal.
+     (`"unknown"` means no fresh usage telemetry is available — e.g. the
+     statusline hasn't rendered recently, or the user hasn't wired up
+     `record-usage` — proceed rather than block indefinitely on missing data.)
 
 1. **[CLI]** `kanban-cli next --kanban <board>`. If `item` is `null`, the board has no
    more actionable work — stop here.
@@ -164,3 +181,12 @@ it from conversation context.
 `kanban-cli next` only ever looks at the `Backlog` column, so once an item is moved to
 `Blocked` it's automatically skipped on the next iteration — move on to the next
 Backlog item rather than getting stuck.
+
+## The usage-limit pause only gates between items
+
+Step 0's `usage-check` only runs at the top-of-loop boundary. It will not
+interrupt a single item's implementation, e2e run, or CI/deploy wait if that
+one item's work happens to cross the threshold mid-flight — only the *next*
+item is gated. This is intentional: every other checkpoint in this loop can
+be mid-git-operation, mid-PR-review, or mid-poll, none of which are safe
+points to abandon.
