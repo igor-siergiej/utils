@@ -8,6 +8,7 @@ const ZERO_RETRIES = { implement: 0, e2e_local: 0, ci: 0, deploy: 0, e2e_live: 0
 function board(overrides: Partial<KanbanBoard> = {}): KanbanBoard {
     return {
         title: 'Kanban Board',
+        project: 'shoppingo',
         columns: [
             { name: 'Backlog', items: [] },
             { name: 'In Progress', items: [] },
@@ -17,6 +18,16 @@ function board(overrides: Partial<KanbanBoard> = {}): KanbanBoard {
         ...overrides,
     };
 }
+
+describe('serializeKanbanBoard — project frontmatter', () => {
+    it('emits project frontmatter ahead of the title', () => {
+        expect(serializeKanbanBoard(board())).toMatch(/^---\nproject: shoppingo\n---\n\n# Kanban Board\n/);
+    });
+
+    it('throws when the board has no project', () => {
+        expect(() => serializeKanbanBoard({ ...board(), project: undefined })).toThrow(/project/);
+    });
+});
 
 describe('serializeKanbanBoard round-trip', () => {
     it('round-trips a board with no items', () => {

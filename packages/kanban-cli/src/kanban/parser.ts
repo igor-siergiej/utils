@@ -36,11 +36,31 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
     const lines = markdown.split(/\r?\n/);
 
     let title = 'Kanban Board';
+    let project: string | undefined;
     const columns: KanbanColumn[] = [];
     const seenIds = new Set<string>();
 
     let currentColumn: KanbanColumn | null = null;
     let i = 0;
+
+    if (lines[0]?.trim() === '---') {
+        let end = 1;
+        while (end < lines.length && lines[end].trim() !== '---') end += 1;
+        if (end >= lines.length) {
+            throw new KanbanParseError('Board frontmatter is not terminated by a closing ---');
+        }
+        let front: Record<string, unknown>;
+        try {
+            front = (parseYamlDocument(lines.slice(1, end).join('\n')) ?? {}) as Record<string, unknown>;
+        } catch (cause) {
+            throw new KanbanParseError(`Board frontmatter is not valid yaml: ${(cause as Error).message}`);
+        }
+        if (typeof front.project !== 'string' || front.project.trim() === '') {
+            throw new KanbanParseError("Board frontmatter is missing a required 'project' field");
+        }
+        project = front.project;
+        i = end + 1;
+    }
 
     while (i < lines.length) {
         const line = lines[i];
@@ -81,7 +101,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
         i += 1;
     }
 
-    return { title, columns };
+    return { title, project, columns };
 }
 
 function parseItem(lines: string[], start: number, itemTitle: string): { item: KanbanItem; nextIndex: number } {

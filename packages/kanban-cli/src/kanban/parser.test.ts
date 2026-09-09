@@ -266,3 +266,37 @@ Just a body.
         ).toThrow(/missing its metadata block/);
     });
 });
+
+describe('parseKanbanFile — frontmatter', () => {
+    it('reads project from leading frontmatter', () => {
+        const board = parseKanbanFile(`---
+project: shoppingo
+---
+
+# Board
+
+## Backlog
+## In Progress
+## Blocked
+## Done
+`);
+        expect(board.project).toBe('shoppingo');
+    });
+
+    it('throws when frontmatter is present without a project', () => {
+        expect(() =>
+            parseKanbanFile(`---
+updated: 2026-09-09
+---
+
+# Board
+
+## Backlog
+`)
+        ).toThrow(KanbanParseError);
+    });
+
+    it('leaves project undefined when there is no frontmatter', () => {
+        expect(parseKanbanFile(BULLET_FIXTURE).project).toBeUndefined();
+    });
+});

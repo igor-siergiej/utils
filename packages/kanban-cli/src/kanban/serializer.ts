@@ -2,7 +2,11 @@ import type { KanbanBoard, KanbanItem } from './types';
 import { RETRY_GATES } from './types';
 
 export function serializeKanbanBoard(board: KanbanBoard): string {
-    const lines: string[] = [`# ${board.title}`, ''];
+    if (!board.project || board.project.trim() === '') {
+        throw new Error('Cannot serialize a board without a project');
+    }
+
+    const lines: string[] = ['---', `project: ${board.project}`, '---', '', `# ${board.title}`, ''];
 
     for (const column of board.columns) {
         lines.push(`## ${column.name}`, '');
