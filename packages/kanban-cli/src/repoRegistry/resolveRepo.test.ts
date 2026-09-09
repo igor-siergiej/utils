@@ -61,4 +61,30 @@ describe('resolveRepoPath', () => {
         const expected = makeRepo('shoppingo', 'shoppingo');
         expect(resolveRepoPath('shoppingo', [join(root, 'nope'), root])).toBe(expected);
     });
+
+    it('matches a repo two levels below the root', () => {
+        const path = join(root, 'imapps', 'shoppingo');
+        mkdirSync(path, { recursive: true });
+        writeFileSync(join(path, '.kanban-cli.json'), JSON.stringify({ repoName: 'shoppingo' }));
+        expect(resolveRepoPath('shoppingo', [root])).toBe(path);
+    });
+
+    it('ignores a malformed .kanban-cli.json in the scan path', () => {
+        const bad = join(root, 'broken');
+        mkdirSync(bad, { recursive: true });
+        writeFileSync(join(bad, '.kanban-cli.json'), '{ not json');
+        const expected = makeRepo('shoppingo', 'shoppingo');
+        expect(resolveRepoPath('shoppingo', [root])).toBe(expected);
+    });
+
+    it('skips a root path that is a file, not a directory', () => {
+        const filePath = join(root, 'a-file');
+        writeFileSync(filePath, 'hi');
+        const expected = makeRepo('shoppingo', 'shoppingo');
+        expect(resolveRepoPath('shoppingo', [filePath, root])).toBe(expected);
+    });
+
+    it('names the two-level scan depth in the no-match error', () => {
+        expect(() => resolveRepoPath('shoppingo', [root])).toThrow(/scanned up to two levels deep/);
+    });
 });

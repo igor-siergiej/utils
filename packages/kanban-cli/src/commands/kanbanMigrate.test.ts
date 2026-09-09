@@ -58,6 +58,8 @@ describe('kanbanMigrate', () => {
         expect(out).toContain('- **tags:** ui');
         expect(out).toContain('- **retries:** implement 0, e2e_local 1, ci 0, deploy 0, e2e_live 0');
         expect(out).not.toContain('repo:');
+        expect(out).toContain('# Shoppingo Board');
+        expect(out).toContain('Body text.');
     });
 
     it('is idempotent on an already-migrated board', () => {
