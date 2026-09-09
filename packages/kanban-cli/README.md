@@ -74,15 +74,20 @@ bullet list or body is fine.
 
 `kanban-cli` turns the board's `project` into a local repo path by scanning for
 `.kanban-cli.json` files: for each directory listed in `KANBAN_CLI_REPO_ROOTS`
-(colon-separated; defaults to your home directory), it looks one level deep for
-a `*/.kanban-cli.json` whose `repoName` equals `project`. Set
-`KANBAN_CLI_REPO_ROOTS=/path/to/your/checkouts` if your repos do not live
-directly under `$HOME`.
+(colon-separated; defaults to your home directory), it looks up to two levels
+deep (`<root>/*/.kanban-cli.json` and `<root>/*/*/.kanban-cli.json`) for one
+whose `repoName` equals `project`. The default (`$HOME`) is scanned up to two
+levels deep; you must set `KANBAN_CLI_REPO_ROOTS=/path/to/your/checkouts` if
+your checkouts are deeper than that or live elsewhere.
+
+Resolution always lands on the checkout whose `.kanban-cli.json` has the
+matching `repoName` — pointing the worker at a git worktree path (possible in
+the old per-item `repo` format) is no longer expressible.
 
 ### Migrating an existing board
 
-Older boards stored each item's fields in a fenced ` ```yaml ` block and a
-per-item `repo` path. `kanban-cli` still reads that format. To convert a board
+Older boards stored each item's fields, including its `repo` path, in a fenced
+` ```yaml ` block. `kanban-cli` still reads that format. To convert a board
 in place:
 
 ```sh

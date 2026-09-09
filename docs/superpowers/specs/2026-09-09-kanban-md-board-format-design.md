@@ -99,12 +99,12 @@ of `- **<key>:** <value>` lines. Recognised keys:
 | key | type | rendered |
 | --- | --- | --- |
 | `id` | string, unique across the file | always |
-| `retries` | `implement N, e2e_local N, ci N, deploy N, e2e_live N` | always |
 | `tags` | comma-separated strings | when non-empty |
 | `branch` | string | when set |
 | `pr` | number | when set |
 | `merged_commit` | string | when set |
 | `revert_pr` | number | when set |
+| `retries` | `implement N, e2e_local N, ci N, deploy N, e2e_live N` | always |
 | `blocked_reason` | string | when set |
 | `completed_at` | ISO-8601 string | when set |
 
@@ -162,8 +162,9 @@ resolveRepoPath(project: string): string
 
 - Read `KANBAN_CLI_REPO_ROOTS` — a colon-separated list of absolute
   directories. Default: the user's home directory.
-- For each root, glob `<root>/*/.kanban-cli.json` (one level deep), read each,
-  and return the containing directory whose `repoName` equals `project`.
+- For each root, glob up to two levels deep (`<root>/*/.kanban-cli.json` and
+  `<root>/*/*/.kanban-cli.json`), read each, and return the containing directory
+  whose `repoName` equals `project`.
 - No match → `RepoResolutionError`:
   `no repo with repoName '<project>' found under <roots>; set KANBAN_CLI_REPO_ROOTS`.
 - More than one match → `RepoResolutionError` naming the conflicting paths.
