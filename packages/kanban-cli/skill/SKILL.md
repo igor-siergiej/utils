@@ -1,12 +1,12 @@
 ---
 name: kanban-worker
-description: Autonomously works a Kanban-board markdown file across local repo checkouts — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next backlog item", "run the kanban worker", or similar.
+description: Autonomously works a per-project Kanban-board markdown file against that project's single local checkout — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next backlog item", "run the kanban worker", or similar.
 ---
 
 # Kanban worker
 
-Drives a Kanban-board markdown file to completion, one Backlog item at a time,
-across any of the user's local repo checkouts. Deterministic steps are delegated to
+Drives a per-project Kanban-board markdown file to completion, one Backlog item
+at a time, worked against that project's single local checkout. Deterministic steps are delegated to
 the `kanban-cli` CLI (shipped alongside this skill in `@imapps/kanban-cli`); anything
 requiring judgment — implementing code, debugging failures, writing e2e assertions,
 reviewing the diff, deciding when something is genuinely blocked — is done directly
@@ -33,16 +33,31 @@ The user points you at a path to a Kanban markdown file (see schema below). Pass
 explicitly with `--kanban <path>` on every kanban-cli invocation, or export
 `KANBAN_CLI_BOARD=<path>` once per session so you can omit the flag.
 
+The board cannot be read at all until the target checkout has at least
+`{"repoName": "<project>"}` in a `.kanban-cli.json` at its root, and
+`KANBAN_CLI_REPO_ROOTS` points at the directory that contains the checkouts
+(scanned up to two levels deep; default `$HOME`).
+
+If `kanban-cli` reports a `RepoResolutionError`, the board's `project` did not
+match any `.kanban-cli.json` `repoName` under `KANBAN_CLI_REPO_ROOTS` — tell
+the user to set that env var to the directory holding their checkouts, or to
+fix the `repoName` in the repo's `.kanban-cli.json`.
+
 ## Board schema (for reference — see also `.kanban-cli.json` per repo)
 
-`##` headings are columns (`Backlog`, `In Progress`, `Blocked`, `Done` are required;
-extra columns are fine). `###` headings are items, each immediately followed by a
-fenced ` ```yaml ` block of structured fields (`id`, `repo`, `retries`, and optional
-`tags`/`branch`/`pr`/`merged_commit`/`revert_pr`/`blocked_reason`/`completed_at`),
-then freeform Markdown body (description/acceptance criteria) up to a `---` line or
-the next heading. **Never hand-edit this file directly** — always go through
-`kanban-cli next/show/move/update`, so the parser/serializer round-trip stays intact
-and retry counters aren't lost. Full example lives in the package README.
+The file opens with a `---\nproject: <name>\n---` frontmatter block. `##`
+headings are columns (`Backlog`, `In Progress`, `Blocked`, `Done` required;
+extra columns are fine). `###` headings are items, each followed by a Markdown
+bullet list of fields (`- **id:**`, `- **retries:**` always; `- **tags:**`,
+`- **branch:**`, `- **pr:**`, `- **merged_commit:**`, `- **revert_pr:**`,
+`- **blocked_reason:**`, `- **completed_at:**` when set), then freeform
+Markdown body up to a `---` line or the next heading. There is no per-item
+`repo` — `kanban-cli` resolves the checkout path from `project` by scanning
+`KANBAN_CLI_REPO_ROOTS` (default `$HOME`, scanned up to two levels deep) for a
+`.kanban-cli.json` whose `repoName` matches. The board is meant to be hand-editable (e.g. from a phone
+over a synced folder); still prefer `kanban-cli next/show/move/update` for
+worker edits so retry counters and round-trip stay intact. Full example lives
+in the package README.
 
 ## Per-item loop
 
@@ -72,10 +87,12 @@ own reasoning/tool use.
 1. **[CLI]** `kanban-cli next --kanban <board>`. If `item` is `null`, the board has no
    more actionable work — stop here.
 2. **[CLI]** `kanban-cli repo-check <item.repo>`.
-   - If `configFound: false`: **[Claude]** help the user author `.kanban-cli.json` at
-     that repo's root (ask for the dev start/teardown commands, health-check URL, e2e
-     test command, CI workflow name(s), deploy workflow name, and staging/prod base
-     URL — see the schema in the README). This is one-time per repo, not per item;
+   - If it fails with a `RepoConfigError` (`{"ok":false,...}`): the repo's
+     `.kanban-cli.json` exists (step 1 already resolved the checkout via its
+     `repoName`) but is missing required keys. **[Claude]** help the user fill
+     the missing keys from the README schema (dev start/teardown commands,
+     health-check URL, e2e test command, CI workflow name(s), deploy workflow
+     name, staging/prod base URL). This is one-time per repo, not per item;
      re-run `repo-check` after to confirm it validates, then continue.
    - If `playwrightConfigured: false`: **[CLI]** `kanban-cli e2e bootstrap <item.repo>`,
      then **[Claude]** review the scaffolded config/spec and adjust it to fit the app

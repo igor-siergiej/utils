@@ -1,14 +1,18 @@
-import { stringify as stringifyYamlDocument } from 'yaml';
 import type { KanbanBoard, KanbanItem } from './types';
+import { RETRY_GATES } from './types';
 
 export function serializeKanbanBoard(board: KanbanBoard): string {
-    const lines: string[] = [`# ${board.title}`, ''];
+    if (!board.project || board.project.trim() === '') {
+        throw new Error('Cannot serialize a board without a project');
+    }
+
+    const lines: string[] = ['---', `project: ${board.project}`, '---', '', `# ${board.title}`, ''];
 
     for (const column of board.columns) {
         lines.push(`## ${column.name}`, '');
 
         for (const item of column.items) {
-            lines.push(`### ${item.title}`, '', '```yaml', ...serializeMeta(item).split('\n'), '```', '');
+            lines.push(`### ${item.title}`, '', ...serializeMeta(item), '');
 
             if (item.body) {
                 lines.push(item.body, '');
@@ -25,20 +29,20 @@ export function serializeKanbanBoard(board: KanbanBoard): string {
     return `${lines.join('\n')}\n`;
 }
 
-function serializeMeta(item: KanbanItem): string {
-    const meta: Record<string, unknown> = {
-        id: item.id,
-        repo: item.repo,
-    };
+function serializeMeta(item: KanbanItem): string[] {
+    const bullets: string[] = [`- **id:** ${item.id}`];
 
-    if (item.tags?.length) meta.tags = item.tags;
-    if (item.branch) meta.branch = item.branch;
-    if (item.pr !== undefined) meta.pr = item.pr;
-    if (item.mergedCommit) meta.merged_commit = item.mergedCommit;
-    if (item.revertPr !== undefined) meta.revert_pr = item.revertPr;
-    meta.retries = item.retries;
-    if (item.blockedReason) meta.blocked_reason = item.blockedReason;
-    if (item.completedAt) meta.completed_at = item.completedAt;
+    if (item.tags?.length) bullets.push(`- **tags:** ${item.tags.join(', ')}`);
+    if (item.branch) bullets.push(`- **branch:** ${item.branch}`);
+    if (item.pr !== undefined) bullets.push(`- **pr:** ${item.pr}`);
+    if (item.mergedCommit) bullets.push(`- **merged_commit:** ${item.mergedCommit}`);
+    if (item.revertPr !== undefined) bullets.push(`- **revert_pr:** ${item.revertPr}`);
 
-    return stringifyYamlDocument(meta, { lineWidth: 0 }).trimEnd();
+    const retries = RETRY_GATES.map((gate) => `${gate} ${item.retries[gate]}`).join(', ');
+    bullets.push(`- **retries:** ${retries}`);
+
+    if (item.blockedReason) bullets.push(`- **blocked_reason:** ${item.blockedReason}`);
+    if (item.completedAt) bullets.push(`- **completed_at:** ${item.completedAt}`);
+
+    return bullets;
 }

@@ -7,6 +7,7 @@ import { e2eLiveRun } from './commands/e2eLiveRun';
 import { e2eLocalRun } from './commands/e2eLocalRun';
 import { installSkill } from './commands/installSkill';
 import { kanbanColumns } from './commands/kanbanColumns';
+import { kanbanMigrate } from './commands/kanbanMigrate';
 import { kanbanMove } from './commands/kanbanMove';
 import { kanbanNext } from './commands/kanbanNext';
 import { kanbanShow } from './commands/kanbanShow';
@@ -33,7 +34,7 @@ function printError(error: unknown): void {
 
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
-    'Commands: next, show <id>, move <id> <column>, update <id>, columns,\n' +
+    'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>,\n' +
     '          repo-check <repoPath>, install-skill --target <dir>,\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
@@ -248,6 +249,16 @@ async function main(): Promise<void> {
         case 'columns': {
             const { values } = parseArgs({ args: rest, options: { kanban: { type: 'string' } } });
             printSuccess(kanbanColumns(values.kanban ?? DEFAULT_BOARD_PATH));
+            return;
+        }
+        case 'migrate': {
+            const { values, positionals } = parseArgs({
+                args: rest,
+                options: { project: { type: 'string' } },
+                allowPositionals: true,
+            });
+            if (!positionals[0]) throw new Error('Usage: kanban-cli migrate <board> [--project <name>]');
+            printSuccess(kanbanMigrate(positionals[0], { project: values.project }));
             return;
         }
         case 'repo-check': {

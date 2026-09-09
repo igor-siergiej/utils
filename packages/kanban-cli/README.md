@@ -24,31 +24,32 @@ future `kanban-cli` upgrades without reinstalling.
 
 ## The board file
 
-`##` headings are columns — `Backlog`, `In Progress`, `Blocked`, `Done` are required,
-extra columns are allowed. `###` headings are items, each followed by a fenced yaml
-metadata block, then freeform Markdown body (description/acceptance criteria) up to a
-`---` line or the next heading.
+A YAML frontmatter block with a required `project` key, then `##` column
+headings (`Backlog`, `In Progress`, `Blocked`, `Done` required; extra columns
+allowed), then `###` item headings. Each item is followed by a Markdown bullet
+list of its fields, then a freeform Markdown body (description / acceptance
+criteria) up to a `---` line or the next heading.
 
 ```markdown
-# Kanban Board
+---
+project: shoppingo
+---
+
+# Shoppingo Kanban Worker Board
 
 ## Backlog
 
 ### Add dark mode toggle to settings page
 
-​```yaml
-id: shoppingo-042
-repo: /home/igor/dev/shoppingo
-tags: [ui, frontend]
-retries: { implement: 0, e2e_local: 0, ci: 0, deploy: 0, e2e_live: 0 }
-​```
+- **id:** shoppingo-dark-mode
+- **tags:** ui, frontend
+- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
 
 Add a dark/light theme toggle to Settings, persisted in localStorage.
 
 **Acceptance criteria**
 - Toggle appears in Settings > Appearance
 - Theme persists across reloads
-- New e2e spec covers switching the toggle and reloading
 
 ---
 
@@ -57,16 +58,48 @@ Add a dark/light theme toggle to Settings, persisted in localStorage.
 ## Done
 ```
 
-Required item fields: `id` (unique across the file), `repo` (an **already-cloned
-local path** — kanban-cli never clones for you). `retries` defaults to all-zero if
-omitted. Optional: `tags`, `branch`, `pr`, `merged_commit`, `revert_pr`,
-`blocked_reason`, `completed_at`. Always edit this file through `kanban-cli
-next/show/move/update` rather than by hand, so the parser/serializer round-trip and
-retry counters stay intact.
+The board file is designed to be hand-editable — including from a phone (e.g.
+Obsidian over a synced folder). `- **id:**` and `- **retries:**` are always
+written; `- **tags:**`, `- **branch:**`, `- **pr:**`, `- **merged_commit:**`,
+`- **revert_pr:**`, `- **blocked_reason:**`, `- **completed_at:**` appear only
+when set. `retries` counters default to zero when a gate is omitted.
+
+`id` must be unique across the file. There is **no `repo` field** — the board
+carries only `project`, and each machine resolves its own checkout path (see
+below). Prefer editing through `kanban-cli next/show/move/update` so the
+round-trip and retry counters stay intact, but a careful hand-edit of the
+bullet list or body is fine.
+
+### Resolving the checkout path
+
+`kanban-cli` turns the board's `project` into a local repo path by scanning for
+`.kanban-cli.json` files: for each directory listed in `KANBAN_CLI_REPO_ROOTS`
+(colon-separated; defaults to your home directory), it looks up to two levels
+deep (`<root>/*/.kanban-cli.json` and `<root>/*/*/.kanban-cli.json`) for one
+whose `repoName` equals `project`. The default (`$HOME`) is scanned up to two
+levels deep; you must set `KANBAN_CLI_REPO_ROOTS=/path/to/your/checkouts` if
+your checkouts are deeper than that or live elsewhere.
+
+Resolution always lands on the checkout whose `.kanban-cli.json` has the
+matching `repoName` — pointing the worker at a git worktree path (possible in
+the old per-item `repo` format) is no longer expressible.
+
+### Migrating an existing board
+
+Older boards stored each item's fields, including its `repo` path, in a fenced
+` ```yaml ` block. `kanban-cli` still reads that format. To convert a board
+in place:
+
+```sh
+kanban-cli migrate path/to/board.md --project <name>
+```
+
+(`--project` is only needed when the file has no `project` frontmatter yet.)
 
 ## Per-repo config — `.kanban-cli.json`
 
-Lives at the root of each repo referenced by a board item's `repo` field:
+Lives at the root of each repo a board resolves to via its `project` key. Its
+`repoName` is what `project` is matched against during checkout-path resolution:
 
 ```jsonc
 {
@@ -158,6 +191,7 @@ kanban-cli move <id> <column> [--note <text>] [--kanban <path>]
 kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit <sha>]
                        [--set-revert-pr <n>] [--inc-retry <gate>] [--complete] [--kanban <path>]
 kanban-cli columns [--kanban <path>]
+kanban-cli migrate <board> [--project <name>]
 
 kanban-cli repo-check <repoPath>
 kanban-cli install-skill --target <dir> [--symlink]
@@ -180,8 +214,8 @@ kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
 
 ## Known limitations
 
-- `repo`-cloning is not supported by design — items must point at an already-cloned
-  local checkout.
+- Cloning is not supported by design — a board's `project` must resolve to an
+  already-cloned local checkout.
 - The `gh`-shelling and process-spawning commands (`pr *`, `ci wait`, `deploy wait`,
   `e2e local`/`e2e live`) are integration surfaces, not unit-tested — see
   `src/**/*.test.ts` for what is covered (the pure kanban parsing/serialization,
