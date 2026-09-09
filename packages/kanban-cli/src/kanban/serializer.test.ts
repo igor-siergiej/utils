@@ -34,7 +34,7 @@ describe('serializeKanbanBoard round-trip', () => {
                             id: 'a-1',
                             title: 'Minimal item',
                             column: 'Backlog',
-                            repo: '/tmp/repo',
+                            repo: '',
                             body: 'Just a plain body.',
                             retries: ZERO_RETRIES,
                         },
@@ -61,7 +61,7 @@ describe('serializeKanbanBoard round-trip', () => {
                             id: 'blocked-1',
                             title: 'Migrate image upload',
                             column: 'Blocked',
-                            repo: '/home/igor/dev/jewellery-catalogue',
+                            repo: '',
                             body: 'Line one.\n\n**Acceptance criteria**\n- Uploads go through the object store\n- Old code path removed',
                             retries: { implement: 3, e2e_local: 0, ci: 0, deploy: 0, e2e_live: 0 },
                             tags: ['infra', 'storage'],
@@ -94,7 +94,7 @@ describe('serializeKanbanBoard round-trip', () => {
                             id: 'done-1',
                             title: 'Add pagination',
                             column: 'Done',
-                            repo: '/home/igor/dev/shoppingo',
+                            repo: '',
                             body: 'Added cursor-based pagination.',
                             retries: ZERO_RETRIES,
                             pr: 121,
@@ -119,7 +119,7 @@ describe('serializeKanbanBoard round-trip', () => {
                             id: 'stable-1',
                             title: 'Stability check',
                             column: 'Backlog',
-                            repo: '/tmp/repo',
+                            repo: '',
                             body: 'Body with a trailing dash line below.\n\n- not a separator',
                             retries: ZERO_RETRIES,
                             tags: ['x'],
@@ -135,5 +135,71 @@ describe('serializeKanbanBoard round-trip', () => {
         const once = serializeKanbanBoard(parseKanbanFile(serializeKanbanBoard(b)));
         const twice = serializeKanbanBoard(parseKanbanFile(once));
         expect(twice).toBe(once);
+    });
+
+    it('serializes item metadata as a bullet list, not a yaml fence', () => {
+        const b = board({
+            columns: [
+                {
+                    name: 'Backlog',
+                    items: [
+                        {
+                            id: 'a-1',
+                            title: 'Add dark mode',
+                            column: 'Backlog',
+                            repo: '',
+                            body: 'Body text.',
+                            retries: { implement: 0, e2e_local: 1, ci: 0, deploy: 0, e2e_live: 0 },
+                            tags: ['ui', 'frontend'],
+                            branch: 'feat/dark-mode',
+                            pr: 142,
+                        },
+                    ],
+                },
+                { name: 'In Progress', items: [] },
+                { name: 'Blocked', items: [] },
+                { name: 'Done', items: [] },
+            ],
+        });
+
+        const text = serializeKanbanBoard(b);
+
+        expect(text).not.toContain('```yaml');
+        expect(text).toContain('### Add dark mode\n\n- **id:** a-1\n');
+        expect(text).toContain('- **tags:** ui, frontend\n');
+        expect(text).toContain('- **branch:** feat/dark-mode\n');
+        expect(text).toContain('- **pr:** 142\n');
+        expect(text).toContain('- **retries:** implement 0, e2e_local 1, ci 0, deploy 0, e2e_live 0\n');
+    });
+
+    it('omits optional metadata bullets that have no value but always writes id and retries', () => {
+        const b = board({
+            columns: [
+                {
+                    name: 'Backlog',
+                    items: [
+                        {
+                            id: 'a-2',
+                            title: 'Minimal',
+                            column: 'Backlog',
+                            repo: '',
+                            body: 'Body.',
+                            retries: { implement: 0, e2e_local: 0, ci: 0, deploy: 0, e2e_live: 0 },
+                        },
+                    ],
+                },
+                { name: 'In Progress', items: [] },
+                { name: 'Blocked', items: [] },
+                { name: 'Done', items: [] },
+            ],
+        });
+
+        const text = serializeKanbanBoard(b);
+
+        expect(text).toContain('- **id:** a-2\n');
+        expect(text).toContain('- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0\n');
+        expect(text).not.toContain('**tags:**');
+        expect(text).not.toContain('**branch:**');
+        expect(text).not.toContain('**pr:**');
     });
 });
