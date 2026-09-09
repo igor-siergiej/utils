@@ -33,16 +33,26 @@ The user points you at a path to a Kanban markdown file (see schema below). Pass
 explicitly with `--kanban <path>` on every kanban-cli invocation, or export
 `KANBAN_CLI_BOARD=<path>` once per session so you can omit the flag.
 
+If `kanban-cli` reports a `RepoResolutionError`, the board's `project` did not
+match any `.kanban-cli.json` `repoName` under `KANBAN_CLI_REPO_ROOTS` — tell
+the user to set that env var to the directory holding their checkouts, or to
+fix the `repoName` in the repo's `.kanban-cli.json`.
+
 ## Board schema (for reference — see also `.kanban-cli.json` per repo)
 
-`##` headings are columns (`Backlog`, `In Progress`, `Blocked`, `Done` are required;
-extra columns are fine). `###` headings are items, each immediately followed by a
-fenced ` ```yaml ` block of structured fields (`id`, `repo`, `retries`, and optional
-`tags`/`branch`/`pr`/`merged_commit`/`revert_pr`/`blocked_reason`/`completed_at`),
-then freeform Markdown body (description/acceptance criteria) up to a `---` line or
-the next heading. **Never hand-edit this file directly** — always go through
-`kanban-cli next/show/move/update`, so the parser/serializer round-trip stays intact
-and retry counters aren't lost. Full example lives in the package README.
+The file opens with a `---\nproject: <name>\n---` frontmatter block. `##`
+headings are columns (`Backlog`, `In Progress`, `Blocked`, `Done` required;
+extra columns are fine). `###` headings are items, each followed by a Markdown
+bullet list of fields (`- **id:**`, `- **retries:**` always; `- **tags:**`,
+`- **branch:**`, `- **pr:**`, `- **merged_commit:**`, `- **revert_pr:**`,
+`- **blocked_reason:**`, `- **completed_at:**` when set), then freeform
+Markdown body up to a `---` line or the next heading. There is no per-item
+`repo` — `kanban-cli` resolves the checkout path from `project` by scanning
+`KANBAN_CLI_REPO_ROOTS` (default `$HOME`) for a `*/.kanban-cli.json` whose
+`repoName` matches. The board is meant to be hand-editable (e.g. from a phone
+over a synced folder); still prefer `kanban-cli next/show/move/update` for
+worker edits so retry counters and round-trip stay intact. Full example lives
+in the package README.
 
 ## Per-item loop
 
