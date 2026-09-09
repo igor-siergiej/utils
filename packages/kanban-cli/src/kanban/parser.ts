@@ -12,6 +12,9 @@ const META_BULLET = /^-\s+\*\*([a-z_]+):\*\*\s?(.*)$/;
 
 const KNOWN_KEYS = new Set([
     'id',
+    // a leftover `- **repo:**` bullet from the old format must not terminate the
+    // metadata run and orphan the following bullets into the body; this entry
+    // (and the yaml-fence branch) is removed when the transition window closes.
     'repo',
     'tags',
     'branch',
@@ -109,13 +112,10 @@ function parseItem(lines: string[], start: number, itemTitle: string): { item: K
     while (i < lines.length && lines[i].trim() === '') i += 1;
 
     let meta: Record<string, unknown>;
+    const firstBullet = i < lines.length ? lines[i].match(META_BULLET) : null;
     if (i < lines.length && YAML_FENCE_START.test(lines[i])) {
         ({ meta, nextIndex: i } = parseYamlMeta(lines, i, itemTitle));
-    } else if (
-        i < lines.length &&
-        META_BULLET.test(lines[i]) &&
-        KNOWN_KEYS.has(lines[i].match(META_BULLET)?.[1] ?? '')
-    ) {
+    } else if (firstBullet && KNOWN_KEYS.has(firstBullet[1])) {
         ({ meta, nextIndex: i } = parseBulletMeta(lines, i));
     } else {
         throw new KanbanParseError(`Item '${itemTitle}' is missing its metadata block`);
@@ -137,6 +137,15 @@ function parseItem(lines: string[], start: number, itemTitle: string): { item: K
     }
     if (i < lines.length && BODY_SEPARATOR.test(lines[i])) {
         i += 1;
+    }
+
+    for (const bodyLine of bodyLines) {
+        const stray = bodyLine.match(META_BULLET);
+        if (stray && KNOWN_KEYS.has(stray[1])) {
+            throw new KanbanParseError(
+                `item '${itemTitle}' has a stray metadata bullet in its body ('${bodyLine.trim()}'); metadata bullets must be a single unbroken list directly under the ### heading`
+            );
+        }
     }
 
     const item: KanbanItem = {
@@ -195,19 +204,36 @@ function parseBulletMeta(lines: string[], start: number): { meta: Record<string,
 
 function coerceRetries(raw: unknown): RetryCounters {
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-        return { ...DEFAULT_RETRIES, ...(raw as Partial<RetryCounters>) };
+        const counters: RetryCounters = { ...DEFAULT_RETRIES };
+        for (const [gate, value] of Object.entries(raw as Record<string, unknown>)) {
+            if (!RETRY_GATES.includes(gate as RetryGate)) {
+                throw new KanbanParseError(`Unknown retry gate '${gate}' in retries metadata`);
+            }
+            counters[gate as RetryGate] = validateRetryCount(value, gate);
+        }
+        return counters;
     }
     if (typeof raw !== 'string' || raw.trim() === '') return { ...DEFAULT_RETRIES };
 
     const counters: RetryCounters = { ...DEFAULT_RETRIES };
     for (const pair of raw.split(',')) {
-        const [gate, value] = pair.trim().split(/\s+/);
+        const piece = pair.trim();
+        if (piece === '') continue;
+        const [gate, value] = piece.split(/\s+/);
         if (!RETRY_GATES.includes(gate as RetryGate)) {
             throw new KanbanParseError(`Unknown retry gate '${gate}' in retries metadata`);
         }
-        counters[gate as RetryGate] = Number(value) || 0;
+        counters[gate as RetryGate] = validateRetryCount(value, gate);
     }
     return counters;
+}
+
+function validateRetryCount(value: unknown, gate: string): number {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 0) {
+        throw new KanbanParseError(`invalid retry count '${value}' for gate '${gate}' in retries metadata`);
+    }
+    return n;
 }
 
 function coerceTags(raw: unknown): string[] | undefined {
