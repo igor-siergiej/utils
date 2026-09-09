@@ -1,3 +1,10 @@
+# [0.11.0](https://github.com/igor-siergiej/utils/compare/v0.10.0...v0.11.0) (2026-09-09)
+
+
+### Features
+
+* **kanban-cli:** human-editable markdown board format ([#13](https://github.com/igor-siergiej/utils/issues/13)) ([26d6cba](https://github.com/igor-siergiej/utils/commit/26d6cba9c81cc2aae0398d32df17cf645b930cc2))
+
 # [0.10.0](https://github.com/igor-siergiej/utils/compare/v0.9.0...v0.10.0) (2026-07-20)
 
 
