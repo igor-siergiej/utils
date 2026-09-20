@@ -1,3 +1,29 @@
+# [1.0.0](https://github.com/igor-siergiej/utils/compare/v0.11.0...v1.0.0) (2026-09-20)
+
+
+* feat(kanban-cli)!: raw captures live in ## Inbox ([8efaec2](https://github.com/igor-siergiej/utils/commit/8efaec251a04e3328b10460380a3a56cde94f806))
+
+
+### Bug Fixes
+
+* **kanban-cli:** resolve packaged skill path in the CJS bundle ([5dda64f](https://github.com/igor-siergiej/utils/commit/5dda64f4f4b5ac61cc6ef8cc23b4c12491aeb42b))
+
+
+### Features
+
+* **kanban-cli:** add inbox list, promote and drop commands ([2e87c6d](https://github.com/igor-siergiej/utils/commit/2e87c6dbd3bcc7184c580b74922fa4210b8f67da))
+* **kanban-cli:** add list, promote and drop capture mutations ([7eb6acd](https://github.com/igor-siergiej/utils/commit/7eb6acdb6e00aa4ea8291c1762344506b19c865d))
+* **kanban-cli:** atomic board writes and optional repo resolution ([888ccd4](https://github.com/igor-siergiej/utils/commit/888ccd4c1b025a06682d4cc01e99607123205c89))
+* **kanban-cli:** package the capture-refinement skill alongside the worker ([9a08496](https://github.com/igor-siergiej/utils/commit/9a08496c1d7845925f52a394818e045af059f0d7))
+* **kanban-cli:** parse raw captures inside the Inbox column ([bf170d1](https://github.com/igor-siergiej/utils/commit/bf170d1813c52bfd2448c7e694c810eaf1c40666))
+* **kanban-cli:** reject raw prose outside the Inbox column ([5d78844](https://github.com/igor-siergiej/utils/commit/5d788442325962bb581efe4b19cf65b934efc8dc))
+* **kanban-cli:** serialize inbox captures verbatim ([a7024b4](https://github.com/igor-siergiej/utils/commit/a7024b4bb86eed143502103e0837748716b60390))
+
+
+### BREAKING CHANGES
+
+* raw prose is now only allowed under a board's ## Inbox column. Prose in any other column previously parsed and was silently discarded on the next write; it now throws a KanbanParseError naming the line, the text and the remedy. Boards with no ## Inbox section keep parsing unchanged.
+
 # [0.11.0](https://github.com/igor-siergiej/utils/compare/v0.10.0...v0.11.0) (2026-09-09)
 
 
