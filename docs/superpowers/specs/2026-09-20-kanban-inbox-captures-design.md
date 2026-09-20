@@ -308,7 +308,56 @@ The live copies are maintained in the dotfiles repo
 are updated there as part of this work so the shipped and installed copies stay
 in sync.
 
-### 9. Files
+### 9. Boards with no local checkout
+
+`readKanbanBoard` resolves a checkout path on every read (`io.ts:15`) and
+throws `RepoResolutionError` when the project has none. That makes a board
+entirely unusable — including pure board reads that never touch code.
+
+Demonstrated 2026-09-20 with `personal-portfolio.board.md`, whose repo is not
+cloned (archived on GitHub, per that board's own first backlog item):
+
+```
+$ kanban-cli columns --kanban personal-portfolio.board.md
+{"ok":false,"error":"No repo with repoName 'personal-portfolio' found under
+/home/home (scanned up to two levels deep); set KANBAN_CLI_REPO_ROOTS ..."}
+```
+
+Without a change, `inbox list` inherits this: captures on a checkout-less
+board could not even be read, let alone refined.
+
+`readKanbanBoard` takes an option:
+
+```ts
+readKanbanBoard(path: string, opts?: { requireRepo?: boolean }): KanbanBoard
+```
+
+`requireRepo` defaults to `true`, so every existing caller is unchanged. When
+`false`, a `RepoResolutionError` is swallowed and `item.repo` is set to `''`
+for every item.
+
+Commands that never touch a checkout pass `requireRepo: false`: `columns`,
+`inbox list`, `inbox promote`, `inbox drop`. Commands that feed the worker
+keep requiring it, because their consumer needs the path immediately: `next`,
+`show`, `move`, `update`. `migrate` already bypasses `readKanbanBoard`
+entirely and needs no change.
+
+`KanbanItem.repo` stays a required `string` — `''` signals "not resolved"
+without forcing every consumer to handle `undefined`. The refinement skill
+(§7) treats an empty `repo` as "cannot ground this capture": it reports the
+missing checkout and refuses to promote, rather than inventing acceptance
+criteria for code it cannot read.
+
+**`personal-portfolio.board.md` migration.** Run
+`kanban-cli migrate personal-portfolio.board.md --project personal-portfolio`.
+Verified on a copy 2026-09-20: all 7 items survive, the fenced-yaml blocks
+become `- **key:**` bullets, and the two stale machine-specific `repo:` paths
+(`/home/igors/imapps/personal-portfolio`, from another machine) are dropped —
+which is the point of the format. An `## Inbox` heading is added at the same
+time. After this, `columns` and `inbox list` work on it; `next`/`show` still
+error until the repo is unarchived and cloned, which is correct.
+
+### 10. Files
 
 | File | Change |
 | --- | --- |
@@ -317,19 +366,22 @@ in sync.
 | `src/kanban/serializer.ts` | emit capture blocks verbatim per column |
 | `src/kanban/mutations.ts` | `listCaptures`, `promoteCapture`, `dropCapture`; `moveItem` rejects `Inbox` |
 | `src/kanban/errors.ts` | `CaptureNotFoundError` |
-| `src/kanban/io.ts` | temp-file + rename write (§5) |
+| `src/kanban/io.ts` | temp-file + rename write (§5); `requireRepo` option (§9) |
 | `src/commands/inboxList.ts`, `inboxPromote.ts`, `inboxDrop.ts` | new |
 | `src/commands/installSkill.ts` | multi-skill install |
+| `src/commands/kanbanColumns.ts` | pass `requireRepo: false` (§9) |
 | `src/cli.ts` | `inbox` subcommand group; `install-skill --skill`; usage strings |
 | `skill/kanban-worker/SKILL.md` | moved; parse error = stop and report; Inbox is not work |
 | `skill/refining-kanban-captures/SKILL.md` | new (§7) |
 | `README.md` | `## Inbox` in the board-file section; the strict-prose rule and its error; `inbox` CLI reference; known-limitations note on parse-error blocking |
 
 Out-of-repo, same change set: `notes-kanban` skill (captures go under
-`## Inbox`; boards are CLI-managed), and `/mnt/tank/shared/notes/kanban/index.md`
-conventions (document `## Inbox` and the strict rule).
+`## Inbox`; boards are CLI-managed), `/mnt/tank/shared/notes/kanban/index.md`
+conventions (document `## Inbox` and the strict rule, and drop the
+personal-portfolio "needs migrate" caveat), and
+`personal-portfolio.board.md` migrated in place (§9).
 
-### 10. Tests
+### 11. Tests
 
 vitest (`vitest run --coverage`), alongside the existing `src/kanban/*.test.ts`
 and `src/commands/*.test.ts`.
@@ -350,7 +402,10 @@ and `src/commands/*.test.ts`.
   `moveItem` into `Inbox` rejected.
 - **io**: write leaves no temp file behind; a board file the user cannot open
   for writing but whose directory is writable is still updated (the root-owned
-  case from §5).
+  case from §5); `requireRepo: true` (default) still throws
+  `RepoResolutionError` for an unresolvable project; `requireRepo: false`
+  returns the board with `item.repo === ''` on every item instead of throwing
+  (the personal-portfolio case from §9).
 - **commands**: `inbox promote` argument validation (`--body` and `--body-file`
   mutually exclusive, missing `--id`/`--title`); JSON output shape per command.
 - **installSkill**: installs both skills; `--skill <name>` installs one;
