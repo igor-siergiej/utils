@@ -59,6 +59,19 @@ over a synced folder); still prefer `kanban-cli next/show/move/update` for
 worker edits so retry counters and round-trip stay intact. Full example lives
 in the package README.
 
+**`## Inbox` is not work.** A board may carry an optional `## Inbox` column
+holding raw captures — one-line thoughts typed straight onto the board — as
+plain bullets or paragraphs rather than `###` items. `kanban-cli next` never
+returns them and you must never implement, promote or delete one. Turning a
+capture into an item is a human-invoked job for the
+`refining-kanban-captures` skill.
+
+**Raw prose is legal only under `## Inbox`.** Anywhere else it is a hard
+`KanbanParseError` naming the line, the offending text and the remedy, and it
+fails *every* command on that board, including read-only ones. If you hit one:
+**stop and report it.** Do not edit the board to make the error go away — that
+text is something the human typed and has not processed yet.
+
 ## Per-item loop
 
 Repeat from step 0 until `kanban-cli next` returns `item: null`, then stop and report

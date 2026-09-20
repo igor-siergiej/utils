@@ -38,7 +38,7 @@ function printError(error: unknown): void {
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
     'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>,\n' +
-    '          repo-check <repoPath>, install-skill --target <dir>,\n' +
+    '          repo-check <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
     '          inbox <list|promote|drop>,\n' +
@@ -345,10 +345,19 @@ async function main(): Promise<void> {
         case 'install-skill': {
             const { values } = parseArgs({
                 args: rest,
-                options: { target: { type: 'string' }, symlink: { type: 'boolean' } },
+                options: {
+                    target: { type: 'string' },
+                    symlink: { type: 'boolean' },
+                    skill: { type: 'string' },
+                },
             });
             if (!values.target) throw new Error('--target is required');
-            printSuccess(installSkill(values.target, { mode: values.symlink ? 'symlink' : 'copy' }));
+            printSuccess(
+                installSkill(values.target, {
+                    mode: values.symlink ? 'symlink' : 'copy',
+                    skill: values.skill,
+                })
+            );
             return;
         }
         case 'e2e':
