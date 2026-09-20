@@ -24,6 +24,7 @@
 - Tests run with `bun run --filter @imapps/kanban-cli test` (`vitest run --coverage`). Import test helpers from `vitest`, never `bun:test`.
 - Final commit only is `feat!` with a `BREAKING CHANGE:` footer. Intermediate commits are plain `feat`/`test`/`refactor`/`docs` so semantic-release records one breaking change, not several.
 - This repo has no `commit-msg` hook and no commitlint config; `.husky/pre-commit` runs `bunx lint-staged`, which matches `*.{ts,mts,cts,json}` only.
+- **`bunx tsc --noEmit` has a pre-existing baseline of 5 errors on clean `main`**, all unrelated to this work: 3 in `src/process/healthCheck.test.ts` (a `fetch` mock missing `preconnect`) and 2 in `src/process/pollForCondition.test.ts` (TS7011 implicit `any` return). `bun run test` passes because vitest does not typecheck. Every step below that runs `tsc --noEmit` therefore expects **no new errors beyond those 5**, not a clean run. Do not fix them here — out of scope.
 
 ---
 
@@ -1531,3 +1532,37 @@ No spec section is unimplemented.
 **Type consistency check** — `captures: string[]` (Task 1) is used identically in Tasks 2, 4, 5. `PromotedItemFields` is defined in Task 5 and consumed in Task 7 via `Omit<PromotedItemFields, 'body'>`, because the command layer resolves the body from `--body`/`--body-file` before calling the mutation. `readKanbanBoard(path, { requireRepo })` is defined in Task 6 and used with that exact shape in Tasks 6 and 7. `CaptureNotFoundError` is created in Task 5 and asserted in Task 5's tests only. `installSkill`'s `{ok, installed, skipped}` shape is defined and asserted in Task 8.
 
 **Known ordering constraint** — Task 3 (strict rejection) must land after Task 2 (capture parsing), or the parser would throw on Inbox captures too. Task 10 requires a build from Tasks 2-9. Tasks 1-8 are otherwise strictly sequential; nothing here parallelises safely because they all touch `src/kanban/`.
+
+---
+
+## Execution notes (2026-09-20)
+
+Deviations from the plan as written, and why:
+
+1. **`tsc --noEmit` baseline.** The repo already had 5 type errors on clean
+   `main` (3 `fetch`-mock, 2 TS7011, all in `src/process/*.test.ts`). Captured
+   in Global Constraints; every check verified "no new errors beyond those 5".
+2. **`moveItem`'s Inbox guard uses a new `InboxNotAWorkColumnError`, not
+   `KanbanColumnNotFoundError`.** That class builds its own message from a
+   column name, so passing explanatory text would have produced "Kanban column
+   'Inbox holds raw captures…' does not exist" — misleading, since `Inbox`
+   does exist.
+3. **Task 7 Step 5's `src/index.ts` exports were skipped.** `index.ts` exports
+   no command modules at all; adding three would have broken that convention.
+4. **Task 4's "captures before items" test was strengthened.** As first
+   written it passed vacuously, because a missing capture makes `indexOf`
+   return `-1`, which is always less than the item's index. It now asserts the
+   capture is present first.
+5. **Task 3's error-message test fixture was shortened.** The original 51-char
+   fixture collided with the 50-char truncation, so the assertion could never
+   match. Truncation remains covered by its own test.
+6. **Extra commit: `fix(kanban-cli): resolve packaged skill path in the CJS
+   bundle`.** Pre-existing bug found by running the built CLI in Task 10:
+   `tsup` emits CJS where `import.meta.url` is shimmed to `undefined`, so
+   `install-skill` threw `The "path" argument must be of type string` and had
+   never worked from `build/cli.js`. The unit tests missed it because vitest
+   runs the ESM source; resolution now prefers `__dirname`.
+
+Not done, deliberately: the 5 pre-existing type errors and the 7 pre-existing
+Biome warnings (all in `api-utils`/`web-utils`) were left alone as out of
+scope.
