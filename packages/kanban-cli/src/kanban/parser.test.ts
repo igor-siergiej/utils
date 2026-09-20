@@ -498,3 +498,75 @@ project: demo
         expect(parsed.columns[0].captures).toEqual(['- last thing before EOF']);
     });
 });
+
+describe('strict prose rejection', () => {
+    const withStray = (body: string) => `---
+project: demo
+---
+
+# Demo Board
+
+${body}`;
+
+    it('rejects prose in Backlog with line number, text, column and remedy', () => {
+        const markdown = withStray(`## Backlog
+
+Better loading when we import recipes
+`);
+        let error: unknown;
+        try {
+            parseKanbanFile(markdown);
+        } catch (caught) {
+            error = caught;
+        }
+
+        expect(error).toBeInstanceOf(KanbanParseError);
+        const message = (error as Error).message;
+        expect(message).toContain('line 9');
+        expect(message).toContain('Better loading when we import recipes');
+        expect(message).toContain("column 'Backlog'");
+        expect(message).toContain("Raw notes are only allowed under '## Inbox'");
+    });
+
+    it('truncates long stray text to 50 characters', () => {
+        const long = 'x'.repeat(120);
+        expect(() => parseKanbanFile(withStray(`## Backlog\n\n${long}\n`))).toThrow(new RegExp(`${'x'.repeat(50)}…`));
+    });
+
+    it('rejects prose after an item body terminator', () => {
+        const markdown = withStray(`## Backlog
+
+### An item
+
+- **id:** demo-1
+- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
+
+Body.
+
+---
+
+stray afterthought
+`);
+        expect(() => parseKanbanFile(markdown)).toThrow(KanbanParseError);
+    });
+
+    it('rejects prose before the first column heading', () => {
+        expect(() => parseKanbanFile(withStray('a thought with no column yet\n'))).toThrow(KanbanParseError);
+    });
+
+    it('says there is no column yet when prose precedes every column', () => {
+        expect(() => parseKanbanFile(withStray('a thought\n'))).toThrow(/no column yet/);
+    });
+
+    it('still accepts the same prose once it sits under Inbox', () => {
+        const parsed = parseKanbanFile(
+            withStray(`## Inbox
+
+Better way of showing loading when we import recipes
+
+## Backlog
+`)
+        );
+        expect(parsed.columns[0].captures).toEqual(['Better way of showing loading when we import recipes']);
+    });
+});

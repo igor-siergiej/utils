@@ -9,6 +9,7 @@ const ITEM_HEADING = /^###\s+(.+?)\s*$/;
 const YAML_FENCE_START = /^```ya?ml\s*$/;
 const YAML_FENCE_END = /^```\s*$/;
 const META_BULLET = /^-\s+\*\*([a-z_]+):\*\*\s?(.*)$/;
+const STRAY_TRUNCATE = 50;
 
 const KNOWN_KEYS = new Set([
     'id',
@@ -124,7 +125,15 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
             continue;
         }
 
-        i += 1;
+        const stray = line.trim();
+        const truncated = stray.length > STRAY_TRUNCATE ? `${stray.slice(0, STRAY_TRUNCATE)}…` : stray;
+        const where = currentColumn ? `column '${currentColumn.name}'` : 'no column yet';
+
+        throw new KanbanParseError(
+            `line ${i + 1}: stray text '${truncated}' in ${where}. ` +
+                `Raw notes are only allowed under '## ${INBOX_COLUMN}' — move it there, ` +
+                `or turn it into a '### item'.`
+        );
     }
 
     flushCapture();
