@@ -397,3 +397,104 @@ project: "unclosed
         ).toThrow(KanbanParseError);
     });
 });
+
+describe('inbox captures', () => {
+    const board = (inbox: string) => `---
+project: demo
+---
+
+# Demo Board
+
+## Inbox
+
+${inbox}
+
+## Backlog
+`;
+
+    it('captures a single bullet line verbatim, including the leading dash', () => {
+        const parsed = parseKanbanFile(board('- Better loading when we import recipes'));
+        const inbox = parsed.columns.find((c) => c.name === 'Inbox');
+        expect(inbox?.captures).toEqual(['- Better loading when we import recipes']);
+    });
+
+    it('captures a bare paragraph with no bullet', () => {
+        const parsed = parseKanbanFile(board('Desktop view of recipes looks cramped'));
+        const inbox = parsed.columns.find((c) => c.name === 'Inbox');
+        expect(inbox?.captures).toEqual(['Desktop view of recipes looks cramped']);
+    });
+
+    it('keeps a multi-line block as one capture', () => {
+        const parsed = parseKanbanFile(board('first line\nsecond line'));
+        const inbox = parsed.columns.find((c) => c.name === 'Inbox');
+        expect(inbox?.captures).toEqual(['first line\nsecond line']);
+    });
+
+    it('splits blocks on blank lines, in document order', () => {
+        const parsed = parseKanbanFile(board('- one\n\n- two\n\nthird thing'));
+        const inbox = parsed.columns.find((c) => c.name === 'Inbox');
+        expect(inbox?.captures).toEqual(['- one', '- two', 'third thing']);
+    });
+
+    it('leaves captures empty on columns that are not Inbox', () => {
+        const parsed = parseKanbanFile(board('- one'));
+        expect(parsed.columns.find((c) => c.name === 'Backlog')?.captures).toEqual([]);
+    });
+
+    it('parses a board with no Inbox column at all', () => {
+        const parsed = parseKanbanFile(`---
+project: demo
+---
+
+# Demo Board
+
+## Backlog
+
+### An item
+
+- **id:** demo-1
+- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
+
+Body text.
+`);
+        expect(parsed.columns.map((c) => c.name)).toEqual(['Backlog']);
+        expect(parsed.columns[0].items[0].id).toBe('demo-1');
+    });
+
+    it('allows items in the Inbox column to coexist with captures', () => {
+        const parsed = parseKanbanFile(`---
+project: demo
+---
+
+# Demo Board
+
+## Inbox
+
+- a capture
+
+### An item
+
+- **id:** demo-1
+- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
+
+Body.
+`);
+        const inbox = parsed.columns[0];
+        expect(inbox.captures).toEqual(['- a capture']);
+        expect(inbox.items).toHaveLength(1);
+    });
+
+    it('keeps a capture that ends the file', () => {
+        const parsed = parseKanbanFile(`---
+project: demo
+---
+
+# Demo Board
+
+## Inbox
+
+- last thing before EOF
+`);
+        expect(parsed.columns[0].captures).toEqual(['- last thing before EOF']);
+    });
+});

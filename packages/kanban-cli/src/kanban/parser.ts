@@ -1,7 +1,7 @@
 import { parse as parseYamlDocument } from 'yaml';
 import { KanbanParseError } from './errors';
 import type { KanbanBoard, KanbanColumn, KanbanItem, RetryCounters, RetryGate } from './types';
-import { RETRY_GATES } from './types';
+import { INBOX_COLUMN, RETRY_GATES } from './types';
 
 const TITLE_HEADING = /^#\s+(.+?)\s*$/;
 const COLUMN_HEADING = /^##\s+(.+?)\s*$/;
@@ -46,6 +46,14 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
     let currentColumn: KanbanColumn | null = null;
     let i = 0;
 
+    let captureBlock: string[] = [];
+
+    const flushCapture = () => {
+        if (!captureBlock.length) return;
+        currentColumn?.captures.push(captureBlock.join('\n'));
+        captureBlock = [];
+    };
+
     if (lines[0]?.trim() === '---') {
         let end = 1;
         while (end < lines.length && lines[end].trim() !== '---') end += 1;
@@ -70,6 +78,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
         const titleMatch = line.match(TITLE_HEADING);
         if (titleMatch && columns.length === 0 && !currentColumn) {
+            flushCapture();
             title = titleMatch[1];
             i += 1;
             continue;
@@ -77,6 +86,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
         const columnMatch = line.match(COLUMN_HEADING);
         if (columnMatch) {
+            flushCapture();
             currentColumn = { name: columnMatch[1], items: [], captures: [] };
             columns.push(currentColumn);
             i += 1;
@@ -85,6 +95,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
         const itemMatch = line.match(ITEM_HEADING);
         if (itemMatch) {
+            flushCapture();
             if (!currentColumn) {
                 throw new KanbanParseError(`Item heading '${itemMatch[1]}' appears before any column (##) heading`);
             }
@@ -101,8 +112,22 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
             continue;
         }
 
+        if (line.trim() === '') {
+            flushCapture();
+            i += 1;
+            continue;
+        }
+
+        if (currentColumn?.name === INBOX_COLUMN) {
+            captureBlock.push(line);
+            i += 1;
+            continue;
+        }
+
         i += 1;
     }
+
+    flushCapture();
 
     return { title, project, columns };
 }
