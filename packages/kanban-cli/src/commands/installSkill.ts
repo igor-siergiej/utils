@@ -6,12 +6,21 @@ const SKILLS = ['kanban-worker', 'refining-kanban-captures'] as const;
 export type PackagedSkill = (typeof SKILLS)[number];
 
 /**
- * Resolve `<packageRoot>/skill/<skill>/SKILL.md`. The compiled entrypoint lives
- * in `build/`, the sources in `src/commands/`, so walk up until the `skill`
- * directory appears rather than hard-coding one depth.
+ * Resolve `<packageRoot>/skill/<skill>/SKILL.md`.
+ *
+ * The entrypoint runs from `build/` (bundled) or `src/commands/` (tests, via
+ * vitest), so walk up until the `skill` directory appears rather than
+ * hard-coding a depth. `__dirname` is checked first because tsup also emits a
+ * CJS bundle, where `import.meta.url` is shimmed to `undefined` — reading it
+ * there threw `The "path" argument must be of type string`.
  */
+function moduleDirectory(): string {
+    if (typeof __dirname === 'string') return __dirname;
+    return dirname(fileURLToPath(import.meta.url));
+}
+
 function packagedSkillPath(skill: string): string {
-    let dir = dirname(fileURLToPath(import.meta.url));
+    let dir = moduleDirectory();
 
     for (let depth = 0; depth < 5; depth += 1) {
         const candidate = join(dir, 'skill', skill, 'SKILL.md');
