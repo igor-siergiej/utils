@@ -5,6 +5,9 @@ import { deployWait } from './commands/deployWait';
 import { e2eBootstrap } from './commands/e2eBootstrap';
 import { e2eLiveRun } from './commands/e2eLiveRun';
 import { e2eLocalRun } from './commands/e2eLocalRun';
+import { inboxDrop } from './commands/inboxDrop';
+import { inboxList } from './commands/inboxList';
+import { inboxPromote } from './commands/inboxPromote';
 import { installSkill } from './commands/installSkill';
 import { kanbanColumns } from './commands/kanbanColumns';
 import { kanbanMigrate } from './commands/kanbanMigrate';
@@ -38,7 +41,76 @@ const USAGE =
     '          repo-check <repoPath>, install-skill --target <dir>,\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
+    '          inbox <list|promote|drop>,\n' +
     '          record-usage (reads statusline JSON from stdin), usage-check';
+
+const INBOX_USAGE =
+    'Usage: kanban-cli inbox list [--kanban <path>]\n' +
+    '       kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]\n' +
+    '                                [--body <text> | --body-file <path>] [--column <name>] [--kanban <path>]\n' +
+    '       kanban-cli inbox drop <index> [--reason <text>] [--kanban <path>]';
+
+function captureIndex(raw: string | undefined): number {
+    const index = Number(raw);
+    if (!raw || !Number.isInteger(index) || index < 1) {
+        throw new Error(`a 1-based capture index is required (from 'kanban-cli inbox list')\n${INBOX_USAGE}`);
+    }
+    return index;
+}
+
+function runInbox(rest: string[]): unknown {
+    const [sub, ...subRest] = rest;
+
+    if (sub === 'list') {
+        const { values } = parseArgs({ args: subRest, options: { kanban: { type: 'string' } } });
+        return inboxList(values.kanban ?? DEFAULT_BOARD_PATH);
+    }
+
+    if (sub === 'promote') {
+        const { values, positionals } = parseArgs({
+            args: subRest,
+            options: {
+                kanban: { type: 'string' },
+                id: { type: 'string' },
+                title: { type: 'string' },
+                tags: { type: 'string' },
+                body: { type: 'string' },
+                'body-file': { type: 'string' },
+                column: { type: 'string' },
+            },
+            allowPositionals: true,
+        });
+
+        if (!values.id || !values.title) {
+            throw new Error(`--id and --title are both required\n${INBOX_USAGE}`);
+        }
+
+        return inboxPromote(
+            values.kanban ?? DEFAULT_BOARD_PATH,
+            captureIndex(positionals[0]),
+            {
+                id: values.id,
+                title: values.title,
+                tags: values.tags
+                    ?.split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+            },
+            { body: values.body, bodyFile: values['body-file'], column: values.column }
+        );
+    }
+
+    if (sub === 'drop') {
+        const { values, positionals } = parseArgs({
+            args: subRest,
+            options: { kanban: { type: 'string' }, reason: { type: 'string' } },
+            allowPositionals: true,
+        });
+        return inboxDrop(values.kanban ?? DEFAULT_BOARD_PATH, captureIndex(positionals[0]), values.reason);
+    }
+
+    throw new Error(`Unknown inbox subcommand '${sub}'. Expected list, promote or drop.\n${INBOX_USAGE}`);
+}
 
 async function runE2e(rest: string[]): Promise<unknown> {
     const [sub, ...subRest] = rest;
@@ -249,6 +321,10 @@ async function main(): Promise<void> {
         case 'columns': {
             const { values } = parseArgs({ args: rest, options: { kanban: { type: 'string' } } });
             printSuccess(kanbanColumns(values.kanban ?? DEFAULT_BOARD_PATH));
+            return;
+        }
+        case 'inbox': {
+            printSuccess(runInbox(rest));
             return;
         }
         case 'migrate': {
