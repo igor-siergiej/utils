@@ -11,6 +11,10 @@ export function serializeKanbanBoard(board: KanbanBoard): string {
     for (const column of board.columns) {
         lines.push(`## ${column.name}`, '');
 
+        for (const capture of column.captures) {
+            lines.push(capture, '');
+        }
+
         for (const item of column.items) {
             lines.push(`### ${item.title}`, '', ...serializeMeta(item), '');
 

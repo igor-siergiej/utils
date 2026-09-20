@@ -220,3 +220,74 @@ describe('serializeKanbanBoard round-trip', () => {
         expect(text).not.toContain('**pr:**');
     });
 });
+
+describe('capture serialization', () => {
+    const SOURCE = `---
+project: demo
+---
+
+# Demo Board
+
+## Inbox
+
+- a bullet capture
+
+a bare paragraph
+spanning two lines
+
+## Backlog
+
+### An item
+
+- **id:** demo-1
+- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
+
+Body.
+`;
+
+    it('round-trips captures byte-for-byte', () => {
+        expect(serializeKanbanBoard(parseKanbanFile(SOURCE))).toBe(SOURCE);
+    });
+
+    it('is stable over a second round trip', () => {
+        const once = serializeKanbanBoard(parseKanbanFile(SOURCE));
+        expect(serializeKanbanBoard(parseKanbanFile(once))).toBe(once);
+    });
+
+    it('emits just the heading for an empty Inbox', () => {
+        const output = serializeKanbanBoard({
+            title: 'Demo Board',
+            project: 'demo',
+            columns: [
+                { name: 'Inbox', items: [], captures: [] },
+                { name: 'Backlog', items: [], captures: [] },
+            ],
+        });
+        expect(output).toContain('## Inbox\n\n## Backlog');
+    });
+
+    it('emits captures before items in the same column', () => {
+        const output = serializeKanbanBoard({
+            title: 'Demo Board',
+            project: 'demo',
+            columns: [
+                {
+                    name: 'Inbox',
+                    captures: ['- a capture'],
+                    items: [
+                        {
+                            id: 'demo-1',
+                            title: 'An item',
+                            column: 'Inbox',
+                            repo: '',
+                            body: 'Body.',
+                            retries: ZERO_RETRIES,
+                        },
+                    ],
+                },
+            ],
+        });
+        expect(output).toContain('- a capture');
+        expect(output.indexOf('- a capture')).toBeLessThan(output.indexOf('### An item'));
+    });
+});
