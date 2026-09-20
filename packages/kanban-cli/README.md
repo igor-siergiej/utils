@@ -37,6 +37,13 @@ project: shoppingo
 
 # Shoppingo Kanban Worker Board
 
+## Inbox
+
+- Better loading when we import recipes
+
+Desktop view of the recipes page looks cramped
+on a wide screen.
+
 ## Backlog
 
 ### Add dark mode toggle to settings page
@@ -69,6 +76,33 @@ carries only `project`, and each machine resolves its own checkout path (see
 below). Prefer editing through `kanban-cli next/show/move/update` so the
 round-trip and retry counters stay intact, but a careful hand-edit of the
 bullet list or body is fine.
+
+### `## Inbox` — raw captures
+
+`## Inbox` is an optional column holding **captures** rather than items: raw
+thoughts typed straight onto the board, typically from a phone. A capture is
+one blank-line-separated block; both `- bullet` lines and bare paragraphs are
+accepted, a block may span several lines, and the text is stored and rewritten
+**verbatim** (a leading `- ` is kept as part of the capture). Captures survive
+every CLI round-trip byte for byte.
+
+`kanban-cli next` never returns a capture, so the worker loop ignores them
+entirely, and `kanban-cli move <id> Inbox` is rejected — the column holds no
+items. Drain captures with the `inbox` commands below, or with the packaged
+`refining-kanban-captures` skill, which reads the target repo before turning a
+capture into an item.
+
+**Raw prose is legal only under `## Inbox`.** Text in any other column — or
+before the first column heading — is a `KanbanParseError`:
+
+```
+line 9: stray text 'Better loading when we import recipes' in column 'Backlog'.
+Raw notes are only allowed under '## Inbox' — move it there, or turn it into a '### item'.
+```
+
+This is deliberate. Before it, such text parsed "successfully" and was then
+silently discarded the next time any command wrote the file, so a thought typed
+onto the wrong part of the board simply disappeared.
 
 ### Resolving the checkout path
 
@@ -193,8 +227,13 @@ kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit
 kanban-cli columns [--kanban <path>]
 kanban-cli migrate <board> [--project <name>]
 
+kanban-cli inbox list [--kanban <path>]
+kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]
+                         [--body <text> | --body-file <path>] [--column <name>] [--kanban <path>]
+kanban-cli inbox drop <index> [--reason <text>] [--kanban <path>]
+
 kanban-cli repo-check <repoPath>
-kanban-cli install-skill --target <dir> [--symlink]
+kanban-cli install-skill --target <dir> [--skill <name>] [--symlink]
 
 kanban-cli e2e local <repoPath> [--grep <pattern>]
 kanban-cli e2e live <repoPath> --url <baseUrl> [--grep <pattern>]
@@ -212,6 +251,16 @@ kanban-cli record-usage                 # reads statusline JSON from stdin, pers
 kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
 ```
 
+`inbox` indices are 1-based and come from `kanban-cli inbox list`. Pass a
+promoted item's body with `--body-file`: a grounded body is multi-paragraph
+with backticks and newlines that do not survive shell argument quoting.
+`--reason` on `drop` is echoed in the JSON output for the caller's log; it is
+not written to the board, since the capture itself is removed.
+
+`install-skill` installs every packaged skill (`kanban-worker` and
+`refining-kanban-captures`) unless `--skill <name>` narrows it, and never
+overwrites a skill that is already present — it reports those as `skipped`.
+
 ## Known limitations
 
 - Cloning is not supported by design — a board's `project` must resolve to an
@@ -221,3 +270,10 @@ kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
   `src/**/*.test.ts` for what is covered (the pure kanban parsing/serialization,
   repo-config validation, and polling/backoff logic). Verify those against a real
   repo with `gh` authenticated before relying on them.
+- A stray-prose `KanbanParseError` blocks **every** command on that board,
+  including read-only ones, so an unattended worker run halts until the board
+  is fixed by hand. This is deliberate: the alternative, silently discarding
+  the text on the next write, is how captures used to be lost.
+- `columns` and the `inbox` commands work without a local checkout; `next`,
+  `show`, `move` and `update` still require one, because their caller needs a
+  real path to work in.
