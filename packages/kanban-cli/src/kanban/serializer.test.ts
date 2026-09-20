@@ -10,10 +10,10 @@ function board(overrides: Partial<KanbanBoard> = {}): KanbanBoard {
         title: 'Kanban Board',
         project: 'shoppingo',
         columns: [
-            { name: 'Backlog', items: [] },
-            { name: 'In Progress', items: [] },
-            { name: 'Blocked', items: [] },
-            { name: 'Done', items: [] },
+            { name: 'Backlog', items: [], captures: [] },
+            { name: 'In Progress', items: [], captures: [] },
+            { name: 'Blocked', items: [], captures: [] },
+            { name: 'Done', items: [], captures: [] },
         ],
         ...overrides,
     };
@@ -40,6 +40,7 @@ describe('serializeKanbanBoard round-trip', () => {
             columns: [
                 {
                     name: 'Backlog',
+                    captures: [],
                     items: [
                         {
                             id: 'a-1',
@@ -51,9 +52,9 @@ describe('serializeKanbanBoard round-trip', () => {
                         },
                     ],
                 },
-                { name: 'In Progress', items: [] },
-                { name: 'Blocked', items: [] },
-                { name: 'Done', items: [] },
+                { name: 'In Progress', items: [], captures: [] },
+                { name: 'Blocked', items: [], captures: [] },
+                { name: 'Done', items: [], captures: [] },
             ],
         });
 
@@ -63,10 +64,11 @@ describe('serializeKanbanBoard round-trip', () => {
     it('round-trips an item with every optional field populated, including a multi-line body', () => {
         const b = board({
             columns: [
-                { name: 'Backlog', items: [] },
-                { name: 'In Progress', items: [] },
+                { name: 'Backlog', items: [], captures: [] },
+                { name: 'In Progress', items: [], captures: [] },
                 {
                     name: 'Blocked',
+                    captures: [],
                     items: [
                         {
                             id: 'blocked-1',
@@ -85,7 +87,7 @@ describe('serializeKanbanBoard round-trip', () => {
                         },
                     ],
                 },
-                { name: 'Done', items: [] },
+                { name: 'Done', items: [], captures: [] },
             ],
         });
 
@@ -95,11 +97,12 @@ describe('serializeKanbanBoard round-trip', () => {
     it('round-trips a Done item with merged_commit and completed_at', () => {
         const b = board({
             columns: [
-                { name: 'Backlog', items: [] },
-                { name: 'In Progress', items: [] },
-                { name: 'Blocked', items: [] },
+                { name: 'Backlog', items: [], captures: [] },
+                { name: 'In Progress', items: [], captures: [] },
+                { name: 'Blocked', items: [], captures: [] },
                 {
                     name: 'Done',
+                    captures: [],
                     items: [
                         {
                             id: 'done-1',
@@ -125,6 +128,7 @@ describe('serializeKanbanBoard round-trip', () => {
             columns: [
                 {
                     name: 'Backlog',
+                    captures: [],
                     items: [
                         {
                             id: 'stable-1',
@@ -137,9 +141,9 @@ describe('serializeKanbanBoard round-trip', () => {
                         },
                     ],
                 },
-                { name: 'In Progress', items: [] },
-                { name: 'Blocked', items: [] },
-                { name: 'Done', items: [] },
+                { name: 'In Progress', items: [], captures: [] },
+                { name: 'Blocked', items: [], captures: [] },
+                { name: 'Done', items: [], captures: [] },
             ],
         });
 
@@ -153,6 +157,7 @@ describe('serializeKanbanBoard round-trip', () => {
             columns: [
                 {
                     name: 'Backlog',
+                    captures: [],
                     items: [
                         {
                             id: 'a-1',
@@ -167,9 +172,9 @@ describe('serializeKanbanBoard round-trip', () => {
                         },
                     ],
                 },
-                { name: 'In Progress', items: [] },
-                { name: 'Blocked', items: [] },
-                { name: 'Done', items: [] },
+                { name: 'In Progress', items: [], captures: [] },
+                { name: 'Blocked', items: [], captures: [] },
+                { name: 'Done', items: [], captures: [] },
             ],
         });
 
@@ -188,6 +193,7 @@ describe('serializeKanbanBoard round-trip', () => {
             columns: [
                 {
                     name: 'Backlog',
+                    captures: [],
                     items: [
                         {
                             id: 'a-2',
@@ -199,9 +205,9 @@ describe('serializeKanbanBoard round-trip', () => {
                         },
                     ],
                 },
-                { name: 'In Progress', items: [] },
-                { name: 'Blocked', items: [] },
-                { name: 'Done', items: [] },
+                { name: 'In Progress', items: [], captures: [] },
+                { name: 'Blocked', items: [], captures: [] },
+                { name: 'Done', items: [], captures: [] },
             ],
         });
 

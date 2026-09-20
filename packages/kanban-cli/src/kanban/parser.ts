@@ -77,7 +77,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
         const columnMatch = line.match(COLUMN_HEADING);
         if (columnMatch) {
-            currentColumn = { name: columnMatch[1], items: [] };
+            currentColumn = { name: columnMatch[1], items: [], captures: [] };
             columns.push(currentColumn);
             i += 1;
             continue;

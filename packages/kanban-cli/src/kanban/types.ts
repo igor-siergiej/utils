@@ -5,6 +5,8 @@ export type RetryCounters = Record<RetryGate, number>;
 
 export const REQUIRED_COLUMNS = ['Backlog', 'In Progress', 'Blocked', 'Done'] as const;
 
+export const INBOX_COLUMN = 'Inbox';
+
 export interface KanbanItem {
     id: string;
     title: string;
@@ -24,6 +26,7 @@ export interface KanbanItem {
 export interface KanbanColumn {
     name: string;
     items: KanbanItem[];
+    captures: string[];
 }
 
 export interface KanbanBoard {

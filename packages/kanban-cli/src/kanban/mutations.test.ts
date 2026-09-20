@@ -11,14 +11,15 @@ function boardWithItems(): KanbanBoard {
         columns: [
             {
                 name: 'Backlog',
+                captures: [],
                 items: [
                     { id: 'b-1', title: 'First', column: 'Backlog', repo: '/tmp/a', body: '', retries: ZERO_RETRIES },
                     { id: 'b-2', title: 'Second', column: 'Backlog', repo: '/tmp/a', body: '', retries: ZERO_RETRIES },
                 ],
             },
-            { name: 'In Progress', items: [] },
-            { name: 'Blocked', items: [] },
-            { name: 'Done', items: [] },
+            { name: 'In Progress', items: [], captures: [] },
+            { name: 'Blocked', items: [], captures: [] },
+            { name: 'Done', items: [], captures: [] },
         ],
     };
 }
