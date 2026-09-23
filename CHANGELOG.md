@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/igor-siergiej/utils/compare/v1.0.0...v1.0.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **kanban-cli:** older gh support, CI-free e2e runs, process-tree teardown ([#14](https://github.com/igor-siergiej/utils/issues/14)) ([ab13a42](https://github.com/igor-siergiej/utils/commit/ab13a429797b9e7f75229168a6d0ce5936cfcaab))
+
 # [1.0.0](https://github.com/igor-siergiej/utils/compare/v0.11.0...v1.0.0) (2026-09-20)
 
 

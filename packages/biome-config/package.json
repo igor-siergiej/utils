@@ -1,6 +1,6 @@
 {
   "name": "@imapps/biome-config",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Shared Biome configuration for IM Apps projects",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
