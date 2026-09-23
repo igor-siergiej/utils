@@ -175,6 +175,19 @@ Only `repoName`, `dev.startCommand`, `dev.healthCheckUrl`, `e2e.testCommand`,
 the post-deploy live check (always applied there — a live check never runs the full
 suite against production) and optionally the local gate.
 
+`e2e local` and `e2e live` both run their test command with `CI` **removed** from the
+environment, whatever the parent had. These runs are local by definition, and the
+conventional `reuseExistingServer: !process.env.CI` in a Playwright config otherwise
+makes Playwright start a second dev server on the port `e2e local` already started and
+health-checked (or boot a whole local stack for an `e2e live` run aimed at a deployed
+URL). Agent harnesses, task runners and some terminals export `CI=true`, so this is not
+hypothetical.
+
+With no `dev.teardownCommand`, `e2e local` tears the app down by killing the started
+shell's entire process tree, not just the shell: a `bash -lc "bun run dev"` root sits
+two or three forks above the process that actually binds the port, and orphaning those
+leaves the port bound for the next run.
+
 If a repo has no `.kanban-cli.json` yet, `kanban-cli repo-check <repoPath>` reports
 `configFound: false` rather than erroring — the `kanban-worker` skill treats that as a
 one-time setup step to walk you through before continuing.
@@ -209,7 +222,10 @@ opt-in, not required to use the rest of the CLI.
 
 `gh` (GitHub CLI) must be installed and authenticated wherever `kanban-cli`'s PR/CI/
 deploy commands run — `kanban-cli` shells out to it rather than reimplementing the
-GitHub API. `git` must be available for the revert flow.
+GitHub API. Only long-standing flags are used (`gh pr view/create/merge --json`,
+`gh run list --json`), so older `gh` builds work: notably `ci wait` reads
+`gh pr view --json statusCheckRollup` rather than `gh pr checks --json`, which only
+exists in `gh` >= 2.48. `git` must be available for the revert flow.
 
 ## CLI reference
 
@@ -261,15 +277,20 @@ not written to the board, since the capture itself is removed.
 `refining-kanban-captures`) unless `--skill <name>` narrows it, and never
 overwrites a skill that is already present — it reports those as `skipped`.
 
+`ci wait --required <name>` (repeatable) narrows the gate to those checks — and waits
+for each of them to *appear*: a required job GitHub has not reported yet counts as
+pending, so a job queued a few seconds after its siblings can't let the gate pass
+before it has run. A failure in a required check is still terminal immediately.
+
 ## Known limitations
 
 - Cloning is not supported by design — a board's `project` must resolve to an
   already-cloned local checkout.
-- The `gh`-shelling and process-spawning commands (`pr *`, `ci wait`, `deploy wait`,
-  `e2e local`/`e2e live`) are integration surfaces, not unit-tested — see
-  `src/**/*.test.ts` for what is covered (the pure kanban parsing/serialization,
-  repo-config validation, and polling/backoff logic). Verify those against a real
-  repo with `gh` authenticated before relying on them.
+- The `gh`-shelling commands (`pr *`, `ci wait`, `deploy wait`) are integration
+  surfaces: their `gh` invocations are not unit-tested, though the check-rollup
+  verdict logic, process spawning/teardown, repo-config validation, polling/backoff
+  and the pure kanban parsing/serialization are — see `src/**/*.test.ts`. Verify the
+  `gh` paths against a real repo with `gh` authenticated before relying on them.
 - A stray-prose `KanbanParseError` blocks **every** command on that board,
   including read-only ones, so an unattended worker run halts until the board
   is fixed by hand. This is deliberate: the alternative, silently discarding
