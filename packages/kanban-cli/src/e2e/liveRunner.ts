@@ -18,7 +18,13 @@ export async function runLiveSmoke(
     const grep = options.grep ?? config.e2e.smokeGrep;
     const testCommand = `${config.e2e.testCommand} --grep "${grep}"`;
 
-    const result = await runShell(testCommand, { cwd: repoPath, env: { E2E_BASE_URL: baseUrl } });
+    // `CI` is stripped for the same reason as in the local runner: with it set,
+    // Playwright's webServer boots a whole local stack for a run that is aimed at a
+    // deployed URL.
+    const result = await runShell(testCommand, {
+        cwd: repoPath,
+        env: { E2E_BASE_URL: baseUrl, CI: undefined },
+    });
 
     return {
         passed: result.exitCode === 0,

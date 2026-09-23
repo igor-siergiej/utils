@@ -1,9 +1,10 @@
+import type { CommandResult } from '../process/shell';
 import { runArgv } from '../process/shell';
 import { GhCommandError, GhNotFoundError } from './errors';
 
 /** The single place that shells out to `gh` — every other GitHub wrapper goes through this. */
 export async function runGh(args: string[], options: { cwd: string }): Promise<string> {
-    let result: Awaited<ReturnType<typeof runArgv>>;
+    let result: CommandResult;
 
     try {
         result = await runArgv(['gh', ...args], options);
