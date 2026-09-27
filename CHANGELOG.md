@@ -1,3 +1,16 @@
+# [2.0.0](https://github.com/igor-siergiej/utils/compare/v1.0.1...v2.0.0) (2026-09-27)
+
+
+* fix(api-utils)!: remove unsafe authenticate middleware ([5a43547](https://github.com/igor-siergiej/utils/commit/5a435473bcc755ed9f0f13d39d9eb2df87fc8245))
+
+
+### BREAKING CHANGES
+
+* `authenticate` is no longer exported from
+`@imapps/api-utils` or `@imapps/api-utils/hono`.
+
+Co-Authored-By: Paperclip <noreply@paperclip.ing>
+
 ## [1.0.1](https://github.com/igor-siergiej/utils/compare/v1.0.0...v1.0.1) (2026-09-23)
 
 
