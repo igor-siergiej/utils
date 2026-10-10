@@ -7,8 +7,8 @@ services:
     container_name: dev-mongodb
     restart: always
     ports:
-      # Expose MongoDB externally
-      - "27017:27017"
+      # Loopback only: hardcoded dev creds must never be reachable from the LAN.
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
     environment:
@@ -29,8 +29,8 @@ services:
     container_name: dev-minio
     restart: always
     ports:
-      - "9000:9000"
-      - "7001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:7001:9001"
     volumes:
       - minio_data:/data
     environment:
@@ -77,7 +77,7 @@ services:
     container_name: dev-navidrome
     restart: unless-stopped
     ports:
-      - "4533:4533"
+      - "127.0.0.1:4533:4533"
     environment:
       ND_MUSICFOLDER: /music
       ND_SCANSCHEDULE: 1m
