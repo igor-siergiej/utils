@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { summarizeChecks } from './checks';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { runArgv } from '../process/shell';
+import { createFakeProcess, json } from '../testing/fakeProcess';
+import { summarizeChecks, waitForChecks } from './checks';
+
+vi.mock('../process/shell', () => ({ runArgv: vi.fn() }));
 
 const checkRun = (name: string, status: string, conclusion: string | null) => ({
     __typename: 'CheckRun',
@@ -81,5 +85,61 @@ describe('summarizeChecks', () => {
         const snapshot = summarizeChecks([checkRun('lint', 'COMPLETED', 'FAILURE')], ['lint', 'deploy-preview']);
 
         expect(snapshot.status).toBe('failure');
+    });
+});
+
+describe('waitForChecks', () => {
+    let fake: ReturnType<typeof createFakeProcess>;
+
+    beforeEach(() => {
+        fake = createFakeProcess();
+        vi.mocked(runArgv).mockImplementation(fake.run);
+    });
+
+    const rollup = (...entries: unknown[]) => json({ statusCheckRollup: entries });
+
+    it('reads the rollup via gh pr view rather than gh pr checks --json', async () => {
+        fake.on(['gh', 'pr', 'view'], rollup(checkRun('lint', 'COMPLETED', 'SUCCESS')));
+
+        await waitForChecks('/repo', 5, { timeoutMs: 1000, intervalMs: 1 });
+
+        expect(fake.calls[0]).toEqual(['gh', 'pr', 'view', '5', '--json', 'statusCheckRollup']);
+    });
+
+    it('polls through pending snapshots until a terminal verdict', async () => {
+        fake.on(
+            ['gh', 'pr', 'view'],
+            json({ statusCheckRollup: null }),
+            rollup(checkRun('lint', 'IN_PROGRESS', null)),
+            rollup(checkRun('lint', 'COMPLETED', 'FAILURE'))
+        );
+
+        const result = await waitForChecks('/repo', 5, { timeoutMs: 1000, intervalMs: 1 });
+
+        expect(result).toEqual({
+            status: 'failure',
+            checks: [{ name: 'lint', status: 'COMPLETED', conclusion: 'FAILURE' }],
+        });
+        expect(fake.calls).toHaveLength(3);
+    });
+
+    it('passes required names through to the verdict', async () => {
+        fake.on(
+            ['gh', 'pr', 'view'],
+            rollup(checkRun('lint', 'COMPLETED', 'SUCCESS'), checkRun('optional', 'COMPLETED', 'FAILURE'))
+        );
+
+        const result = await waitForChecks('/repo', 5, { timeoutMs: 1000, intervalMs: 1, requiredNames: ['lint'] });
+
+        expect(result.status).toBe('success');
+    });
+
+    it('times out with no checks when still pending at the deadline', async () => {
+        fake.on(['gh', 'pr', 'view'], rollup(checkRun('lint', 'QUEUED', null)));
+
+        await expect(waitForChecks('/repo', 5, { timeoutMs: 0, intervalMs: 1 })).resolves.toEqual({
+            status: 'timeout',
+            checks: [],
+        });
     });
 });
