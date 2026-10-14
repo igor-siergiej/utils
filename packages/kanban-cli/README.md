@@ -192,6 +192,22 @@ If a repo has no `.kanban-cli.json` yet, `kanban-cli repo-check <repoPath>` repo
 `configFound: false` rather than erroring — the `kanban-worker` skill treats that as a
 one-time setup step to walk you through before continuing.
 
+`kanban-cli init-config <repoPath>` writes that file for you, filling every field it can
+infer: `repoName` from `package.json`, `dev.startCommand` and `e2e.testCommand` from its
+scripts and the detected package manager, `e2e.configPath` from an existing Playwright
+config, `ci.workflowNames` from the workflows under `.github/workflows` that run on
+`pull_request`, and `deploy.workflowName` from a workflow named like `deploy` or `CD`.
+`environments` comes from `--base-url` (or an `http(s)` `homepage` in `package.json`).
+Values already in an existing file always win, so it is safe to re-run on a partial
+config. Fields it cannot infer are left out — never filled with placeholders — and
+listed in the result's `missing` array:
+
+```json
+{"ok":true,"path":"…/.kanban-cli.json","written":true,"inferred":["repoName","dev","e2e","ci"],
+ "missing":["deploy.workflowName","environments","targetEnvironment"],"valid":false,
+ "validationError":"'targetEnvironment' is required and must be a non-empty string"}
+```
+
 ## Pausing on the 5-hour usage limit
 
 The `kanban-worker` skill can run for hours across many board items in one
@@ -249,6 +265,7 @@ kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]
 kanban-cli inbox drop <index> [--reason <text>] [--kanban <path>]
 
 kanban-cli repo-check <repoPath>
+kanban-cli init-config <repoPath> [--repo-name <n>] [--base-url <url>] [--environment <name>]
 kanban-cli install-skill --target <dir> [--skill <name>] [--symlink]
 
 kanban-cli e2e local <repoPath> [--grep <pattern>]
