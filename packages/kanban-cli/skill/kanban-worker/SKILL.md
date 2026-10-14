@@ -98,7 +98,9 @@ own reasoning/tool use.
    - `result.status: "ok"` or `"unknown"`: continue to step 1 as normal.
      (`"unknown"` means no fresh usage telemetry is available — e.g. the
      statusline hasn't rendered recently, or the user hasn't wired up
-     `record-usage` — proceed rather than block indefinitely on missing data.)
+     `record-usage` — proceed rather than block indefinitely on missing data.
+     If the result carries a `hint`, pass it on to the user once: it means
+     `record-usage` was never wired up, so this gate can never pause.)
 
 1. **[CLI]** `kanban-cli next --kanban <board>`. If `item` is `null`, the board has no
    more actionable work — stop here.

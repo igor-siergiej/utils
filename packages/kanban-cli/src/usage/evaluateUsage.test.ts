@@ -7,19 +7,22 @@ const RECORDED_AT_MS = Date.parse(RECORDED_AT);
 
 describe('evaluateUsage', () => {
     it('returns unknown when there is no state (never recorded yet)', () => {
-        expect(evaluateUsage(undefined, { ...BASE_OPTIONS, now: () => RECORDED_AT_MS })).toEqual({ status: 'unknown' });
+        expect(evaluateUsage(undefined, { ...BASE_OPTIONS, now: () => RECORDED_AT_MS })).toEqual({
+            status: 'unknown',
+            reason: 'no-state',
+        });
     });
 
     it('returns unknown when the recorded state is stale beyond maxStalenessMs', () => {
         const state = { usedPct: 95, resetsAt: 'x', recordedAt: RECORDED_AT };
         const now = () => RECORDED_AT_MS + 120_001;
-        expect(evaluateUsage(state, { ...BASE_OPTIONS, now })).toEqual({ status: 'unknown' });
+        expect(evaluateUsage(state, { ...BASE_OPTIONS, now })).toEqual({ status: 'unknown', reason: 'stale' });
     });
 
     it('treats a recordedAt in the future (clock skew) as unknown rather than trusting it', () => {
         const state = { usedPct: 95, resetsAt: 'x', recordedAt: RECORDED_AT };
         const now = () => RECORDED_AT_MS - 1;
-        expect(evaluateUsage(state, { ...BASE_OPTIONS, now })).toEqual({ status: 'unknown' });
+        expect(evaluateUsage(state, { ...BASE_OPTIONS, now })).toEqual({ status: 'unknown', reason: 'stale' });
     });
 
     it('returns ok when usage is below threshold and fresh', () => {

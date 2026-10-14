@@ -1,7 +1,8 @@
 import type { UsageState } from './types';
 
 export type UsageCheckResult =
-    | { status: 'unknown' }
+    /** `no-state`: nothing has ever been recorded; `stale`: telemetry stopped arriving. */
+    | { status: 'unknown'; reason: 'no-state' | 'stale'; hint?: string }
     | { status: 'ok'; usedPct: number }
     | { status: 'pause'; usedPct: number; resetsAt: string };
 
@@ -12,10 +13,12 @@ export interface EvaluateUsageOptions {
 }
 
 export function evaluateUsage(state: UsageState | undefined, options: EvaluateUsageOptions): UsageCheckResult {
-    if (!state) return { status: 'unknown' };
+    if (!state) return { status: 'unknown', reason: 'no-state' };
 
     const ageMs = options.now() - Date.parse(state.recordedAt);
-    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > options.maxStalenessMs) return { status: 'unknown' };
+    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > options.maxStalenessMs) {
+        return { status: 'unknown', reason: 'stale' };
+    }
 
     if (state.usedPct >= options.thresholdPct) {
         return { status: 'pause', usedPct: state.usedPct, resetsAt: state.resetsAt };

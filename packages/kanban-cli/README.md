@@ -239,7 +239,10 @@ the session.
 
 Without this wired up, `kanban-cli usage-check` always reports `unknown` and
 the `kanban-worker` skill just keeps working — the pause/resume behavior is
-opt-in, not required to use the rest of the CLI.
+opt-in, not required to use the rest of the CLI. `unknown` carries a `reason`:
+`no-state` (nothing has ever been recorded) or `stale` (telemetry stopped
+arriving). The first `no-state` result also carries a `hint` explaining the wiring
+above; a `<state file>.hint-shown` marker keeps it from repeating.
 
 ## Requirements
 
