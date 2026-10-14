@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/igor-siergiej/utils/compare/v2.2.0...v2.3.0) (2026-10-14)
+
+
+### Features
+
+* **kanban-cli:** hint once when usage-check has never seen telemetry ([#18](https://github.com/igor-siergiej/utils/issues/18)) ([a08b2a2](https://github.com/igor-siergiej/utils/commit/a08b2a2286f10f00654b29b64d480d761f620f7d))
+
 # [2.2.0](https://github.com/igor-siergiej/utils/compare/v2.1.0...v2.2.0) (2026-10-14)
 
 
