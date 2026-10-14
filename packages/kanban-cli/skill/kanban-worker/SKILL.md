@@ -90,11 +90,18 @@ own reasoning/tool use.
      90%). **[Claude]** Do not start step 1 / new item work. Write a short
      summary of what shipped or is still `In Progress` this session (do **not**
      move or touch the in-flight item — this check only gates the boundary
-     *between* items). Then call the `ScheduleWakeup` tool with `delaySeconds`
-     set from `result.resetsAt` (clamp to the tool's [60, 3600] range — if
-     `resetsAt` is more than an hour out, this same Step 0 check just re-fires
-     and re-schedules on the next wake, cheaply, until the window has actually
-     reset) and end your turn. Do not attempt to keep working past this point.
+     *between* items). Then schedule the resume, depending on harness:
+     - **Claude Code** (has `ScheduleWakeup`): call it with `delaySeconds`
+       from `result.resetsAt` (clamp to [60, 3600]; if `resetsAt` is more than
+       an hour out, this Step 0 check just re-fires and re-schedules on the
+       next wake until the window has actually reset).
+     - **omp** (no `ScheduleWakeup`): run
+       `echo 'omp -p "work the kanban board <board>"' | at <resetsAt as local time>`
+       (fall back to `systemd-run --user --on-calendar=<resetsAt>` if `at` is
+       missing), confirm it queued, and report the time.
+       `retry.waitForUsageReset: true` additionally lets a live omp session
+       sleep through a hard 429 and resume, but does not replace this gate.
+     Then end your turn. Do not attempt to keep working past this point.
    - `result.status: "ok"` or `"unknown"`: continue to step 1 as normal.
      (`"unknown"` means no fresh usage telemetry is available — e.g. the
      statusline hasn't rendered recently, or the user hasn't wired up
@@ -140,6 +147,24 @@ own reasoning/tool use.
      back to step 7.
    - `result.passed: true`: continue.
 8. **[Claude]** Commit (conventional commit message) and push the branch.
+   If the repo's `.kanban-cli.json` has `"releaseNotes": true`, end the commit body
+   with a `Release-Notes:` trailer — one sentence, written for the people who use
+   the app, not for the people who maintain it:
+
+   ```
+   feat(web): Waste Warrior becomes a full page instead of a drawer
+
+   <the usual technical body>
+
+   Release-Notes: Use-it-up ingredient search is now a full page, so results
+   aren't squashed behind the keyboard.
+   ```
+
+   Repeat the same trailer at the end of the PR body in step 9, so it survives
+   whichever message GitHub composes on squash-merge. Name the user-visible
+   change and why it is better; skip the file names, component names and
+   refactoring. An item with no user-visible effect at all (pure chore) simply
+   omits the trailer.
 9. **[CLI]** `kanban-cli pr create <item.repo> --title <t> --body <b> --base main --head <branch>`.
    **[CLI]** `kanban-cli update <item.id> --set-pr <number> --kanban <board>`.
 10. **[Claude]** Review your own diff for correctness, style, and risk (equivalent to
