@@ -24,6 +24,13 @@ describe('serializeKanbanBoard — project frontmatter', () => {
         expect(serializeKanbanBoard(board())).toMatch(/^---\nproject: shoppingo\n---\n\n# Kanban Board\n/);
     });
 
+    it('round-trips repoUrl in the frontmatter', () => {
+        const out = serializeKanbanBoard(board({ repoUrl: 'https://github.com/o/shoppingo.git' }));
+
+        expect(out).toMatch(/^---\nproject: shoppingo\nrepoUrl: https:\/\/github.com\/o\/shoppingo.git\n---\n/);
+        expect(parseKanbanFile(out).repoUrl).toBe('https://github.com/o/shoppingo.git');
+    });
+
     it('throws when the board has no project', () => {
         expect(() => serializeKanbanBoard({ ...board(), project: undefined })).toThrow(/project/);
     });

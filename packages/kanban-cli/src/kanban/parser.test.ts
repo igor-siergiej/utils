@@ -384,6 +384,29 @@ project: shoppingo
         ).toThrow(KanbanParseError);
     });
 
+    it('reads an optional repoUrl alongside project', () => {
+        const board = parseKanbanFile(`---
+project: shoppingo
+repoUrl: git@github.com:o/shoppingo.git
+---
+
+# Board
+
+## Backlog
+`);
+        expect(board.repoUrl).toBe('git@github.com:o/shoppingo.git');
+    });
+
+    it('leaves repoUrl off the board when not set', () => {
+        expect(parseKanbanFile('---\nproject: shoppingo\n---\n\n# Board\n')).not.toHaveProperty('repoUrl');
+    });
+
+    it('throws when repoUrl is not a non-empty string', () => {
+        expect(() => parseKanbanFile('---\nproject: shoppingo\nrepoUrl: 3\n---\n\n# Board\n')).toThrow(
+            KanbanParseError
+        );
+    });
+
     it('throws on invalid-yaml frontmatter', () => {
         expect(() =>
             parseKanbanFile(`---

@@ -6,7 +6,15 @@ export function serializeKanbanBoard(board: KanbanBoard): string {
         throw new Error('Cannot serialize a board without a project');
     }
 
-    const lines: string[] = ['---', `project: ${board.project}`, '---', '', `# ${board.title}`, ''];
+    const lines: string[] = [
+        '---',
+        `project: ${board.project}`,
+        ...(board.repoUrl ? [`repoUrl: ${board.repoUrl}`] : []),
+        '---',
+        '',
+        `# ${board.title}`,
+        '',
+    ];
 
     for (const column of board.columns) {
         lines.push(`## ${column.name}`, '');

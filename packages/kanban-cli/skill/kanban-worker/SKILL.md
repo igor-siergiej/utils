@@ -41,7 +41,10 @@ The board cannot be read at all until the target checkout has at least
 If `kanban-cli` reports a `RepoResolutionError`, the board's `project` did not
 match any `.kanban-cli.json` `repoName` under `KANBAN_CLI_REPO_ROOTS` — tell
 the user to set that env var to the directory holding their checkouts, or to
-fix the `repoName` in the repo's `.kanban-cli.json`.
+fix the `repoName` in the repo's `.kanban-cli.json`. If the board's frontmatter
+sets `repoUrl`, run `kanban-cli clone --kanban <path>` first instead: it clones
+the project into the first repo root, then the board resolves (follow up with
+`kanban-cli init-config` if the fresh clone has no full config).
 
 ## Board schema (for reference — see also `.kanban-cli.json` per repo)
 

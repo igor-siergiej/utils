@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util';
 import { ciWait } from './commands/ciWait';
+import { cloneRepo } from './commands/cloneRepo';
 import { deployWait } from './commands/deployWait';
 import { e2eBootstrap } from './commands/e2eBootstrap';
 import { e2eLiveRun } from './commands/e2eLiveRun';
@@ -38,7 +39,7 @@ function printError(error: unknown): void {
 
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
-    'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>,\n' +
+    'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
     '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
@@ -336,6 +337,14 @@ async function main(): Promise<void> {
             });
             if (!positionals[0]) throw new Error('Usage: kanban-cli migrate <board> [--project <name>]');
             printSuccess(kanbanMigrate(positionals[0], { project: values.project }));
+            return;
+        }
+        case 'clone': {
+            const { values } = parseArgs({
+                args: rest,
+                options: { kanban: { type: 'string' }, root: { type: 'string' } },
+            });
+            printSuccess(await cloneRepo(values.kanban ?? DEFAULT_BOARD_PATH, { root: values.root }));
             return;
         }
         case 'repo-check': {
