@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/igor-siergiej/utils/compare/v2.1.0...v2.2.0) (2026-10-14)
+
+
+### Features
+
+* **kanban-cli:** opt-in clone for boards with a repoUrl ([#17](https://github.com/igor-siergiej/utils/issues/17)) ([8130b16](https://github.com/igor-siergiej/utils/commit/8130b161133657820ff130b3712926e23a7aa41e))
+
 # [2.1.0](https://github.com/igor-siergiej/utils/compare/v2.0.0...v2.1.0) (2026-10-14)
 
 
