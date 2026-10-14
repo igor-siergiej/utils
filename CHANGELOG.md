@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/igor-siergiej/utils/compare/v2.0.0...v2.1.0) (2026-10-14)
+
+
+### Features
+
+* **kanban-cli:** add init-config to scaffold .kanban-cli.json ([#16](https://github.com/igor-siergiej/utils/issues/16)) ([61cf46a](https://github.com/igor-siergiej/utils/commit/61cf46a50fa4e66930b14d6526ebe7abcdd05877))
+
 # [2.0.0](https://github.com/igor-siergiej/utils/compare/v1.0.1...v2.0.0) (2026-09-27)
 
 
