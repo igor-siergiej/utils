@@ -32,5 +32,7 @@ export interface KanbanColumn {
 export interface KanbanBoard {
     title: string;
     project?: string;
+    /** Optional clone URL for `project`, used by `kanban-cli clone` when no local checkout exists. */
+    repoUrl?: string;
     columns: KanbanColumn[];
 }

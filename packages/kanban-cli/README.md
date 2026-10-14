@@ -30,6 +30,13 @@ allowed), then `###` item headings. Each item is followed by a Markdown bullet
 list of its fields, then a freeform Markdown body (description / acceptance
 criteria) up to a `---` line or the next heading.
 
+The frontmatter may also set `repoUrl` (any URL `git clone` accepts). Then, when the
+project has no local checkout yet, `kanban-cli clone --kanban <board> [--root <dir>]`
+clones it to `<root>/<project>` (default root: the first `KANBAN_CLI_REPO_ROOTS`
+entry) and writes a minimal `{"repoName": "<project>"}` `.kanban-cli.json` if the
+repo doesn't ship one. It never clones over an existing directory, and is a no-op
+(`cloned: false`) once the project resolves.
+
 ```markdown
 ---
 project: shoppingo
@@ -258,6 +265,7 @@ kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit
                        [--set-revert-pr <n>] [--inc-retry <gate>] [--complete] [--kanban <path>]
 kanban-cli columns [--kanban <path>]
 kanban-cli migrate <board> [--project <name>]
+kanban-cli clone [--root <dir>] [--kanban <path>]
 
 kanban-cli inbox list [--kanban <path>]
 kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]
@@ -301,13 +309,14 @@ before it has run. A failure in a required check is still terminal immediately.
 
 ## Known limitations
 
-- Cloning is not supported by design — a board's `project` must resolve to an
-  already-cloned local checkout.
-- The `gh`-shelling commands (`pr *`, `ci wait`, `deploy wait`) are integration
-  surfaces: their `gh` invocations are not unit-tested, though the check-rollup
-  verdict logic, process spawning/teardown, repo-config validation, polling/backoff
-  and the pure kanban parsing/serialization are — see `src/**/*.test.ts`. Verify the
-  `gh` paths against a real repo with `gh` authenticated before relying on them.
+- Cloning only happens on request: a board's `project` must resolve to a local
+  checkout, and `kanban-cli clone` creates one only for a board whose frontmatter
+  sets `repoUrl` (see above).
+- The `gh`-shelling commands (`pr *`, `ci wait`, `deploy wait`) are unit-tested
+  against a scripted fake of the process layer (`src/testing/fakeProcess.ts`), which
+  pins the argv they send and how they read `gh`'s output, but not real `gh`/GitHub
+  behaviour. Verify those paths against a real repo with `gh` authenticated before
+  relying on them.
 - A stray-prose `KanbanParseError` blocks **every** command on that board,
   including read-only ones, so an unattended worker run halts until the board
   is fixed by hand. This is deliberate: the alternative, silently discarding

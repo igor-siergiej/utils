@@ -41,6 +41,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
     let title = 'Kanban Board';
     let project: string | undefined;
+    let repoUrl: string | undefined;
     const columns: KanbanColumn[] = [];
     const seenIds = new Set<string>();
 
@@ -71,6 +72,12 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
             throw new KanbanParseError("Board frontmatter is missing a required 'project' field");
         }
         project = front.project;
+        if (front.repoUrl !== undefined) {
+            if (typeof front.repoUrl !== 'string' || front.repoUrl.trim() === '') {
+                throw new KanbanParseError("Board frontmatter 'repoUrl' must be a non-empty string");
+            }
+            repoUrl = front.repoUrl;
+        }
         i = end + 1;
     }
 
@@ -138,7 +145,7 @@ export function parseKanbanFile(markdown: string): KanbanBoard {
 
     flushCapture();
 
-    return { title, project, columns };
+    return { title, project, ...(repoUrl ? { repoUrl } : {}), columns };
 }
 
 function parseItem(lines: string[], start: number, itemTitle: string): { item: KanbanItem; nextIndex: number } {
