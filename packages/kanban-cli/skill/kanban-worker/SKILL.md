@@ -103,10 +103,14 @@ own reasoning/tool use.
    - If it fails with a `RepoConfigError` (`{"ok":false,...}`): the repo's
      `.kanban-cli.json` exists (step 1 already resolved the checkout via its
      `repoName`) but is missing required keys. **[Claude]** help the user fill
-     the missing keys from the README schema (dev start/teardown commands,
-     health-check URL, e2e test command, CI workflow name(s), deploy workflow
-     name, staging/prod base URL). This is one-time per repo, not per item;
-     re-run `repo-check` after to confirm it validates, then continue.
+     the missing keys. Start with **[CLI]** `kanban-cli init-config <item.repo>
+     [--base-url <prod url>]`: it fills whatever it can infer from the repo
+     without overwriting existing values and lists the rest under `missing`;
+     fill those from the README schema (dev start/teardown commands, health-check
+     URL, e2e test command, CI workflow name(s), deploy workflow name,
+     staging/prod base URL), and check its inferred values are right. This is
+     one-time per repo, not per item; re-run `repo-check` after to confirm it
+     validates, then continue.
    - If `playwrightConfigured: false`: **[CLI]** `kanban-cli e2e bootstrap <item.repo>`,
      then **[Claude]** review the scaffolded config/spec and adjust it to fit the app
      before relying on it.

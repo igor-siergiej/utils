@@ -8,6 +8,7 @@ import { e2eLocalRun } from './commands/e2eLocalRun';
 import { inboxDrop } from './commands/inboxDrop';
 import { inboxList } from './commands/inboxList';
 import { inboxPromote } from './commands/inboxPromote';
+import { initConfig } from './commands/initConfig';
 import { installSkill } from './commands/installSkill';
 import { kanbanColumns } from './commands/kanbanColumns';
 import { kanbanMigrate } from './commands/kanbanMigrate';
@@ -38,7 +39,7 @@ function printError(error: unknown): void {
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
     'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>,\n' +
-    '          repo-check <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
+    '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
     '          inbox <list|promote|drop>,\n' +
@@ -340,6 +341,30 @@ async function main(): Promise<void> {
         case 'repo-check': {
             const { positionals } = parseArgs({ args: rest, options: {}, allowPositionals: true });
             printSuccess(repoCheck(positionals[0]));
+            return;
+        }
+        case 'init-config': {
+            const { values, positionals } = parseArgs({
+                args: rest,
+                options: {
+                    'repo-name': { type: 'string' },
+                    'base-url': { type: 'string' },
+                    environment: { type: 'string' },
+                },
+                allowPositionals: true,
+            });
+            if (!positionals[0]) {
+                throw new Error(
+                    'Usage: kanban-cli init-config <repoPath> [--repo-name <n>] [--base-url <url>] [--environment <name>]'
+                );
+            }
+            printSuccess(
+                initConfig(positionals[0], {
+                    repoName: values['repo-name'],
+                    baseUrl: values['base-url'],
+                    environment: values.environment,
+                })
+            );
             return;
         }
         case 'install-skill': {
