@@ -12,6 +12,7 @@ import { inboxPromote } from './commands/inboxPromote';
 import { initConfig } from './commands/initConfig';
 import { installSkill } from './commands/installSkill';
 import { kanbanColumns } from './commands/kanbanColumns';
+import { kanbanList } from './commands/kanbanList';
 import { kanbanMigrate } from './commands/kanbanMigrate';
 import { kanbanMove } from './commands/kanbanMove';
 import { kanbanNext } from './commands/kanbanNext';
@@ -23,6 +24,7 @@ import { prRevert } from './commands/prRevert';
 import { prStatus } from './commands/prStatus';
 import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
+import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
 import type { RetryGate } from './kanban/types';
 
@@ -39,10 +41,10 @@ function printError(error: unknown): void {
 
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
-    'Commands: next, show <id>, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
+    'Commands: next, show <id>, list --column <name>, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
     '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
-    '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>,\n' +
+    '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
     '          inbox <list|promote|drop>,\n' +
     '          record-usage (reads statusline JSON from stdin), usage-check';
 
@@ -285,6 +287,24 @@ async function main(): Promise<void> {
             printSuccess(kanbanShow(values.kanban ?? DEFAULT_BOARD_PATH, positionals[0]));
             return;
         }
+        case 'list': {
+            const { values } = parseArgs({
+                args: rest,
+                options: {
+                    column: { type: 'string' },
+                    kanban: { type: 'string' },
+                    'all-boards': { type: 'string' },
+                },
+            });
+            if (!values.column) throw new Error('--column is required');
+            printSuccess(
+                kanbanList(values.column, {
+                    kanban: values['all-boards'] ? undefined : (values.kanban ?? DEFAULT_BOARD_PATH),
+                    allBoards: values['all-boards'],
+                })
+            );
+            return;
+        }
         case 'move': {
             const { values, positionals } = parseArgs({
                 args: rest,
@@ -406,6 +426,30 @@ async function main(): Promise<void> {
         case 'deploy':
             printSuccess(await runDeploy(rest));
             return;
+        case 'ship': {
+            const { values, positionals } = parseArgs({
+                args: rest,
+                options: {
+                    title: { type: 'string' },
+                    body: { type: 'string' },
+                    head: { type: 'string' },
+                    'ci-timeout': { type: 'string' },
+                },
+                allowPositionals: true,
+            });
+            if (!positionals[0]) {
+                throw new Error('Usage: kanban-cli ship <repoPath> [--title <t> --body <b>] [--head <branch>]');
+            }
+            printSuccess(
+                await ship(positionals[0], {
+                    title: values.title,
+                    body: values.body,
+                    head: values.head,
+                    ciTimeoutMs: values['ci-timeout'] ? Number(values['ci-timeout']) : undefined,
+                })
+            );
+            return;
+        }
         case 'record-usage': {
             const stdinText = await Bun.stdin.text();
             printSuccess(recordUsage(stdinText));

@@ -15,9 +15,11 @@ describe('installSkill', () => {
         expect(result.installed.map((entry) => entry.skill).sort()).toEqual([
             'kanban-worker',
             'refining-kanban-captures',
+            'triaging-blocked-cards',
         ]);
         expect(existsSync(join(dir, 'kanban-worker', 'SKILL.md'))).toBe(true);
         expect(existsSync(join(dir, 'refining-kanban-captures', 'SKILL.md'))).toBe(true);
+        expect(existsSync(join(dir, 'triaging-blocked-cards', 'SKILL.md'))).toBe(true);
     });
 
     it('installs only the named skill', () => {
@@ -36,7 +38,10 @@ describe('installSkill', () => {
         const result = installSkill(dir);
 
         expect(result.skipped.map((entry) => entry.skill)).toEqual(['kanban-worker']);
-        expect(result.installed.map((entry) => entry.skill)).toEqual(['refining-kanban-captures']);
+        expect(result.installed.map((entry) => entry.skill)).toEqual([
+            'refining-kanban-captures',
+            'triaging-blocked-cards',
+        ]);
     });
 
     it('never overwrites an already-installed skill', () => {

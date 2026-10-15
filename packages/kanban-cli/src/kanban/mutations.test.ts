@@ -5,6 +5,7 @@ import {
     findItem,
     incrementRetry,
     listCaptures,
+    listColumn,
     moveItem,
     nextBacklogItem,
     promoteCapture,
@@ -70,12 +71,48 @@ describe('moveItem', () => {
         expect(findItem(movedElsewhere, 'b-1').blockedReason).toBeUndefined();
     });
 
+    it('clears blockedReason and resets retries when a Blocked item goes back to Backlog', () => {
+        const blocked = updateItem(moveItem(boardWithItems(), 'b-1', 'Blocked', 'ci failed'), 'b-1', {
+            retries: { ...ZERO_RETRIES, ci: 3 },
+        });
+
+        const retried = findItem(moveItem(blocked, 'b-1', 'Backlog'), 'b-1');
+
+        expect(retried.blockedReason).toBeUndefined();
+        expect(retried.retries).toEqual(ZERO_RETRIES);
+    });
+
+    it('keeps blockedReason and retries when a Blocked item is dropped to Done', () => {
+        const blocked = updateItem(moveItem(boardWithItems(), 'b-1', 'Blocked', 'ci failed'), 'b-1', {
+            retries: { ...ZERO_RETRIES, ci: 3 },
+        });
+
+        const dropped = findItem(moveItem(blocked, 'b-1', 'Done'), 'b-1');
+
+        expect(dropped.blockedReason).toBe('ci failed');
+        expect(dropped.retries.ci).toBe(3);
+    });
+
     it('throws KanbanColumnNotFoundError for an unknown column', () => {
         expect(() => moveItem(boardWithItems(), 'b-1', 'Nonexistent')).toThrow(KanbanColumnNotFoundError);
     });
 
     it('throws KanbanItemNotFoundError for an unknown id', () => {
         expect(() => moveItem(boardWithItems(), 'missing', 'Done')).toThrow(KanbanItemNotFoundError);
+    });
+});
+
+describe('listColumn', () => {
+    it('returns the items of the named column in board order', () => {
+        expect(listColumn(boardWithItems(), 'Backlog').map((i) => i.id)).toEqual(['b-1', 'b-2']);
+    });
+
+    it('returns an empty list for an empty column', () => {
+        expect(listColumn(boardWithItems(), 'Blocked')).toEqual([]);
+    });
+
+    it('throws KanbanColumnNotFoundError for an unknown column', () => {
+        expect(() => listColumn(boardWithItems(), 'Nope')).toThrow(KanbanColumnNotFoundError);
     });
 });
 
