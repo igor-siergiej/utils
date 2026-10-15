@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/igor-siergiej/utils/compare/v2.3.0...v2.4.0) (2026-10-15)
+
+
+### Features
+
+* **kanban-cli:** add list and ship commands and the blocked-triage skill ([#20](https://github.com/igor-siergiej/utils/issues/20)) ([6a324de](https://github.com/igor-siergiej/utils/commit/6a324de26fda503a7df8d84120a3eda07649df2a))
+
 # [2.3.0](https://github.com/igor-siergiej/utils/compare/v2.2.0...v2.3.0) (2026-10-14)
 
 
