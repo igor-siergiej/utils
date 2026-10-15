@@ -44,10 +44,21 @@ export function moveItem(board: KanbanBoard, id: string, toColumn: string, note?
     if (note && toColumn === 'Blocked') {
         updated.blockedReason = note;
     }
+    // Retrying a blocked item starts clean; dropping it to Done keeps the reason as history.
+    if (item.column === 'Blocked' && toColumn !== 'Blocked' && toColumn !== 'Done') {
+        delete updated.blockedReason;
+        updated.retries = { implement: 0, e2e_local: 0, ci: 0, deploy: 0, e2e_live: 0 };
+    }
 
     columns[targetColumnIndex].items.push(updated);
 
     return { ...board, columns };
+}
+
+export function listColumn(board: KanbanBoard, columnName: string): KanbanItem[] {
+    const column = board.columns.find((c) => c.name === columnName);
+    if (!column) throw new KanbanColumnNotFoundError(columnName);
+    return column.items;
 }
 
 export function updateItem(board: KanbanBoard, id: string, patch: Partial<KanbanItem>): KanbanBoard {

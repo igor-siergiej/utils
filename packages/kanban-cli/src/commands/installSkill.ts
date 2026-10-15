@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SKILLS = ['kanban-worker', 'refining-kanban-captures'] as const;
+const SKILLS = ['kanban-worker', 'refining-kanban-captures', 'triaging-blocked-cards'] as const;
 export type PackagedSkill = (typeof SKILLS)[number];
 
 /**

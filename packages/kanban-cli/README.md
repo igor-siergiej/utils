@@ -263,6 +263,7 @@ out) is `ok:true` with a `result`/`status` field, not a CLI-level failure.
 ```
 kanban-cli next [--kanban <path>]
 kanban-cli show <id> [--kanban <path>]
+kanban-cli list --column <name> [--kanban <path> | --all-boards <dir>]
 kanban-cli move <id> <column> [--note <text>] [--kanban <path>]
 kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit <sha>]
                        [--set-revert-pr <n>] [--inc-retry <gate>] [--complete] [--kanban <path>]
@@ -290,6 +291,7 @@ kanban-cli pr revert <repoPath> --commit <sha> --base <branch> --title <t> --sum
 
 kanban-cli ci wait <repoPath> <prNumber> [--timeout <ms>] [--interval <ms>] [--required <name>]
 kanban-cli deploy wait <repoPath> --workflow <name> --commit <sha> [--timeout <ms>] [--interval <ms>]
+kanban-cli ship <repoPath> [--title <t> --body <b>] [--head <branch>] [--ci-timeout <ms>]
 
 kanban-cli record-usage                 # reads statusline JSON from stdin, persists the 5hr usage window
 kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
@@ -301,8 +303,24 @@ with backticks and newlines that do not survive shell argument quoting.
 `--reason` on `drop` is echoed in the JSON output for the caller's log; it is
 not written to the board, since the capture itself is removed.
 
-`install-skill` installs every packaged skill (`kanban-worker` and
-`refining-kanban-captures`) unless `--skill <name>` narrows it, and never
+`list --all-boards <dir>` reads every `*.board.md` in `<dir>` and returns one
+column's items, each tagged with its `board` and `project`. A board that fails to
+parse lands in `errors` instead of hiding the rest.
+
+`move` out of `Blocked` into any column except `Done` clears `blocked_reason` and
+zeroes the retry counters, so a retried item starts clean. Moving a blocked item to
+`Done` (dropping it) keeps both as history.
+
+`ship` runs the tail of the worker loop for ad-hoc work on a feature branch: refuse
+a dirty tree or the base branch, push, reuse the branch's open PR (or create one,
+which needs `--title` and `--body`), `ci wait` on `ci.checkNamesRequired`, merge
+with `github.mergeMethod`, `deploy wait`, then live smoke against
+`targetEnvironment`. A smoke failure auto-reverts (revert PR, CI, merge, deploy,
+smoke again) and reports `revert.restored`. CI and deploy failures stop and report
+without reverting. `result.stage` is `ci`, `deploy`, `e2e_live` or `done`.
+
+`install-skill` installs every packaged skill (`kanban-worker`,
+`refining-kanban-captures` and `triaging-blocked-cards`) unless `--skill <name>` narrows it, and never
 overwrites a skill that is already present — it reports those as `skipped`.
 
 `ci wait --required <name>` (repeatable) narrows the gate to those checks — and waits
