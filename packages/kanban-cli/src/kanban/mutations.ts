@@ -61,6 +61,18 @@ export function listColumn(board: KanbanBoard, columnName: string): KanbanItem[]
     return column.items;
 }
 
+export function clearColumn(board: KanbanBoard, columnName: string): { board: KanbanBoard; removed: KanbanItem[] } {
+    if (columnName === INBOX_COLUMN) throw new InboxNotAWorkColumnError(INBOX_COLUMN);
+    const removed = listColumn(board, columnName);
+    return {
+        board: {
+            ...board,
+            columns: board.columns.map((c) => (c.name === columnName ? { ...c, items: [] } : c)),
+        },
+        removed,
+    };
+}
+
 export function updateItem(board: KanbanBoard, id: string, patch: Partial<KanbanItem>): KanbanBoard {
     const { columnIndex, itemIndex } = locateItem(board, id);
     const columns = cloneColumns(board);

@@ -263,7 +263,8 @@ out) is `ok:true` with a `result`/`status` field, not a CLI-level failure.
 ```
 kanban-cli next [--kanban <path>]
 kanban-cli show <id> [--kanban <path>]
-kanban-cli list --column <name> [--kanban <path> | --all-boards <dir>]
+kanban-cli list [--column <name>] [--project <name>] [--tag <tag>] [--kanban <path> | --all-boards <dir>]
+kanban-cli prune [--column <name>] [--kanban <path> | --all-boards <dir>]
 kanban-cli move <id> <column> [--note <text>] [--kanban <path>]
 kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit <sha>]
                        [--set-revert-pr <n>] [--inc-retry <gate>] [--complete] [--kanban <path>]
@@ -303,9 +304,16 @@ with backticks and newlines that do not survive shell argument quoting.
 `--reason` on `drop` is echoed in the JSON output for the caller's log; it is
 not written to the board, since the capture itself is removed.
 
-`list --all-boards <dir>` reads every `*.board.md` in `<dir>` and returns one
-column's items, each tagged with its `board` and `project`. A board that fails to
-parse lands in `errors` instead of hiding the rest.
+`list --all-boards <dir>` reads every `*.board.md` in `<dir>` and returns items,
+each tagged with its `board` and `project`, plus a `boards` summary (per-column
+counts and Inbox capture count). Without `--column` it covers every open column
+(all but `Inbox` and `Done`). `--project` and `--tag` (case-insensitive, so
+`--tag p1` matches `P1`) narrow it. A board that fails to parse lands in
+`errors` instead of hiding the rest.
+
+`prune` deletes every item in `Done` (or `--column`), so finished work does not
+bloat the board; history lives in git and the PRs. Boards with nothing to prune
+are not rewritten, and an unparseable board is reported in `errors`, untouched.
 
 `move` out of `Blocked` into any column except `Done` clears `blocked_reason` and
 zeroes the retry counters, so a retried item starts clean. Moving a blocked item to
