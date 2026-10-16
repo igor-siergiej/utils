@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/igor-siergiej/utils/compare/v2.5.0...v2.6.0) (2026-10-16)
+
+
+### Features
+
+* **api-utils:** structured request logs, request id, errorHandler logging ([#22](https://github.com/igor-siergiej/utils/issues/22)) ([4e9f936](https://github.com/igor-siergiej/utils/commit/4e9f93626ab614dd04081acdb4a8930cf4fccfe7))
+
 # [2.5.0](https://github.com/igor-siergiej/utils/compare/v2.4.0...v2.5.0) (2026-10-16)
 
 
