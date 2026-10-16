@@ -2,15 +2,15 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { ILogger } from '../logger/types';
 import { errorHandler } from './errorHandler';
-import { requestLogger } from './requestLogger';
+import { type RequestVariables, requestLogger } from './requestLogger';
 
 export interface CreateAppOptions {
     logger: ILogger;
     allowedOrigins: string[];
 }
 
-export const createApp = ({ logger, allowedOrigins }: CreateAppOptions): Hono => {
-    const app = new Hono();
+export const createApp = ({ logger, allowedOrigins }: CreateAppOptions): Hono<RequestVariables> => {
+    const app = new Hono<RequestVariables>();
 
     app.use(
         '*',
@@ -25,7 +25,7 @@ export const createApp = ({ logger, allowedOrigins }: CreateAppOptions): Hono =>
     );
 
     app.use('*', requestLogger(logger));
-    app.onError(errorHandler);
+    app.onError(errorHandler(logger));
 
     return app;
 };
