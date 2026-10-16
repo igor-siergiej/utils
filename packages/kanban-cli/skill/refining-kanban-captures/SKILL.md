@@ -1,6 +1,6 @@
 ---
 name: refining-kanban-captures
-description: Use when asked to refine a kanban board's raw captures into proper items - "refine the board", "drain the inbox", "refine my captures", "turn my notes into cards". Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
+description: Use when asked to refine a kanban board's raw captures (or the global notes inbox.md) into proper items - "refine the board", "refine the inbox", "drain the inbox", "refine my captures", "turn my notes into cards". Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
 ---
 
 # Refining Kanban Captures
@@ -16,6 +16,22 @@ those two is filled by reading the repo, never by rephrasing the capture.
 **Never invoked automatically.** The `kanban-worker` loop ignores `## Inbox`
 entirely. Captures become work only when a human asks for a refinement pass and
 sees the result.
+
+## Step 0: The Global Inbox (if asked to "refine the inbox")
+
+`<notes_dir>/kanban/inbox.md` is a project-less capture file: one `- ` bullet
+per thought, optional `#<project>` hint. It is not a board — hand-edit it.
+Route each bullet first, then refine on the destination board as below:
+
+| Bullet is about | Route to |
+|---|---|
+| a project with a `*.board.md` (hint, or obvious from wording) | append verbatim under that board's `## Inbox`, then run steps 1-4 on that board |
+| an area tracked as a plain note (see `index.md` table) | add a `- [ ]` item in that note's own conventions |
+| a new project / someday idea | `## Project ideas` in `index.md` |
+| unclear | leave it in `inbox.md` and ask |
+
+Remove a bullet from `inbox.md` only after it has landed at its destination.
+Check `index.md` for the board/note list — never guess a filename.
 
 ## The Procedure
 

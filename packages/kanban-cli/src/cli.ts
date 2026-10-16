@@ -16,6 +16,7 @@ import { kanbanList } from './commands/kanbanList';
 import { kanbanMigrate } from './commands/kanbanMigrate';
 import { kanbanMove } from './commands/kanbanMove';
 import { kanbanNext } from './commands/kanbanNext';
+import { kanbanPrune } from './commands/kanbanPrune';
 import { kanbanShow } from './commands/kanbanShow';
 import { kanbanUpdate } from './commands/kanbanUpdate';
 import { prCreate } from './commands/prCreate';
@@ -41,7 +42,7 @@ function printError(error: unknown): void {
 
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
-    'Commands: next, show <id>, list --column <name>, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
+    'Commands: next, show <id>, list [--column|--project|--tag], prune, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
     '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
@@ -292,16 +293,40 @@ async function main(): Promise<void> {
                 args: rest,
                 options: {
                     column: { type: 'string' },
+                    project: { type: 'string' },
+                    tag: { type: 'string' },
                     kanban: { type: 'string' },
                     'all-boards': { type: 'string' },
                 },
             });
-            if (!values.column) throw new Error('--column is required');
             printSuccess(
-                kanbanList(values.column, {
+                kanbanList({
+                    column: values.column,
+                    project: values.project,
+                    tag: values.tag,
                     kanban: values['all-boards'] ? undefined : (values.kanban ?? DEFAULT_BOARD_PATH),
                     allBoards: values['all-boards'],
                 })
+            );
+            return;
+        }
+        case 'prune': {
+            const { values } = parseArgs({
+                args: rest,
+                options: {
+                    column: { type: 'string' },
+                    kanban: { type: 'string' },
+                    'all-boards': { type: 'string' },
+                },
+            });
+            printSuccess(
+                kanbanPrune(
+                    {
+                        kanban: values['all-boards'] ? undefined : (values.kanban ?? DEFAULT_BOARD_PATH),
+                        allBoards: values['all-boards'],
+                    },
+                    values.column
+                )
             );
             return;
         }
