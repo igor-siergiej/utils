@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/igor-siergiej/utils/compare/v2.4.0...v2.5.0) (2026-10-16)
+
+
+### Features
+
+* **kanban-cli:** cross-board overview filters and prune command ([#21](https://github.com/igor-siergiej/utils/issues/21)) ([cd392cd](https://github.com/igor-siergiej/utils/commit/cd392cda4d3d41376f9b8147f664730de161e4dc))
+
 # [2.4.0](https://github.com/igor-siergiej/utils/compare/v2.3.0...v2.4.0) (2026-10-15)
 
 
