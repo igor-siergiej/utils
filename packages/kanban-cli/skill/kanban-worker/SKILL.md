@@ -39,6 +39,12 @@ parse the JSON it prints. `jott task list --json` rows carry `number`,
 `merged_commit`, `revert_pr`, `blocked_reason`, `completed_at`, `retries`
 (an object of per-gate counts; missing = all 0).
 
+Free-text string meta (`blocked_reason`) must be valid one-line JSON. Never
+hand-quote it: JSON-encode it with jq, e.g.
+`--meta blocked_reason="$(jq -Rn --arg r "<reason>" '$r')"` — jq escapes
+quotes, backslashes and newlines. Every `blocked_reason` write below uses this
+form.
+
 The checkout for project `<P>` comes from **[CLI]** `kanban-cli resolve-repo <P>`
 → `repo`. It resolves by scanning `KANBAN_CLI_REPO_ROOTS` (default `$HOME`,
 up to two levels deep) for a `.kanban-cli.json` whose `repoName` is `<P>`.
@@ -125,7 +131,7 @@ own reasoning/tool use.
      If the new retry count is
      `>=` the repo's `retryPolicy.e2e_local` (default 3, from `repo-check`'s
      `config.retryPolicy`), **[CLI]**
-     `jott task set <N> --status blocked --meta blocked_reason='"<specific last-failure summary>"' --json` and
+     `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "<specific last-failure summary>" '$r')" --json` and
      stop working this item (go back to step 1 for the next one). Otherwise, loop
      back to step 7.
    - `result.passed: true`: continue.
@@ -162,7 +168,7 @@ own reasoning/tool use.
       `jott task set <N> --meta retries='<json>' --json`). Below the
       repo's `retryPolicy.ci` (default 3): loop back to step 7 (re-check local e2e
       before re-waiting on CI). At/above the cap: **[CLI]**
-      `jott task set <N> --status blocked --meta blocked_reason='"..."' --json` (name the failing check and a
+      `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "..." '$r')" --json` (name the failing check and a
       short excerpt of the actual failure, not just "failed N times") and stop this
       item.
     - `result.status: "timeout"`: **[Claude]** judge whether to wait longer (re-issue
@@ -183,7 +189,7 @@ own reasoning/tool use.
       `retryPolicy.deploy` (default 2): decide on a fresh follow-up fix through the
       normal loop (this is post-merge, so treat it as a new small iteration, not a
       blind re-wait). At/above the cap: **[CLI]**
-      `jott task set <N> --status blocked --meta blocked_reason='"..."' --json` flagged as an infra issue, stop
+      `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "..." '$r')" --json` flagged as an infra issue, stop
       this item.
     - `result.status: "success"`: continue.
 15. **[CLI]** `kanban-cli e2e live <repo> --url <targetEnvironment baseUrl from
@@ -206,9 +212,9 @@ own reasoning/tool use.
          when you write the blocked note below.
       6. **[CLI]** `jott task set <N> --meta revert_pr=<revertPrNumber> --json`,
          then **[CLI]**
-         `jott task set <N> --status blocked --meta blocked_reason='"Live smoke check
+         `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "Live smoke check
          failed post-deploy (<what failed>); auto-reverted merge <sha> via PR
-         <revertPrNumber>. Needs investigation before re-attempting."' --json`.
+         <revertPrNumber>. Needs investigation before re-attempting." '$r')" --json`.
       The item does **not** go to Done — the acceptance criteria were never actually
       satisfied live. Stop this item, go back to step 1.
     - `result.passed: true`: continue.

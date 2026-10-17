@@ -28,11 +28,12 @@ below:
 | Capture is about | Route to |
 |---|---|
 | a jott project (hint, or obvious from wording; see `jott task projects --json`) | choose that project: it is set with `--project <P>` when promoting in step 4; run steps 1-4 for it |
-| an area tracked as a plain note (see `kanban/index.md`) | `jott task rm <N> --json`, then `jott add "<text>" --path <note path>` in that note's own conventions |
-| a new project / someday idea | `jott task rm <N> --json`, then `jott add "<text>" --path kanban/index.md` under `## Project ideas` |
+| an area tracked as a plain note (see `<notes_dir>/kanban/index.md` Plain notes table) | hand-edit that note file (plain notes are not in jott; follow the `notes-kanban` skill and the note's own conventions), then `jott task rm <N> --json` |
+| a new project / someday idea | add a bullet under `## Project ideas` in `<notes_dir>/kanban/index.md` by hand, then `jott task rm <N> --json` |
 | unclear | leave it in the inbox and ask |
 
-Remove a capture (`jott task rm`) only when it is landing in a plain note.
+Remove a capture (`jott task rm`) only after its text has landed at its
+destination — re-read the note file and confirm the text is there first.
 Check `jott task projects --json` and `kanban/index.md` — never guess a project
 or note name.
 
