@@ -39,11 +39,24 @@ parse the JSON it prints. `jott task list --json` rows carry `number`,
 `merged_commit`, `revert_pr`, `blocked_reason`, `completed_at`, `retries`
 (an object of per-gate counts; missing = all 0).
 
-Free-text string meta (`blocked_reason`) must be valid one-line JSON. Never
-hand-quote it: JSON-encode it with jq, e.g.
-`--meta blocked_reason="$(jq -Rn --arg r "<reason>" '$r')"` — jq escapes
-quotes, backslashes and newlines. Every `blocked_reason` write below uses this
-form.
+**Blocking a task.** `blocked_reason` is free text (CI excerpts may hold
+backticks, `$(…)`, `$VAR`, quotes, backslashes, newlines), so always write it
+through a quoted heredoc and jq:
+
+```sh
+jott task set <N> --status blocked --json --meta blocked_reason="$(jq -Rs 'rtrimstr("\n")' <<'EOF'
+<reason>
+EOF
+)"
+```
+
+The reason goes verbatim between the heredoc lines; nothing inside a quoted
+heredoc is expanded. Every "block `<N>`" below means this command.
+
+**Sync.** jott writes stay local until `jott sync --json`; nothing syncs
+automatically. Run it before listing and after every status change or batch of
+meta writes. If sync fails (offline, token rejected), report it to the user,
+and continue with reads only if they agree.
 
 The checkout for project `<P>` comes from **[CLI]** `kanban-cli resolve-repo <P>`
 → `repo`. It resolves by scanning `KANBAN_CLI_REPO_ROOTS` (default `$HOME`,
@@ -93,7 +106,7 @@ own reasoning/tool use.
      If the result carries a `hint`, pass it on to the user once: it means
      `record-usage` was never wired up, so this gate can never pause.)
 
-1. **[CLI]** `jott task list --project <P> --status backlog --json`. If `tasks` is
+1. **[CLI]** `jott sync --json`, then `jott task list --project <P> --status backlog --json`. If `tasks` is
    empty, the project has no more actionable work — stop here. Otherwise take the
    first row's `number` as `<N>` and run `jott task show <N> --json` (`task.meta`,
    `task.body`). Then `kanban-cli resolve-repo <P>` → `repo` (see "Tasks live in
@@ -113,7 +126,7 @@ own reasoning/tool use.
    - If `playwrightConfigured: false`: **[CLI]** `kanban-cli e2e bootstrap <repo>`,
      then **[Claude]** review the scaffolded config/spec and adjust it to fit the app
      before relying on it.
-3. **[CLI]** `jott task set <N> --status in-progress --json`.
+3. **[CLI]** `jott task set <N> --status in-progress --json`, then `jott sync --json`.
 4. **[Claude]** Read `task.title`/`task.body` (acceptance criteria live there).
    Explore `<repo>`'s codebase with your own tools, cd'd into that repo, and
    implement the change directly in that checkout.
@@ -131,7 +144,7 @@ own reasoning/tool use.
      If the new retry count is
      `>=` the repo's `retryPolicy.e2e_local` (default 3, from `repo-check`'s
      `config.retryPolicy`), **[CLI]**
-     `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "<specific last-failure summary>" '$r')" --json` and
+     block `<N>` (see "Blocking a task") with reason "<specific last-failure summary>", then `jott sync --json`, and
      stop working this item (go back to step 1 for the next one). Otherwise, loop
      back to step 7.
    - `result.passed: true`: continue.
@@ -155,7 +168,7 @@ own reasoning/tool use.
    refactoring. An item with no user-visible effect at all (pure chore) simply
    omits the trailer.
 9. **[CLI]** `kanban-cli pr create <repo> --title <t> --body <b> --base main --head <branch>`.
-   **[CLI]** `jott task set <N> --meta pr=<number> --json`.
+   **[CLI]** `jott task set <N> --meta pr=<number> --json`, then `jott sync --json`.
 10. **[Claude]** Review your own diff for correctness, style, and risk (equivalent to
     `/code-review`, applied to the PR you just opened). Fix anything you find, push
     again, and re-run step 7 if the fix touched application code (not just docs/PR
@@ -168,9 +181,9 @@ own reasoning/tool use.
       `jott task set <N> --meta retries='<json>' --json`). Below the
       repo's `retryPolicy.ci` (default 3): loop back to step 7 (re-check local e2e
       before re-waiting on CI). At/above the cap: **[CLI]**
-      `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "..." '$r')" --json` (name the failing check and a
-      short excerpt of the actual failure, not just "failed N times") and stop this
-      item.
+      block `<N>` (see "Blocking a task") with reason "..." (name the failing check and a
+      short excerpt of the actual failure, not just "failed N times"), then
+      `jott sync --json`, and stop this item.
     - `result.status: "timeout"`: **[Claude]** judge whether to wait longer (re-issue
       `ci wait`) or treat it as needing investigation — a judgment call, not automatic.
     - `result.status: "success"`: continue.
@@ -189,7 +202,7 @@ own reasoning/tool use.
       `retryPolicy.deploy` (default 2): decide on a fresh follow-up fix through the
       normal loop (this is post-merge, so treat it as a new small iteration, not a
       blind re-wait). At/above the cap: **[CLI]**
-      `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "..." '$r')" --json` flagged as an infra issue, stop
+      block `<N>` (see "Blocking a task") with reason "..." flagged as an infra issue, then `jott sync --json`, and stop
       this item.
     - `result.status: "success"`: continue.
 15. **[CLI]** `kanban-cli e2e live <repo> --url <targetEnvironment baseUrl from
@@ -212,15 +225,14 @@ own reasoning/tool use.
          when you write the blocked note below.
       6. **[CLI]** `jott task set <N> --meta revert_pr=<revertPrNumber> --json`,
          then **[CLI]**
-         `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "Live smoke check
+         block `<N>` (see "Blocking a task") with reason "Live smoke check
          failed post-deploy (<what failed>); auto-reverted merge <sha> via PR
-         <revertPrNumber>. Needs investigation before re-attempting." '$r')" --json`.
+         <revertPrNumber>. Needs investigation before re-attempting.", then `jott sync --json`.
       The item does **not** go to Done — the acceptance criteria were never actually
       satisfied live. Stop this item, go back to step 1.
     - `result.passed: true`: continue.
-16. **[CLI]** `jott task set <N> --status done --meta completed_at="\"$(date -u +%FT%TZ)\"" --json`
-    (only reached on a clean
-    pass through step 15).
+16. **[CLI]** `jott task set <N> --status done --meta completed_at="\"$(date -u +%FT%TZ)\"" --json`,
+    then `jott sync --json` (only reached on a clean pass through step 15).
 17. **[Claude]** Give a short summary of what shipped for this item, then go back to
     step 1 for the next Backlog item.
 

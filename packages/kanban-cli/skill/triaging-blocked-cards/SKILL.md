@@ -23,19 +23,18 @@ It never implements anything. Unblocked cards go back to Backlog for the
 ## 1. List
 
 ```sh
+jott sync --json
 jott task list --status blocked [--project <P>] --json
 ```
+
+jott writes stay local until `jott sync --json`; nothing syncs automatically.
+If sync fails (offline, token rejected), report it to the user, and continue
+with reads only if they agree.
 
 Each row carries `number`, `title`, `project`, `tags` and `meta`:
 `meta.blocked_reason`, `meta.retries`, and when set `meta.pr`,
 `meta.revert_pr`, `meta.branch`, `meta.merged_commit`. Rows have no body; read
 it with `jott task show <N> --json` (`task.body`).
-
-Free-text string meta (`blocked_reason`) must be valid one-line JSON. Never
-hand-quote it: JSON-encode it with jq, e.g.
-`--meta blocked_reason="$(jq -Rn --arg r "<reason>" '$r')"` — jq escapes
-quotes, backslashes and newlines. Every `blocked_reason` write below uses this
-form.
 
 Nothing blocked: say so and stop.
 
@@ -91,9 +90,25 @@ Per answered card (`<N>` is its number, `<P>` its project):
 | Unblock | Write the amended body (amend acceptance criteria, record the decision and date) with `jott task set <N> --body - --json <<'EOF' … EOF` (full new body), then `jott task set <N> --status backlog --unmeta blocked_reason --meta retries='{"implement":0,"e2e_local":0,"ci":0,"deploy":0,"e2e_live":0}' --json`. |
 | Split | Add each new card with `jott task add "<title>" --project <P> --status backlog --tag … --body - --json <<'EOF' … EOF`. Then update the original's body via `--body -` and either keep it Blocked with the remaining reason or drop it. |
 | Drop | Append a `**Dropped <YYYY-MM-DD>:** <reason>` line to the body (write the full new body via `jott task set <N> --body - --json`), then `jott task set <N> --status done --json`. Do not set `completed_at`, since it never shipped. `blocked_reason` is kept as history. |
-| Keep Blocked | Update the reason: `jott task set <N> --status blocked --meta blocked_reason="$(jq -Rn --arg r "<new reason>" '$r')" --json`. |
+| Keep Blocked | Update the reason: run the "Blocking a task" command above with the new reason. |
 
 Change only that card and the new cards for a split. Never touch other tasks.
+
+**Blocking a task.** `blocked_reason` is free text (CI excerpts may hold
+backticks, `$(…)`, `$VAR`, quotes, backslashes, newlines), so always write it
+through a quoted heredoc and jq:
+
+```sh
+jott task set <N> --status blocked --json --meta blocked_reason="$(jq -Rs 'rtrimstr("\n")' <<'EOF'
+<reason>
+EOF
+)"
+```
+
+The reason goes verbatim between the heredoc lines; nothing inside a quoted
+heredoc is expanded. Keep Blocked uses this command.
+
+After applying the decisions, run `jott sync --json`.
 
 ## 5. Report
 

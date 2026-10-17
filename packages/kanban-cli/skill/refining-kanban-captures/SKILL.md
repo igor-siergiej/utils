@@ -28,7 +28,7 @@ below:
 | Capture is about | Route to |
 |---|---|
 | a jott project (hint, or obvious from wording; see `jott task projects --json`) | choose that project: it is set with `--project <P>` when promoting in step 4; run steps 1-4 for it |
-| an area tracked as a plain note (see `<notes_dir>/kanban/index.md` Plain notes table) | hand-edit that note file (plain notes are not in jott; follow the `notes-kanban` skill and the note's own conventions), then `jott task rm <N> --json` |
+| design/idea thinking for a topic with a freeform plain note (see `<notes_dir>/kanban/index.md` Plain notes table, today `kanban/cycling-app.md`); actionable items belong in a jott project instead | hand-edit that note file (plain notes are not in jott; follow the `notes-kanban` skill), then `jott task rm <N> --json` |
 | a new project / someday idea | add a bullet under `## Project ideas` in `<notes_dir>/kanban/index.md` by hand, then `jott task rm <N> --json` |
 | unclear | leave it in the inbox and ask |
 
@@ -42,8 +42,13 @@ or note name.
 ### 1. List the captures
 
 ```bash
+jott sync --json
 jott task list --status inbox [--project <P>] --json
 ```
+
+jott writes stay local until `jott sync --json`; nothing syncs automatically.
+Run it again after promoting or dropping. If sync fails (offline, token
+rejected), report it to the user, and continue with reads only if they agree.
 
 Without `--project` this is every capture, including the global inbox. Rows
 carry `number`, `title`, `project`, `tags`; read the full text with
