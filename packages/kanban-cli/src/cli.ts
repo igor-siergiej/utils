@@ -29,6 +29,7 @@ import { repoCheck } from './commands/repoCheck';
 import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
 import type { RetryGate } from './kanban/types';
+import { resolveRepoPath } from './repoRegistry/resolveRepo';
 
 const DEFAULT_BOARD_PATH = process.env.KANBAN_CLI_BOARD ?? './KANBAN.md';
 
@@ -395,12 +396,20 @@ async function main(): Promise<void> {
             printSuccess(migrateToJott(values['all-boards'], { dryRun: values['dry-run'] ?? false }));
             return;
         }
+        case 'resolve-repo': {
+            const { positionals } = parseArgs({ args: rest, options: {}, allowPositionals: true });
+            if (!positionals[0]) throw new Error('Usage: kanban-cli resolve-repo <project>');
+            printSuccess({ ok: true, repo: resolveRepoPath(positionals[0]) });
+            return;
+        }
         case 'clone': {
-            const { values } = parseArgs({
+            const { values, positionals } = parseArgs({
                 args: rest,
-                options: { kanban: { type: 'string' }, root: { type: 'string' } },
+                options: { url: { type: 'string' }, root: { type: 'string' } },
+                allowPositionals: true,
             });
-            printSuccess(await cloneRepo(values.kanban ?? DEFAULT_BOARD_PATH, { root: values.root }));
+            if (!positionals[0]) throw new Error('Usage: kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]');
+            printSuccess(await cloneRepo(positionals[0], values.url, { root: values.root }));
             return;
         }
         case 'repo-check': {
