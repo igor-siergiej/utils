@@ -1,58 +1,58 @@
 ---
 name: refining-kanban-captures
-description: Use when asked to refine a kanban board's raw captures (or the global notes inbox.md) into proper items - "refine the board", "refine the inbox", "drain the inbox", "refine my captures", "turn my notes into cards". Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
+description: Use when asked to refine jott Inbox tasks (a project's captures, or the project-less global inbox) into proper Backlog items - "refine the board", "refine the inbox", "drain the inbox", "refine my captures", "turn my notes into cards". Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
 ---
 
 # Refining Kanban Captures
 
 ## Overview
 
-A board's `## Inbox` holds raw captures — one-line thoughts typed from a phone.
-This skill turns them into real `###` items, or reports them as already done.
+Inbox tasks in jott (`status: inbox`) are raw captures — one-line thoughts typed
+from a phone. This skill turns them into real Backlog tasks, or reports them as
+already done. Every `jott` call takes `--json`; tasks are `#N`.
 
 **A capture is one sentence of intent. An item is a contract.** The gap between
 those two is filled by reading the repo, never by rephrasing the capture.
 
-**Never invoked automatically.** The `kanban-worker` loop ignores `## Inbox`
+**Never invoked automatically.** The `kanban-worker` loop ignores Inbox tasks
 entirely. Captures become work only when a human asks for a refinement pass and
 sees the result.
 
 ## Step 0: The Global Inbox (if asked to "refine the inbox")
 
-`<notes_dir>/kanban/inbox.md` is a project-less capture file: one `- ` bullet
-per thought, optional `#<project>` hint. It is not a board — hand-edit it.
-Route each bullet first, then refine on the destination board as below:
+Inbox tasks with no project are the global inbox:
+`jott task list --status inbox --json`, keeping rows whose `project` is empty.
+A capture may carry a `#<project>` hint. Route each one first, then refine it as
+below:
 
-| Bullet is about | Route to |
+| Capture is about | Route to |
 |---|---|
-| a project with a `*.board.md` (hint, or obvious from wording) | append verbatim under that board's `## Inbox`, then run steps 1-4 on that board |
-| an area tracked as a plain note (see `index.md` table) | add a `- [ ]` item in that note's own conventions |
-| a new project / someday idea | `## Project ideas` in `index.md` |
-| unclear | leave it in `inbox.md` and ask |
+| a jott project (hint, or obvious from wording; see `jott task projects --json`) | choose that project: it is set with `--project <P>` when promoting in step 4; run steps 1-4 for it |
+| an area tracked as a plain note (see `kanban/index.md`) | `jott task rm <N> --json`, then `jott add "<text>" --path <note path>` in that note's own conventions |
+| a new project / someday idea | `jott task rm <N> --json`, then `jott add "<text>" --path kanban/index.md` under `## Project ideas` |
+| unclear | leave it in the inbox and ask |
 
-Remove a bullet from `inbox.md` only after it has landed at its destination.
-Check `index.md` for the board/note list — never guess a filename.
+Remove a capture (`jott task rm`) only when it is landing in a plain note.
+Check `jott task projects --json` and `kanban/index.md` — never guess a project
+or note name.
 
 ## The Procedure
 
 ### 1. List the captures
 
 ```bash
-kanban-cli inbox list --kanban <board>
+jott task list --status inbox [--project <P>] --json
 ```
 
-Returns 1-based indices:
-
-```json
-{"ok":true,"captures":[{"index":1,"text":"- Better loading when we import recipes"}]}
-```
+Without `--project` this is every capture, including the global inbox. Rows
+carry `number`, `title`, `project`, `tags`; read the full text with
+`jott task show <N> --json` (`task.body`).
 
 ### 2. Resolve the checkout
 
-Each board's `project` frontmatter resolves to a local clone. `kanban-cli show
-<id>` on any existing item reports the resolved path as `repo`.
+The project resolves to a local clone: `kanban-cli resolve-repo <P>` → `repo`.
 
-**If `repo` is empty, the project has no local checkout** (an archived or
+**If it fails with `RepoResolutionError`, the project has no local checkout** (an archived or
 un-cloned repo). Report that and STOP — do not promote. You cannot write
 acceptance criteria for code you cannot read.
 
@@ -86,12 +86,15 @@ shoppingo):
 **Outstanding** — promote it:
 
 ```bash
-kanban-cli inbox promote <index> --id <project>-<slug> --title "<title>" \
-    --tags <area>,P2 --body-file /tmp/item-body.md --kanban <board>
+jott task set <N> --title "<title>" --status backlog [--project <P>] \
+    --tag <area> --tag P2 --body - --json <<'EOF'
+<full body>
+EOF
 ```
 
-Always pass the body via `--body-file`. A grounded body is multi-paragraph with
-backticks and newlines, which do not survive shell argument quoting.
+Always pass the body via `--body -` with a quoted heredoc. A grounded body is
+multi-paragraph with backticks and newlines, which do not survive shell
+argument quoting. `--project` is required when promoting a global-inbox task.
 
 The body states, in order:
 1. The current behaviour, with file paths and symbol names.
@@ -104,7 +107,7 @@ Tags always include a priority: `P1` critical, `P2` normal, `P3` someday.
 path) and recommend:
 
 ```bash
-kanban-cli inbox drop <index> --reason "already shipped in #142" --kanban <board>
+jott task rm <N> --json   # reason: already shipped in #142 (state it in the summary)
 ```
 
 The human decides whether to drop it. Never drop a capture unasked.
@@ -120,17 +123,14 @@ forward acceptance criteria that are already satisfied.
 | Writing acceptance criteria from the capture's wording alone | That is transcription, not refinement. The item must name real files. |
 | Promoting a capture whose feature already exists | Commissions duplicate work. Check before promoting, every time. |
 | "Add tests for this" as an acceptance criterion | Check whether the test infrastructure already covers it — it often does. |
-| Promoting when `repo` is empty | You have not read the code. Report the missing checkout instead. |
+| Promoting when `resolve-repo` finds no checkout | You have not read the code. Report the missing checkout instead. |
 | Inventing a priority | Ask, or infer from the capture's own urgency; never leave it untagged. |
 | Splitting one capture into several items silently | Fine to do, but say so — the human captured one thought. |
-| Editing the board file by hand to remove a capture | Use `promote`/`drop` so the round-trip and the item schema stay intact. |
+| Promoting into the global inbox without a project | Choose `--project` when promoting; a Backlog task with no project is never worked. |
 
-## Board Rules You Must Respect
+## Inbox Rules You Must Respect
 
-- Raw prose is legal **only** under `## Inbox`. Anywhere else it is a hard
-  `KanbanParseError` naming the line and the remedy. If you hit one, fix the
-  board by moving the text into `## Inbox` — never by deleting it.
-- `## Inbox` holds captures, not items. `kanban-cli move <id> Inbox` is
-  rejected.
-- Captures are stored verbatim, including any leading `- `. Both bullets and
-  bare paragraphs are valid captures.
+- Inbox tasks are captures, not items. Never set one to `in-progress`; promote
+  it to `backlog` first.
+- Captures are stored verbatim. Keep the original wording in the body when
+  promoting if it adds context.
