@@ -1,3 +1,15 @@
+# [3.0.0](https://github.com/igor-siergiej/utils/compare/v2.6.0...v3.0.0) (2026-10-17)
+
+
+### Features
+
+* **kanban-cli:** drop the markdown board layer; tasks live in jott ([#23](https://github.com/igor-siergiej/utils/issues/23)) ([366205f](https://github.com/igor-siergiej/utils/commit/366205f3eec7752e642770b06c1a6cd440b5d356))
+
+
+### BREAKING CHANGES
+
+* **kanban-cli:** next/show/list/prune/move/update/columns/migrate/inbox and --kanban/--all-boards/KANBAN_CLI_BOARD are removed; use jott task … --json. clone now takes <project> --url.
+
 # [2.6.0](https://github.com/igor-siergiej/utils/compare/v2.5.0...v2.6.0) (2026-10-16)
 
 
