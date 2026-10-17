@@ -19,6 +19,7 @@ import { kanbanNext } from './commands/kanbanNext';
 import { kanbanPrune } from './commands/kanbanPrune';
 import { kanbanShow } from './commands/kanbanShow';
 import { kanbanUpdate } from './commands/kanbanUpdate';
+import { migrateToJott } from './commands/migrateToJott';
 import { prCreate } from './commands/prCreate';
 import { prMerge } from './commands/prMerge';
 import { prRevert } from './commands/prRevert';
@@ -382,6 +383,16 @@ async function main(): Promise<void> {
             });
             if (!positionals[0]) throw new Error('Usage: kanban-cli migrate <board> [--project <name>]');
             printSuccess(kanbanMigrate(positionals[0], { project: values.project }));
+            return;
+        }
+        case 'migrate-to-jott': {
+            const { values } = parseArgs({
+                args: rest,
+                options: { 'all-boards': { type: 'string' }, 'dry-run': { type: 'boolean' } },
+            });
+            if (!values['all-boards'])
+                throw new Error('Usage: kanban-cli migrate-to-jott --all-boards <dir> [--dry-run]');
+            printSuccess(migrateToJott(values['all-boards'], { dryRun: values['dry-run'] ?? false }));
             return;
         }
         case 'clone': {
