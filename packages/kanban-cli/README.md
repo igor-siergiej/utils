@@ -1,15 +1,15 @@
 # @imapps/kanban-cli
 
-CLI + Claude Code skill that drives a Kanban-board markdown file to completion,
-one Backlog item at a time, across any of your local repo checkouts: implement the
-change, run Playwright e2e locally as a merge gate, open a PR, wait for CI, merge
-autonomously, wait for the post-merge deploy, run a live Playwright smoke check
-against staging/prod, and revert + block if that fails.
+CLI + Claude Code skill that works jott tasks to completion, one backlog task at a
+time, across any of your local repo checkouts: implement the change, run Playwright
+e2e locally as a merge gate, open a PR, wait for CI, merge autonomously, wait for the
+post-merge deploy, run a live Playwright smoke check against staging/prod, and
+revert + block if that fails.
 
-Deterministic steps (parsing/moving board items, polling `gh` for CI/deploy status,
-starting the app and running e2e, merging/reverting PRs) are plain TypeScript run via
-Bun — see `skill/SKILL.md` for the full orchestration the `kanban-worker` skill
-follows, tagging which steps are CLI calls vs. steps that need an agent's judgment.
+Deterministic repo steps (polling `gh` for CI/deploy status, starting the app and
+running e2e, merging/reverting PRs) are plain TypeScript run via Bun — see
+`skill/SKILL.md` for the full orchestration the `kanban-worker` skill follows,
+tagging which steps are CLI calls vs. steps that need an agent's judgment.
 
 ## Installing the skill
 
@@ -22,125 +22,49 @@ kanban-cli install-skill --target <repo>/.claude/skills     # scoped to one repo
 Pass `--symlink` instead of the default copy if you want the installed skill to track
 future `kanban-cli` upgrades without reinstalling.
 
-## The board file
+## Tasks live in jott
 
-A YAML frontmatter block with a required `project` key, then `##` column
-headings (`Backlog`, `In Progress`, `Blocked`, `Done` required; extra columns
-allowed), then `###` item headings. Each item is followed by a Markdown bullet
-list of its fields, then a freeform Markdown body (description / acceptance
-criteria) up to a `---` line or the next heading.
-
-The frontmatter may also set `repoUrl` (any URL `git clone` accepts). Then, when the
-project has no local checkout yet, `kanban-cli clone --kanban <board> [--root <dir>]`
-clones it to `<root>/<project>` (default root: the first `KANBAN_CLI_REPO_ROOTS`
-entry) and writes a minimal `{"repoName": "<project>"}` `.kanban-cli.json` if the
-repo doesn't ship one. It never clones over an existing directory, and is a no-op
-(`cloned: false`) once the project resolves.
-
-```markdown
----
-project: shoppingo
----
-
-# Shoppingo Kanban Worker Board
-
-## Inbox
-
-- Better loading when we import recipes
-
-Desktop view of the recipes page looks cramped
-on a wide screen.
-
-## Backlog
-
-### Add dark mode toggle to settings page
-
-- **id:** shoppingo-dark-mode
-- **tags:** ui, frontend
-- **retries:** implement 0, e2e_local 0, ci 0, deploy 0, e2e_live 0
-
-Add a dark/light theme toggle to Settings, persisted in localStorage.
-
-**Acceptance criteria**
-- Toggle appears in Settings > Appearance
-- Theme persists across reloads
-
----
-
-## In Progress
-## Blocked
-## Done
-```
-
-The board file is designed to be hand-editable — including from a phone (e.g.
-Obsidian over a synced folder). `- **id:**` and `- **retries:**` are always
-written; `- **tags:**`, `- **branch:**`, `- **pr:**`, `- **merged_commit:**`,
-`- **revert_pr:**`, `- **blocked_reason:**`, `- **completed_at:**` appear only
-when set. `retries` counters default to zero when a gate is omitted.
-
-`id` must be unique across the file. There is **no `repo` field** — the board
-carries only `project`, and each machine resolves its own checkout path (see
-below). Prefer editing through `kanban-cli next/show/move/update` so the
-round-trip and retry counters stay intact, but a careful hand-edit of the
-bullet list or body is fine.
-
-### `## Inbox` — raw captures
-
-`## Inbox` is an optional column holding **captures** rather than items: raw
-thoughts typed straight onto the board, typically from a phone. A capture is
-one blank-line-separated block; both `- bullet` lines and bare paragraphs are
-accepted, a block may span several lines, and the text is stored and rewritten
-**verbatim** (a leading `- ` is kept as part of the capture). Captures survive
-every CLI round-trip byte for byte.
-
-`kanban-cli next` never returns a capture, so the worker loop ignores them
-entirely, and `kanban-cli move <id> Inbox` is rejected — the column holds no
-items. Drain captures with the `inbox` commands below, or with the packaged
-`refining-kanban-captures` skill, which reads the target repo before turning a
-capture into an item.
-
-**Raw prose is legal only under `## Inbox`.** Text in any other column — or
-before the first column heading — is a `KanbanParseError`:
-
-```
-line 9: stray text 'Better loading when we import recipes' in column 'Backlog'.
-Raw notes are only allowed under '## Inbox' — move it there, or turn it into a '### item'.
-```
-
-This is deliberate. Before it, such text parsed "successfully" and was then
-silently discarded the next time any command wrote the file, so a thought typed
-onto the wrong part of the board simply disappeared.
-
-### Resolving the checkout path
-
-`kanban-cli` turns the board's `project` into a local repo path by scanning for
-`.kanban-cli.json` files: for each directory listed in `KANBAN_CLI_REPO_ROOTS`
-(colon-separated; defaults to your home directory), it looks up to two levels
-deep (`<root>/*/.kanban-cli.json` and `<root>/*/*/.kanban-cli.json`) for one
-whose `repoName` equals `project`. The default (`$HOME`) is scanned up to two
-levels deep; you must set `KANBAN_CLI_REPO_ROOTS=/path/to/your/checkouts` if
-your checkouts are deeper than that or live elsewhere.
-
-Resolution always lands on the checkout whose `.kanban-cli.json` has the
-matching `repoName` — pointing the worker at a git worktree path (possible in
-the old per-item `repo` format) is no longer expressible.
-
-### Migrating an existing board
-
-Older boards stored each item's fields, including its `repo` path, in a fenced
-` ```yaml ` block. `kanban-cli` still reads that format. To convert a board
-in place:
+`kanban-cli` keeps no task state. Tasks (status, title, tags, body, project) live
+in jott, and the skills read and write them with `jott task … --json`. A task's
+`project` is what `kanban-cli` turns into a local checkout:
 
 ```sh
-kanban-cli migrate path/to/board.md --project <name>
+kanban-cli resolve-repo <project>                       # → {"ok":true,"repo":"/path/to/checkout"}
+kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]
 ```
 
-(`--project` is only needed when the file has no `project` frontmatter yet.)
+`resolve-repo` scans for `.kanban-cli.json` files: for each directory listed in
+`KANBAN_CLI_REPO_ROOTS` (colon-separated; defaults to your home directory), it looks
+up to two levels deep (`<root>/*/.kanban-cli.json` and
+`<root>/*/*/.kanban-cli.json`) for one whose `repoName` equals `project`. Set
+`KANBAN_CLI_REPO_ROOTS=/path/to/your/checkouts` if your checkouts are deeper than
+that or live elsewhere. More than one match is an error.
+
+`clone` is a no-op (`cloned: false`) once the project resolves. Otherwise it clones
+`--url` (any URL `git clone` accepts; the skill passes the task's `meta.repo_url`) to
+`<root>/<project>` (default root: the first `KANBAN_CLI_REPO_ROOTS` entry) and writes
+a minimal `{"repoName": "<project>"}` `.kanban-cli.json` if the repo doesn't ship
+one. It never clones over an existing directory.
+
+Agent-worked tasks carry these `meta` keys. Every key is optional; absent means
+unset.
+
+| Key | JSON type | Written by |
+|---|---|---|
+| `slug` | string | migration only (old card id) |
+| `repo_url` | string | migration (board `repoUrl` frontmatter); humans for new projects |
+| `branch` | string | worker step 6 |
+| `pr` | number | worker step 9 |
+| `merged_commit` | string | worker step 13 |
+| `revert_pr` | number | worker step 15 |
+| `retries` | object `{implement, e2e_local, ci, deploy, e2e_live}`, numbers | worker retry gates; zeroed on leaving Blocked |
+| `blocked_reason` | string | worker / triage when moving to Blocked; removed on leaving Blocked |
+| `completed_at` | string, ISO 8601 | worker step 16 |
 
 ## Per-repo config — `.kanban-cli.json`
 
-Lives at the root of each repo a board resolves to via its `project` key. Its
-`repoName` is what `project` is matched against during checkout-path resolution:
+Lives at the root of each repo a task's `project` resolves to. Its `repoName` is what
+`project` is matched against during checkout-path resolution:
 
 ```jsonc
 {
@@ -217,7 +141,7 @@ listed in the result's `missing` array:
 
 ## Pausing on the 5-hour usage limit
 
-The `kanban-worker` skill can run for hours across many board items in one
+The `kanban-worker` skill can run for hours across many tasks in one
 Claude Code session. To avoid running until the Claude subscription's rolling
 5-hour usage window hard-blocks mid-work, wire your Claude Code `statusLine`
 hook to also feed `kanban-cli record-usage`:
@@ -261,21 +185,8 @@ to stderr with a non-zero exit code on a CLI-level failure — bad args, missing
 out) is `ok:true` with a `result`/`status` field, not a CLI-level failure.
 
 ```
-kanban-cli next [--kanban <path>]
-kanban-cli show <id> [--kanban <path>]
-kanban-cli list [--column <name>] [--project <name>] [--tag <tag>] [--kanban <path> | --all-boards <dir>]
-kanban-cli prune [--column <name>] [--kanban <path> | --all-boards <dir>]
-kanban-cli move <id> <column> [--note <text>] [--kanban <path>]
-kanban-cli update <id> [--set-branch <name>] [--set-pr <n>] [--set-merged-commit <sha>]
-                       [--set-revert-pr <n>] [--inc-retry <gate>] [--complete] [--kanban <path>]
-kanban-cli columns [--kanban <path>]
-kanban-cli migrate <board> [--project <name>]
-kanban-cli clone [--root <dir>] [--kanban <path>]
-
-kanban-cli inbox list [--kanban <path>]
-kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]
-                         [--body <text> | --body-file <path>] [--column <name>] [--kanban <path>]
-kanban-cli inbox drop <index> [--reason <text>] [--kanban <path>]
+kanban-cli resolve-repo <project>
+kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]
 
 kanban-cli repo-check <repoPath>
 kanban-cli init-config <repoPath> [--repo-name <n>] [--base-url <url>] [--environment <name>]
@@ -298,27 +209,6 @@ kanban-cli record-usage                 # reads statusline JSON from stdin, pers
 kanban-cli usage-check [--threshold <pct>] [--max-staleness-ms <ms>]
 ```
 
-`inbox` indices are 1-based and come from `kanban-cli inbox list`. Pass a
-promoted item's body with `--body-file`: a grounded body is multi-paragraph
-with backticks and newlines that do not survive shell argument quoting.
-`--reason` on `drop` is echoed in the JSON output for the caller's log; it is
-not written to the board, since the capture itself is removed.
-
-`list --all-boards <dir>` reads every `*.board.md` in `<dir>` and returns items,
-each tagged with its `board` and `project`, plus a `boards` summary (per-column
-counts and Inbox capture count). Without `--column` it covers every open column
-(all but `Inbox` and `Done`). `--project` and `--tag` (case-insensitive, so
-`--tag p1` matches `P1`) narrow it. A board that fails to parse lands in
-`errors` instead of hiding the rest.
-
-`prune` deletes every item in `Done` (or `--column`), so finished work does not
-bloat the board; history lives in git and the PRs. Boards with nothing to prune
-are not rewritten, and an unparseable board is reported in `errors`, untouched.
-
-`move` out of `Blocked` into any column except `Done` clears `blocked_reason` and
-zeroes the retry counters, so a retried item starts clean. Moving a blocked item to
-`Done` (dropping it) keeps both as history.
-
 `ship` runs the tail of the worker loop for ad-hoc work on a feature branch: refuse
 a dirty tree or the base branch, push, reuse the branch's open PR (or create one,
 which needs `--title` and `--body`), `ci wait` on `ci.checkNamesRequired`, merge
@@ -338,18 +228,11 @@ before it has run. A failure in a required check is still terminal immediately.
 
 ## Known limitations
 
-- Cloning only happens on request: a board's `project` must resolve to a local
-  checkout, and `kanban-cli clone` creates one only for a board whose frontmatter
-  sets `repoUrl` (see above).
+- Cloning only happens on request: a task's `project` must resolve to a local
+  checkout, and `kanban-cli clone` creates one only when given `--url` (the
+  skill passes the task's `meta.repo_url`).
 - The `gh`-shelling commands (`pr *`, `ci wait`, `deploy wait`) are unit-tested
   against a scripted fake of the process layer (`src/testing/fakeProcess.ts`), which
   pins the argv they send and how they read `gh`'s output, but not real `gh`/GitHub
   behaviour. Verify those paths against a real repo with `gh` authenticated before
   relying on them.
-- A stray-prose `KanbanParseError` blocks **every** command on that board,
-  including read-only ones, so an unattended worker run halts until the board
-  is fixed by hand. This is deliberate: the alternative, silently discarding
-  the text on the next write, is how captures used to be lost.
-- `columns` and the `inbox` commands work without a local checkout; `next`,
-  `show`, `move` and `update` still require one, because their caller needs a
-  real path to work in.

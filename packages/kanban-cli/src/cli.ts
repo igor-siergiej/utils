@@ -6,19 +6,8 @@ import { deployWait } from './commands/deployWait';
 import { e2eBootstrap } from './commands/e2eBootstrap';
 import { e2eLiveRun } from './commands/e2eLiveRun';
 import { e2eLocalRun } from './commands/e2eLocalRun';
-import { inboxDrop } from './commands/inboxDrop';
-import { inboxList } from './commands/inboxList';
-import { inboxPromote } from './commands/inboxPromote';
 import { initConfig } from './commands/initConfig';
 import { installSkill } from './commands/installSkill';
-import { kanbanColumns } from './commands/kanbanColumns';
-import { kanbanList } from './commands/kanbanList';
-import { kanbanMigrate } from './commands/kanbanMigrate';
-import { kanbanMove } from './commands/kanbanMove';
-import { kanbanNext } from './commands/kanbanNext';
-import { kanbanPrune } from './commands/kanbanPrune';
-import { kanbanShow } from './commands/kanbanShow';
-import { kanbanUpdate } from './commands/kanbanUpdate';
 import { prCreate } from './commands/prCreate';
 import { prMerge } from './commands/prMerge';
 import { prRevert } from './commands/prRevert';
@@ -27,9 +16,7 @@ import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
 import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
-import type { RetryGate } from './kanban/types';
-
-const DEFAULT_BOARD_PATH = process.env.KANBAN_CLI_BOARD ?? './KANBAN.md';
+import { resolveRepoPath } from './repoRegistry/resolveRepo';
 
 function printSuccess(data: unknown): void {
     process.stdout.write(`${JSON.stringify(data)}\n`);
@@ -42,80 +29,12 @@ function printError(error: unknown): void {
 
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
-    'Commands: next, show <id>, list [--column|--project|--tag], prune, move <id> <column>, update <id>, columns, migrate <board>, clone,\n' +
+    'Commands: resolve-repo <project>, clone <project> [--url <repoUrl>],\n' +
     '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
-    '          inbox <list|promote|drop>,\n' +
-    '          record-usage (reads statusline JSON from stdin), usage-check';
-
-const INBOX_USAGE =
-    'Usage: kanban-cli inbox list [--kanban <path>]\n' +
-    '       kanban-cli inbox promote <index> --id <id> --title <t> [--tags a,b]\n' +
-    '                                [--body <text> | --body-file <path>] [--column <name>] [--kanban <path>]\n' +
-    '       kanban-cli inbox drop <index> [--reason <text>] [--kanban <path>]';
-
-function captureIndex(raw: string | undefined): number {
-    const index = Number(raw);
-    if (!raw || !Number.isInteger(index) || index < 1) {
-        throw new Error(`a 1-based capture index is required (from 'kanban-cli inbox list')\n${INBOX_USAGE}`);
-    }
-    return index;
-}
-
-function runInbox(rest: string[]): unknown {
-    const [sub, ...subRest] = rest;
-
-    if (sub === 'list') {
-        const { values } = parseArgs({ args: subRest, options: { kanban: { type: 'string' } } });
-        return inboxList(values.kanban ?? DEFAULT_BOARD_PATH);
-    }
-
-    if (sub === 'promote') {
-        const { values, positionals } = parseArgs({
-            args: subRest,
-            options: {
-                kanban: { type: 'string' },
-                id: { type: 'string' },
-                title: { type: 'string' },
-                tags: { type: 'string' },
-                body: { type: 'string' },
-                'body-file': { type: 'string' },
-                column: { type: 'string' },
-            },
-            allowPositionals: true,
-        });
-
-        if (!values.id || !values.title) {
-            throw new Error(`--id and --title are both required\n${INBOX_USAGE}`);
-        }
-
-        return inboxPromote(
-            values.kanban ?? DEFAULT_BOARD_PATH,
-            captureIndex(positionals[0]),
-            {
-                id: values.id,
-                title: values.title,
-                tags: values.tags
-                    ?.split(',')
-                    .map((tag) => tag.trim())
-                    .filter(Boolean),
-            },
-            { body: values.body, bodyFile: values['body-file'], column: values.column }
-        );
-    }
-
-    if (sub === 'drop') {
-        const { values, positionals } = parseArgs({
-            args: subRest,
-            options: { kanban: { type: 'string' }, reason: { type: 'string' } },
-            allowPositionals: true,
-        });
-        return inboxDrop(values.kanban ?? DEFAULT_BOARD_PATH, captureIndex(positionals[0]), values.reason);
-    }
-
-    throw new Error(`Unknown inbox subcommand '${sub}'. Expected list, promote or drop.\n${INBOX_USAGE}`);
-}
+    '          record-usage (reads statusline JSON from stdin), usage-check\n' +
+    'Task state lives in jott: `jott task … --json`.';
 
 async function runE2e(rest: string[]): Promise<unknown> {
     const [sub, ...subRest] = rest;
@@ -274,122 +193,20 @@ async function main(): Promise<void> {
     const [command, ...rest] = process.argv.slice(2);
 
     switch (command) {
-        case 'next': {
-            const { values } = parseArgs({ args: rest, options: { kanban: { type: 'string' } } });
-            printSuccess(kanbanNext(values.kanban ?? DEFAULT_BOARD_PATH));
-            return;
-        }
-        case 'show': {
-            const { values, positionals } = parseArgs({
-                args: rest,
-                options: { kanban: { type: 'string' } },
-                allowPositionals: true,
-            });
-            printSuccess(kanbanShow(values.kanban ?? DEFAULT_BOARD_PATH, positionals[0]));
-            return;
-        }
-        case 'list': {
-            const { values } = parseArgs({
-                args: rest,
-                options: {
-                    column: { type: 'string' },
-                    project: { type: 'string' },
-                    tag: { type: 'string' },
-                    kanban: { type: 'string' },
-                    'all-boards': { type: 'string' },
-                },
-            });
-            printSuccess(
-                kanbanList({
-                    column: values.column,
-                    project: values.project,
-                    tag: values.tag,
-                    kanban: values['all-boards'] ? undefined : (values.kanban ?? DEFAULT_BOARD_PATH),
-                    allBoards: values['all-boards'],
-                })
-            );
-            return;
-        }
-        case 'prune': {
-            const { values } = parseArgs({
-                args: rest,
-                options: {
-                    column: { type: 'string' },
-                    kanban: { type: 'string' },
-                    'all-boards': { type: 'string' },
-                },
-            });
-            printSuccess(
-                kanbanPrune(
-                    {
-                        kanban: values['all-boards'] ? undefined : (values.kanban ?? DEFAULT_BOARD_PATH),
-                        allBoards: values['all-boards'],
-                    },
-                    values.column
-                )
-            );
-            return;
-        }
-        case 'move': {
-            const { values, positionals } = parseArgs({
-                args: rest,
-                options: { kanban: { type: 'string' }, note: { type: 'string' } },
-                allowPositionals: true,
-            });
-            printSuccess(kanbanMove(values.kanban ?? DEFAULT_BOARD_PATH, positionals[0], positionals[1], values.note));
-            return;
-        }
-        case 'update': {
-            const { values, positionals } = parseArgs({
-                args: rest,
-                options: {
-                    kanban: { type: 'string' },
-                    'set-branch': { type: 'string' },
-                    'set-pr': { type: 'string' },
-                    'set-merged-commit': { type: 'string' },
-                    'set-revert-pr': { type: 'string' },
-                    'inc-retry': { type: 'string' },
-                    complete: { type: 'boolean' },
-                },
-                allowPositionals: true,
-            });
-            printSuccess(
-                kanbanUpdate(values.kanban ?? DEFAULT_BOARD_PATH, positionals[0], {
-                    setBranch: values['set-branch'],
-                    setPr: values['set-pr'] !== undefined ? Number(values['set-pr']) : undefined,
-                    setMergedCommit: values['set-merged-commit'],
-                    setRevertPr: values['set-revert-pr'] !== undefined ? Number(values['set-revert-pr']) : undefined,
-                    incRetry: values['inc-retry'] as RetryGate | undefined,
-                    complete: values.complete,
-                })
-            );
-            return;
-        }
-        case 'columns': {
-            const { values } = parseArgs({ args: rest, options: { kanban: { type: 'string' } } });
-            printSuccess(kanbanColumns(values.kanban ?? DEFAULT_BOARD_PATH));
-            return;
-        }
-        case 'inbox': {
-            printSuccess(runInbox(rest));
-            return;
-        }
-        case 'migrate': {
-            const { values, positionals } = parseArgs({
-                args: rest,
-                options: { project: { type: 'string' } },
-                allowPositionals: true,
-            });
-            if (!positionals[0]) throw new Error('Usage: kanban-cli migrate <board> [--project <name>]');
-            printSuccess(kanbanMigrate(positionals[0], { project: values.project }));
+        case 'resolve-repo': {
+            const { positionals } = parseArgs({ args: rest, options: {}, allowPositionals: true });
+            if (!positionals[0]) throw new Error('Usage: kanban-cli resolve-repo <project>');
+            printSuccess({ ok: true, repo: resolveRepoPath(positionals[0]) });
             return;
         }
         case 'clone': {
-            const { values } = parseArgs({
+            const { values, positionals } = parseArgs({
                 args: rest,
-                options: { kanban: { type: 'string' }, root: { type: 'string' } },
+                options: { url: { type: 'string' }, root: { type: 'string' } },
+                allowPositionals: true,
             });
-            printSuccess(await cloneRepo(values.kanban ?? DEFAULT_BOARD_PATH, { root: values.root }));
+            if (!positionals[0]) throw new Error('Usage: kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]');
+            printSuccess(await cloneRepo(positionals[0], values.url, { root: values.root }));
             return;
         }
         case 'repo-check': {

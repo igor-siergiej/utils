@@ -11,7 +11,6 @@ import { cloneRepo } from './cloneRepo';
 let tmp: string;
 let roots: string;
 let upstream: string;
-let boardPath: string;
 const savedRoots = process.env[REPO_ROOTS_ENV];
 
 const git = (cwd: string, ...args: string[]) =>
@@ -25,18 +24,10 @@ function makeUpstream(files: Record<string, string>) {
     git(upstream, 'commit', '-q', '-m', 'init');
 }
 
-function writeBoard(frontmatter: string) {
-    writeFileSync(
-        boardPath,
-        `---\n${frontmatter}\n---\n\n# Board\n\n## Backlog\n\n## In Progress\n\n## Blocked\n\n## Done\n`
-    );
-}
-
 beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'kanban-cli-clone-'));
     roots = join(tmp, 'roots');
     upstream = join(tmp, 'upstream');
-    boardPath = join(tmp, 'app.board.md');
     mkdirSync(roots);
     process.env[REPO_ROOTS_ENV] = roots;
 });
@@ -50,9 +41,8 @@ afterEach(() => {
 describe('cloneRepo', () => {
     it('clones into the first repo root and writes a minimal config when the repo has none', async () => {
         makeUpstream({ 'README.md': 'hi' });
-        writeBoard(`project: app\nrepoUrl: file://${upstream}`);
 
-        const result = await cloneRepo(boardPath);
+        const result = await cloneRepo('app', `file://${upstream}`);
 
         expect(result).toEqual({ ok: true, cloned: true, repo: join(roots, 'app'), configCreated: true });
         expect(readFileSync(join(roots, 'app', 'README.md'), 'utf8')).toBe('hi');
@@ -62,9 +52,8 @@ describe('cloneRepo', () => {
     it('is a no-op when the project already resolves', async () => {
         mkdirSync(join(roots, 'existing'));
         writeFileSync(join(roots, 'existing', '.kanban-cli.json'), JSON.stringify({ repoName: 'app' }));
-        writeBoard('project: app\nrepoUrl: file:///nowhere');
 
-        await expect(cloneRepo(boardPath)).resolves.toEqual({
+        await expect(cloneRepo('app', 'file:///nowhere')).resolves.toEqual({
             ok: true,
             cloned: false,
             repo: join(roots, 'existing'),
@@ -73,9 +62,8 @@ describe('cloneRepo', () => {
 
     it('keeps a shipped config whose repoName matches', async () => {
         makeUpstream({ '.kanban-cli.json': JSON.stringify({ repoName: 'app', dev: {} }) });
-        writeBoard(`project: app\nrepoUrl: file://${upstream}`);
 
-        const result = await cloneRepo(boardPath, { root: join(tmp, 'elsewhere') });
+        const result = await cloneRepo('app', `file://${upstream}`, { root: join(tmp, 'elsewhere') });
 
         expect(result).toMatchObject({ cloned: true, repo: join(tmp, 'elsewhere', 'app'), configCreated: false });
         expect(JSON.parse(readFileSync(join(tmp, 'elsewhere', 'app', '.kanban-cli.json'), 'utf8')).dev).toEqual({});
@@ -83,28 +71,25 @@ describe('cloneRepo', () => {
 
     it('rejects a clone whose shipped config names a different project', async () => {
         makeUpstream({ '.kanban-cli.json': JSON.stringify({ repoName: 'other' }) });
-        writeBoard(`project: app\nrepoUrl: file://${upstream}`);
 
-        await expect(cloneRepo(boardPath)).rejects.toThrow(/repoName 'other', not 'app'/);
+        await expect(cloneRepo('app', `file://${upstream}`)).rejects.toThrow(/repoName 'other', not 'app'/);
     });
 
     it('refuses without a repoUrl', async () => {
-        writeBoard('project: app');
-
-        await expect(cloneRepo(boardPath)).rejects.toBeInstanceOf(RepoResolutionError);
+        await expect(cloneRepo('app', undefined)).rejects.toBeInstanceOf(RepoResolutionError);
+        await expect(cloneRepo('app', undefined)).rejects.toThrow(
+            /No local checkout for 'app' and no --url to clone from/
+        );
     });
 
     it('never clones over an existing directory', async () => {
         mkdirSync(join(roots, 'app'));
-        writeBoard(`project: app\nrepoUrl: file://${upstream}`);
 
-        await expect(cloneRepo(boardPath)).rejects.toThrow(/already exists/);
+        await expect(cloneRepo('app', `file://${upstream}`)).rejects.toThrow(/already exists/);
     });
 
     it('surfaces git clone failures', async () => {
-        writeBoard(`project: app\nrepoUrl: file://${join(tmp, 'missing')}`);
-
-        await expect(cloneRepo(boardPath)).rejects.toThrow(/git clone .* failed/);
+        await expect(cloneRepo('app', `file://${join(tmp, 'missing')}`)).rejects.toThrow(/git clone .* failed/);
         expect(existsSync(join(roots, 'app'))).toBe(false);
     });
 });

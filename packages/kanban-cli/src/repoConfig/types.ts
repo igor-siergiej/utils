@@ -1,4 +1,7 @@
-import type { RetryCounters } from '../kanban/types';
+export const RETRY_GATES = ['implement', 'e2e_local', 'ci', 'deploy', 'e2e_live'] as const;
+export type RetryGate = (typeof RETRY_GATES)[number];
+
+export type RetryCounters = Record<RetryGate, number>;
 
 export interface DevConfig {
     startCommand: string;

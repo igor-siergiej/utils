@@ -1,7 +1,7 @@
 {
   "name": "@imapps/kanban-cli",
   "version": "2.6.0",
-  "description": "CLI that drives the kanban-worker skill: parses a Kanban markdown board and runs the deterministic steps (PR/CI/deploy/e2e) around an autonomous work loop",
+  "description": "CLI that drives the kanban-worker skill: the deterministic repo steps (PR/CI/deploy/e2e) around an autonomous loop over jott tasks",
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
   "publishConfig": {

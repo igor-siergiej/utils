@@ -1,11 +1,11 @@
 ---
 name: kanban-worker
-description: Autonomously works a per-project Kanban-board markdown file against that project's single local checkout — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next backlog item", "run the kanban worker", or similar.
+description: Autonomously works a jott project's Backlog tasks against that project's single local checkout — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next backlog item", "run the kanban worker", or similar.
 ---
 
 # Kanban worker
 
-Drives a per-project Kanban-board markdown file to completion, one Backlog item
+Drives a jott project's Backlog to completion, one task
 at a time, worked against that project's single local checkout. Deterministic steps are delegated to
 the `kanban-cli` CLI (shipped alongside this skill in `@imapps/kanban-cli`); anything
 requiring judgment — implementing code, debugging failures, writing e2e assertions,
@@ -16,7 +16,7 @@ by you, the agent running this skill.
 
 Check, in order: `command -v kanban-cli`, then `bunx --bun @imapps/kanban-cli --help`.
 If neither works, tell the user it needs installing (`bun add -g @imapps/kanban-cli`
-or as a devDependency of the repo hosting the board) before continuing. All examples
+or as a devDependency of a repo) before continuing. All examples
 below assume the binary is on PATH as `kanban-cli`; substitute the bunx form if not.
 
 Every `kanban-cli` command prints one JSON object to stdout on success, or
@@ -27,65 +27,62 @@ failure: those come back as `ok:true` with a `result`/`status` field describing 
 happened. Always branch on that field, not on exit code, to decide whether to retry,
 debug, or block.
 
-## Locating the board file
+## Tasks live in jott
 
-The user points you at a path to a Kanban markdown file (see schema below). Pass it
-explicitly with `--kanban <path>` on every kanban-cli invocation, or export
-`KANBAN_CLI_BOARD=<path>` once per session so you can omit the flag.
+Work items are jott tasks, not a markdown board. `jott` must be on PATH and its
+DB synced (`jott sync`). A project is a jott `--project <P>`; tasks are
+referred to as `#N` (their `number`). Pass `--json` on every `jott` call and
+parse the JSON it prints. `jott task list --json` rows carry `number`,
+`title`, `project`, `status`, `tags`, `meta` (no body); `jott task show <N>
+--json` adds `task.body`. Statuses: `inbox`, `backlog`, `in-progress`,
+`blocked`, `done`. Worker state lives in `task.meta`: `branch`, `pr`,
+`merged_commit`, `revert_pr`, `blocked_reason`, `completed_at`, `retries`
+(an object of per-gate counts; missing = all 0).
 
-The board cannot be read at all until the target checkout has at least
-`{"repoName": "<project>"}` in a `.kanban-cli.json` at its root, and
-`KANBAN_CLI_REPO_ROOTS` points at the directory that contains the checkouts
-(scanned up to two levels deep; default `$HOME`).
+**Blocking a task.** `blocked_reason` is free text (CI excerpts may hold
+backticks, `$(…)`, `$VAR`, quotes, backslashes, newlines), so always write it
+through a quoted heredoc and jq:
 
-If `kanban-cli` reports a `RepoResolutionError`, the board's `project` did not
-match any `.kanban-cli.json` `repoName` under `KANBAN_CLI_REPO_ROOTS` — tell
-the user to set that env var to the directory holding their checkouts, or to
-fix the `repoName` in the repo's `.kanban-cli.json`. If the board's frontmatter
-sets `repoUrl`, run `kanban-cli clone --kanban <path>` first instead: it clones
-the project into the first repo root, then the board resolves (follow up with
-`kanban-cli init-config` if the fresh clone has no full config).
+```sh
+jott task set <N> --status blocked --json --meta blocked_reason="$(jq -Rs 'rtrimstr("\n")' <<'EOF'
+<reason>
+EOF
+)"
+```
 
-## Board schema (for reference — see also `.kanban-cli.json` per repo)
+The reason goes verbatim between the heredoc lines; nothing inside a quoted
+heredoc is expanded. Every "block `<N>`" below means this command.
 
-The file opens with a `---\nproject: <name>\n---` frontmatter block. `##`
-headings are columns (`Backlog`, `In Progress`, `Blocked`, `Done` required;
-extra columns are fine). `###` headings are items, each followed by a Markdown
-bullet list of fields (`- **id:**`, `- **retries:**` always; `- **tags:**`,
-`- **branch:**`, `- **pr:**`, `- **merged_commit:**`, `- **revert_pr:**`,
-`- **blocked_reason:**`, `- **completed_at:**` when set), then freeform
-Markdown body up to a `---` line or the next heading. There is no per-item
-`repo` — `kanban-cli` resolves the checkout path from `project` by scanning
-`KANBAN_CLI_REPO_ROOTS` (default `$HOME`, scanned up to two levels deep) for a
-`.kanban-cli.json` whose `repoName` matches. The board is meant to be hand-editable (e.g. from a phone
-over a synced folder); still prefer `kanban-cli next/show/move/update` for
-worker edits so retry counters and round-trip stay intact. Full example lives
-in the package README.
+**Sync.** jott writes stay local until `jott sync --json`; nothing syncs
+automatically. Run it before listing and after every status change or batch of
+meta writes. If sync fails (offline, token rejected), report it to the user,
+and continue with reads only if they agree.
 
-**`## Inbox` is not work.** A board may carry an optional `## Inbox` column
-holding raw captures — one-line thoughts typed straight onto the board — as
-plain bullets or paragraphs rather than `###` items. `kanban-cli next` never
-returns them and you must never implement, promote or delete one. Turning a
-capture into an item is a human-invoked job for the
-`refining-kanban-captures` skill.
+The checkout for project `<P>` comes from **[CLI]** `kanban-cli resolve-repo <P>`
+→ `repo`. It resolves by scanning `KANBAN_CLI_REPO_ROOTS` (default `$HOME`,
+up to two levels deep) for a `.kanban-cli.json` whose `repoName` is `<P>`.
+If it reports a `RepoResolutionError`, tell the user to set that env var to
+the directory holding their checkouts, or to fix the `repoName` in the repo's
+`.kanban-cli.json`. If `task.meta.repo_url` is set, run `kanban-cli clone <P>
+--url <repo_url>` first instead: it clones the project into the first repo
+root, then it resolves (follow up with `kanban-cli init-config` if the fresh
+clone has no full config).
 
-**Raw prose is legal only under `## Inbox`.** Anywhere else it is a hard
-`KanbanParseError` naming the line, the offending text and the remedy, and it
-fails *every* command on that board, including read-only ones. If you hit one:
-**stop and report it.** Do not edit the board to make the error go away — that
-text is something the human typed and has not processed yet.
+**Inbox tasks are not work.** Tasks with status `inbox` are raw captures.
+You must never implement, promote or delete one. Turning a capture into a
+Backlog task is a human-invoked job for the `refining-kanban-captures` skill.
 
 ## Per-item loop
 
-Repeat from step 0 until `kanban-cli next` returns `item: null`, then stop and report
+Repeat from step 0 until the Backlog list in step 1 is empty, then stop and report
 a summary of what was completed/blocked this session.
 
-**[CLI]** = shell out to kanban-cli (deterministic, no judgment). **[Claude]** = your
+**[CLI]** = shell out to kanban-cli or jott (deterministic, no judgment). **[Claude]** = your
 own reasoning/tool use.
 
 0. **[CLI]** `kanban-cli usage-check`. This reads a state file that a companion
    line in the user's statusline hook keeps fresh with the Claude subscription's
-   rolling 5-hour usage window — it has nothing to do with this board or repo.
+   rolling 5-hour usage window — it has nothing to do with this project or repo.
    - `result.status: "pause"`: the window is past the safety threshold (default
      90%). **[Claude]** Do not start step 1 / new item work. Write a short
      summary of what shipped or is still `In Progress` this session (do **not**
@@ -96,7 +93,7 @@ own reasoning/tool use.
        an hour out, this Step 0 check just re-fires and re-schedules on the
        next wake until the window has actually reset).
      - **omp** (no `ScheduleWakeup`): run
-       `echo 'omp -p "work the kanban board <board>"' | at <resetsAt as local time>`
+       `echo 'omp -p "work the kanban board for <P>"' | at <resetsAt as local time>`
        (fall back to `systemd-run --user --on-calendar=<resetsAt>` if `at` is
        missing), confirm it queued, and report the time.
        `retry.waitForUsageReset: true` additionally lets a live omp session
@@ -109,13 +106,16 @@ own reasoning/tool use.
      If the result carries a `hint`, pass it on to the user once: it means
      `record-usage` was never wired up, so this gate can never pause.)
 
-1. **[CLI]** `kanban-cli next --kanban <board>`. If `item` is `null`, the board has no
-   more actionable work — stop here.
-2. **[CLI]** `kanban-cli repo-check <item.repo>`.
+1. **[CLI]** `jott sync --json`, then `jott task list --project <P> --status backlog --json`. If `tasks` is
+   empty, the project has no more actionable work — stop here. Otherwise take the
+   first row's `number` as `<N>` and run `jott task show <N> --json` (`task.meta`,
+   `task.body`). Then `kanban-cli resolve-repo <P>` → `repo` (see "Tasks live in
+   jott" for `RepoResolutionError` / `meta.repo_url`).
+2. **[CLI]** `kanban-cli repo-check <repo>`.
    - If it fails with a `RepoConfigError` (`{"ok":false,...}`): the repo's
      `.kanban-cli.json` exists (step 1 already resolved the checkout via its
      `repoName`) but is missing required keys. **[Claude]** help the user fill
-     the missing keys. Start with **[CLI]** `kanban-cli init-config <item.repo>
+     the missing keys. Start with **[CLI]** `kanban-cli init-config <repo>
      [--base-url <prod url>]`: it fills whatever it can infer from the repo
      without overwriting existing values and lists the rest under `missing`;
      fill those from the README schema (dev start/teardown commands, health-check
@@ -123,26 +123,28 @@ own reasoning/tool use.
      staging/prod base URL), and check its inferred values are right. This is
      one-time per repo, not per item; re-run `repo-check` after to confirm it
      validates, then continue.
-   - If `playwrightConfigured: false`: **[CLI]** `kanban-cli e2e bootstrap <item.repo>`,
+   - If `playwrightConfigured: false`: **[CLI]** `kanban-cli e2e bootstrap <repo>`,
      then **[Claude]** review the scaffolded config/spec and adjust it to fit the app
      before relying on it.
-3. **[CLI]** `kanban-cli move <item.id> "In Progress" --kanban <board>`.
-4. **[Claude]** Read `item.title`/`item.body` (acceptance criteria live there).
-   Explore `<item.repo>`'s codebase with your own tools, cd'd into that repo, and
+3. **[CLI]** `jott task set <N> --status in-progress --json`, then `jott sync --json`.
+4. **[Claude]** Read `task.title`/`task.body` (acceptance criteria live there).
+   Explore `<repo>`'s codebase with your own tools, cd'd into that repo, and
    implement the change directly in that checkout.
-5. **[Claude]** Create a branch in `<item.repo>` and write/update Playwright spec(s)
+5. **[Claude]** Create a branch in `<repo>` and write/update Playwright spec(s)
    covering the acceptance criteria. Tag any that are cheap and safe enough to also
    run post-deploy against production with `@smoke`.
-6. **[CLI]** `kanban-cli update <item.id> --set-branch <branch> --kanban <board>`.
-7. **[CLI]** `kanban-cli e2e local <item.repo> [--grep <new-spec-pattern>]` — starts
+6. **[CLI]** `jott task set <N> --meta branch='"<branch>"' --json`.
+7. **[CLI]** `kanban-cli e2e local <repo> [--grep <new-spec-pattern>]` — starts
    the app per `.kanban-cli.json`'s `dev` config, health-checks it, runs the e2e
    command, always tears down.
    - `result.passed: false`: **[Claude]** read `result.failedTests`, debug and fix
-     (either the app code or the spec itself). **[CLI]**
-     `kanban-cli update <item.id> --inc-retry e2e_local`. If the new retry count is
+     (either the app code or the spec itself). **[CLI]** Read `task.meta.retries`
+     via `jott task show <N> --json` (missing = all 0), add 1 to `e2e_local`, and
+     write the whole object back with `jott task set <N> --meta retries='<json>' --json`.
+     If the new retry count is
      `>=` the repo's `retryPolicy.e2e_local` (default 3, from `repo-check`'s
      `config.retryPolicy`), **[CLI]**
-     `kanban-cli move <item.id> Blocked --note "<specific last-failure summary>"` and
+     block `<N>` (see "Blocking a task") with reason "<specific last-failure summary>", then `jott sync --json`, and
      stop working this item (go back to step 1 for the next one). Otherwise, loop
      back to step 7.
    - `result.passed: true`: continue.
@@ -165,85 +167,87 @@ own reasoning/tool use.
    change and why it is better; skip the file names, component names and
    refactoring. An item with no user-visible effect at all (pure chore) simply
    omits the trailer.
-9. **[CLI]** `kanban-cli pr create <item.repo> --title <t> --body <b> --base main --head <branch>`.
-   **[CLI]** `kanban-cli update <item.id> --set-pr <number> --kanban <board>`.
+9. **[CLI]** `kanban-cli pr create <repo> --title <t> --body <b> --base main --head <branch>`.
+   **[CLI]** `jott task set <N> --meta pr=<number> --json`, then `jott sync --json`.
 10. **[Claude]** Review your own diff for correctness, style, and risk (equivalent to
     `/code-review`, applied to the PR you just opened). Fix anything you find, push
     again, and re-run step 7 if the fix touched application code (not just docs/PR
     description). This is ordinary iterative development, not a bounded retry gate.
-11. **[CLI]** `kanban-cli ci wait <item.repo> <prNumber> [--timeout <ms>]`.
+11. **[CLI]** `kanban-cli ci wait <repo> <prNumber> [--timeout <ms>]`.
     - `result.status: "failure"`: **[Claude]** pull the failing job's logs (`gh run
       view --log-failed` or the GitHub MCP tools available in this session), debug,
-      fix, push. **[CLI]** `kanban-cli update <item.id> --inc-retry ci`. Below the
+      fix, push. **[CLI]** increment `ci` in `task.meta.retries` (read via
+      `jott task show <N> --json`, write the whole object back with
+      `jott task set <N> --meta retries='<json>' --json`). Below the
       repo's `retryPolicy.ci` (default 3): loop back to step 7 (re-check local e2e
       before re-waiting on CI). At/above the cap: **[CLI]**
-      `kanban-cli move <item.id> Blocked --note "..."` (name the failing check and a
-      short excerpt of the actual failure, not just "failed N times") and stop this
-      item.
+      block `<N>` (see "Blocking a task") with reason "..." (name the failing check and a
+      short excerpt of the actual failure, not just "failed N times"), then
+      `jott sync --json`, and stop this item.
     - `result.status: "timeout"`: **[Claude]** judge whether to wait longer (re-issue
       `ci wait`) or treat it as needing investigation — a judgment call, not automatic.
     - `result.status: "success"`: continue.
 12. **[Claude]** Final sanity check on the PR as a whole — the user has already
     approved full autonomy for merging once CI + review + e2e all pass, so this step
     is "confirm nothing looks anomalous," not a request for sign-off.
-13. **[CLI]** `kanban-cli pr merge <item.repo> <prNumber>` → capture `mergeCommitSha`
+13. **[CLI]** `kanban-cli pr merge <repo> <prNumber>` → capture `mergeCommitSha`
     from the result. **[CLI]**
-    `kanban-cli update <item.id> --set-merged-commit <sha> --kanban <board>`.
-14. **[CLI]** `kanban-cli deploy wait <item.repo> --workflow <deployWorkflowName>
+    `jott task set <N> --meta merged_commit='"<sha>"' --json`.
+14. **[CLI]** `kanban-cli deploy wait <repo> --workflow <deployWorkflowName>
     --commit <mergeCommitSha> [--timeout <ms>]` (workflow name and timeout come from
     `repo-check`'s `config.deploy`).
     - `result.status: "failure"`: **[Claude]** investigate the deploy workflow's logs.
-      **[CLI]** `kanban-cli update <item.id> --inc-retry deploy`. Below
+      **[CLI]** increment `deploy` in `task.meta.retries` (read via `jott task
+      show <N> --json`, write the whole object back with `--meta retries='<json>'`). Below
       `retryPolicy.deploy` (default 2): decide on a fresh follow-up fix through the
       normal loop (this is post-merge, so treat it as a new small iteration, not a
       blind re-wait). At/above the cap: **[CLI]**
-      `kanban-cli move <item.id> Blocked --note "..."` flagged as an infra issue, stop
+      block `<N>` (see "Blocking a task") with reason "..." flagged as an infra issue, then `jott sync --json`, and stop
       this item.
     - `result.status: "success"`: continue.
-15. **[CLI]** `kanban-cli e2e live <item.repo> --url <targetEnvironment baseUrl from
+15. **[CLI]** `kanban-cli e2e live <repo> --url <targetEnvironment baseUrl from
     config.environments>` (always scoped to `config.e2e.smokeGrep` unless you pass
     `--grep` explicitly — never run the full suite against production).
     - `result.passed: false`: **the user's policy is to auto-revert on a live
       failure, not to keep autonomously patching production.**
-      1. **[CLI]** `kanban-cli pr revert <item.repo> --commit <mergeCommitSha> --base
+      1. **[CLI]** `kanban-cli pr revert <repo> --commit <mergeCommitSha> --base
          main --title "<original PR title>" --pr-number <prNumber> --summary "<why:
          the live smoke check failure, e.g. failing test name/error>"`.
-      2. **[CLI]** `kanban-cli ci wait <item.repo> <revertPrNumber>` — confirm the
+      2. **[CLI]** `kanban-cli ci wait <repo> <revertPrNumber>` — confirm the
          revert itself applies cleanly and builds.
-      3. **[CLI]** `kanban-cli pr merge <item.repo> <revertPrNumber>` — autonomous;
+      3. **[CLI]** `kanban-cli pr merge <repo> <revertPrNumber>` — autonomous;
          restoring known-good state is safe by definition, no separate sign-off needed.
-      4. **[CLI]** `kanban-cli deploy wait <item.repo> --workflow <deployWorkflowName>
+      4. **[CLI]** `kanban-cli deploy wait <repo> --workflow <deployWorkflowName>
          --commit <revertMergeCommitSha>`.
-      5. **[CLI]** `kanban-cli e2e live <item.repo> --url <baseUrl>` once more, to
+      5. **[CLI]** `kanban-cli e2e live <repo> --url <baseUrl>` once more, to
          confirm the revert actually restored the working state. If this *also*
          fails, note that as an infra-level anomaly distinct from a code regression
          when you write the blocked note below.
-      6. **[CLI]** `kanban-cli update <item.id> --set-revert-pr <revertPrNumber>
-         --kanban <board>`, then **[CLI]**
-         `kanban-cli move <item.id> Blocked --note "Live smoke check failed
-         post-deploy (<what failed>); auto-reverted merge <sha> via PR
-         <revertPrNumber>. Needs investigation before re-attempting." --kanban <board>`.
+      6. **[CLI]** `jott task set <N> --meta revert_pr=<revertPrNumber> --json`,
+         then **[CLI]**
+         block `<N>` (see "Blocking a task") with reason "Live smoke check
+         failed post-deploy (<what failed>); auto-reverted merge <sha> via PR
+         <revertPrNumber>. Needs investigation before re-attempting.", then `jott sync --json`.
       The item does **not** go to Done — the acceptance criteria were never actually
       satisfied live. Stop this item, go back to step 1.
     - `result.passed: true`: continue.
-16. **[CLI]** `kanban-cli move <item.id> Done --kanban <board>` and
-    `kanban-cli update <item.id> --complete --kanban <board>` (only reached on a clean
-    pass through step 15).
+16. **[CLI]** `jott task set <N> --status done --meta completed_at="\"$(date -u +%FT%TZ)\"" --json`,
+    then `jott sync --json` (only reached on a clean pass through step 15).
 17. **[Claude]** Give a short summary of what shipped for this item, then go back to
     step 1 for the next Backlog item.
 
-## Why retries live in the board file, not your memory
+## Why retries live in `meta.retries`, not your memory
 
-`retries.*` on each item persists across Claude Code sessions/compaction — the whole
-point of storing it in the file is that a session restarting mid-board doesn't forget
+`meta.retries` on each task persists across Claude Code sessions/compaction — the whole
+point of storing it in jott is that a session restarting mid-project doesn't forget
 how many times an item has already failed a given gate. Always read the current count
-via `kanban-cli show <id>` before deciding whether to retry or block; don't estimate
+via `jott task show <N> --json` before deciding whether to retry or block; don't estimate
 it from conversation context.
 
-## One stuck item never stalls the board
+## One stuck item never stalls the project
 
-`kanban-cli next` only ever looks at the `Backlog` column, so once an item is moved to
-`Blocked` it's automatically skipped on the next iteration — move on to the next
+Step 1 only ever lists `--status backlog`, so once a task is set to
+`blocked` it's automatically skipped on the next iteration — move on to the next
 Backlog item rather than getting stuck.
 
 ## The usage-limit pause only gates between items

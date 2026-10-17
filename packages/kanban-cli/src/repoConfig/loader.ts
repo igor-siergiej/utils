@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RETRY_GATES } from '../kanban/types';
 import { RepoConfigError } from './errors';
 import type {
     CiConfig,
@@ -11,7 +10,7 @@ import type {
     GithubConfig,
     RepoConfig,
 } from './types';
-import { CONFIG_FILENAME, DEFAULT_RETRY_POLICY } from './types';
+import { CONFIG_FILENAME, DEFAULT_RETRY_POLICY, RETRY_GATES } from './types';
 
 export type LoadRepoConfigResult = { configFound: false } | { configFound: true; config: RepoConfig };
 
