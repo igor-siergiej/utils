@@ -1,3 +1,10 @@
+## [4.0.1](https://github.com/igor-siergiej/utils/compare/v4.0.0...v4.0.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **api-utils:** skip logging successful /api/metrics scrapes ([975c537](https://github.com/igor-siergiej/utils/commit/975c537ecd60eac2f7bf046087581f3cd5227b88))
+
 # [4.0.0](https://github.com/igor-siergiej/utils/compare/v3.0.0...v4.0.0) (2026-10-18)
 
 

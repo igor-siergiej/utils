@@ -1,6 +1,6 @@
 {
   "name": "@imapps/kanban-cli",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "CLI that drives the kanban-worker skill: the deterministic repo steps (PR/CI/deploy/e2e) around an autonomous loop over jott tasks",
   "author": "igor-siergiej",
   "license": "AGPL-3.0 license",
