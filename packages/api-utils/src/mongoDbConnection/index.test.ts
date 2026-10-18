@@ -1,43 +1,45 @@
-import * as mongodb from 'mongodb';
+// Mock the `mongodb` module so we can drive the constructor ourselves.
+// In driver 7 the default MongoClient export is captured at module-load
+// time, so `vi.spyOn(mongodb, 'MongoClient')` no longer intercepts
+// `new MongoClient(...)` inside index.ts. Mocking the whole module makes
+// every importer see the same mock.
+import type * as mongodb from 'mongodb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MongoDbConnection } from './index';
 import type { MongoConfig } from './types';
 
-// Minimal type map
 interface TestDoc extends mongodb.Document {
     name: string;
 }
 type Map = Record<'test', TestDoc>;
 
-describe('MongoDbConnection', () => {
-    const connect = vi.fn();
-    const db = vi.fn();
-    const collection = vi.fn(() => ({ findOne: vi.fn() }) as unknown as mongodb.Collection<any>);
-    let ctorUris: Array<string> = [];
-    let dbShouldThrow = false;
+const ctorUris: Array<string> = [];
+let dbShouldThrow = false;
+const connect = vi.fn();
+const collection = vi.fn(() => ({ findOne: vi.fn() }));
 
+vi.mock('mongodb', async (importOriginal) => {
+    const actual = await importOriginal<typeof mongodb>();
+    const MongoClient = vi.fn().mockImplementation((uri: string) => {
+        ctorUris.push(uri);
+        return {
+            connect,
+            db: (_dbName: string) => {
+                if (dbShouldThrow) throw new Error('fail create db');
+                return { collection };
+            },
+        };
+    });
+    return { ...actual, MongoClient };
+});
+
+describe('MongoDbConnection', () => {
     beforeEach(() => {
         connect.mockReset();
-        db.mockReset();
         collection.mockReset();
-        ctorUris = [];
+        ctorUris.length = 0;
         dbShouldThrow = false;
-
-        vi.spyOn(mongodb, 'MongoClient').mockImplementation(
-            // @ts-expect-error partial mock sufficient for tests
-            function Fake(this: any, uri: string) {
-                ctorUris.push(uri);
-                this.connect = connect;
-                this.db = (_: string) => {
-                    if (dbShouldThrow) throw new Error('fail create db');
-
-                    return { collection } as unknown as mongodb.Db;
-                };
-            } as unknown as new (
-                ...args: Array<any>
-            ) => mongodb.MongoClient
-        );
     });
 
     it('connects and returns typed collection', async () => {
@@ -47,8 +49,6 @@ describe('MongoDbConnection', () => {
         await conn.connect(cfg);
         expect(connect).toHaveBeenCalled();
         const col = conn.getCollection('test');
-
-        // call returns whatever our mock returns; type check at compile time that it is Collection<TestDoc>
         expect(collection).toHaveBeenCalledWith('test');
         expect(col).toBeDefined();
         expect(ctorUris).toEqual(['mongodb://localhost:27017']);
@@ -56,19 +56,16 @@ describe('MongoDbConnection', () => {
 
     it('throws when getCollection called before connect', () => {
         const conn = new MongoDbConnection<Map>();
-
         expect(() => conn.getCollection('test')).toThrow(/not connected/);
     });
 
     it('throws when missing configuration and no override provided', async () => {
         const conn = new MongoDbConnection<Map>();
-
         await expect(conn.connect()).rejects.toThrow(/missing configuration/);
     });
 
     it('reuses client when URI unchanged; recreates when changed', async () => {
         const conn = new MongoDbConnection<Map>();
-
         await conn.connect({ connectionUri: 'mongodb://a', databaseName: 'db' });
         expect(ctorUris).toEqual(['mongodb://a']);
         await conn.connect({ connectionUri: 'mongodb://a', databaseName: 'db' });
@@ -79,7 +76,6 @@ describe('MongoDbConnection', () => {
 
     it('throws with helpful message when db selection fails', async () => {
         const conn = new MongoDbConnection<Map>();
-
         dbShouldThrow = true;
         await expect(conn.connect({ connectionUri: 'mongodb://a', databaseName: 'dbX' })).rejects.toThrow(
             /failed to connect to database dbX/
