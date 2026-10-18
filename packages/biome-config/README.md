@@ -46,6 +46,8 @@ Create a `biome.json` in your project root and extend one of the provided config
 
 ## Available Configurations
 
+> Only `configs/base.json` exists in the package today. `package.json` still exports `./monorepo`, `./react` and `./node`, but those files are absent, so extending them will fail; use `@imapps/biome-config/base`.
+
 - **base** - Base configuration with formatter and linter rules
 - **monorepo** - Extends base with relaxed rules for test and config files
 - **react** - Extends base with React and accessibility rules
