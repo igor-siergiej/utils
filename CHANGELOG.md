@@ -1,3 +1,21 @@
+# [4.0.0](https://github.com/igor-siergiej/utils/compare/v3.0.0...v4.0.0) (2026-10-18)
+
+
+* feat(api-utils)!: upgrade bundled mongodb driver to v7 and demote to peerDependency ([#24](https://github.com/igor-siergiej/utils/issues/24)) ([1e9ca31](https://github.com/igor-siergiej/utils/commit/1e9ca31bbe035ef56b32e17445cf0126547139d3)), closes [#22](https://github.com/igor-siergiej/utils/issues/22)
+
+
+### BREAKING CHANGES
+
+* `mongodb` is now a `peerDependency` (`^7.0.0`).
+Consumers that don't yet depend on driver 7 must add it themselves:
+shoppingo, jewellery-catalogue, kivo.
+
+Tests: 34 pass (was 34 pass on driver 6).
+
+Release-Notes: api-utils now requires mongodb ^7 from its consumers.
+Apps still on driver 6 (shoppingo, kivo, jewellery) need a follow-up
+migrate PR each; until then they should pin to `^3.0.0` of api-utils.
+
 # [3.0.0](https://github.com/igor-siergiej/utils/compare/v2.6.0...v3.0.0) (2026-10-17)
 
 
