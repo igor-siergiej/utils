@@ -15,10 +15,10 @@ export interface RequestVariables {
 }
 
 const REQUEST_ID_HEADER = 'x-request-id';
-// Gatus polls /api/health every minute on every consumer; logging it as a
-// real request drowns out actual traffic. Skip on success — the access log
-// still has it, and the metrics scraper will surface any health failures.
-const HEALTH_PATH = '/api/health';
+// Gatus polls /api/health every minute and Prometheus scrapes /api/metrics
+// every 15s; logging them as real requests drowns out actual traffic. Skip
+// them on success — failures are still logged so outages stay visible.
+const UNLOGGED_PATHS: Record<string, true> = { '/api/health': true, '/api/metrics': true };
 
 export const requestLogger = (logger: ILogger) => async (c: Context<RequestVariables>, next: Next) => {
     const start = Date.now();
@@ -39,7 +39,7 @@ export const requestLogger = (logger: ILogger) => async (c: Context<RequestVaria
     // for high-cardinality ObjectId paths.
     const route = c.req.routePath ?? url;
 
-    if (url === HEALTH_PATH && status < 400) return;
+    if (UNLOGGED_PATHS[url] && status < 400) return;
 
     const meta: Record<string, unknown> = {
         method,

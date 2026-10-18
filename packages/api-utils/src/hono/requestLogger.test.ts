@@ -65,13 +65,13 @@ describe('requestLogger', () => {
         expect(errorMeta.status).toBe(500);
     });
 
-    it('skips /api/health on success', async () => {
+    it.each(['/api/health', '/api/metrics'])('skips %s on success', async (path) => {
         const logger = makeLogger();
         const app = new Hono<RequestVariables>();
         app.use('*', requestLogger(logger));
-        app.get('/api/health', (c) => c.text('ok'));
+        app.get(path, (c) => c.text('ok'));
 
-        const res = await app.request('/api/health');
+        const res = await app.request(path);
         expect(res.status).toBe(200);
         expect(res.headers.get('X-Request-Id')).toBeTruthy();
         expect(logger.info).not.toHaveBeenCalled();
@@ -79,13 +79,13 @@ describe('requestLogger', () => {
         expect(logger.error).not.toHaveBeenCalled();
     });
 
-    it('still logs /api/health on failure', async () => {
+    it.each(['/api/health', '/api/metrics'])('still logs %s on failure', async (path) => {
         const logger = makeLogger();
         const app = new Hono<RequestVariables>();
         app.use('*', requestLogger(logger));
-        app.get('/api/health', (c) => c.json({ error: 'down' }, 500));
+        app.get(path, (c) => c.json({ error: 'down' }, 500));
 
-        await app.request('/api/health');
+        await app.request(path);
         expect(logger.error).toHaveBeenCalledOnce();
     });
 });
