@@ -21,7 +21,7 @@ im-apps-utils/
 │   │   │   ├── dependencyContainer/ # Dependency injection container
 │   │   │   ├── logger/             # Structured logging utilities
 │   │   │   ├── mongoDbConnection/  # MongoDB connection helpers
-│   │   │   └── objectStoreConnection/ # MinIO/S3 object storage utilities
+│   │   │   └── objectStoreConnection/ # S3-compatible object storage utilities
 │   │   └── package.json
 │   ├── biome-config/        # Shared Biome configuration
 │   │   └── biome.json
@@ -45,11 +45,11 @@ Backend utilities for Node.js/API services:
 - **dependencyContainer**: Lightweight dependency injection system
 - **logger**: Structured logging with different log levels
 - **mongoDbConnection**: MongoDB connection utilities with error handling
-- **objectStoreConnection**: MinIO/S3 object storage helpers
+- **objectStoreConnection**: S3-compatible object store (RustFS) helpers
 
 **Dependencies:**
 - `mongodb` - MongoDB native driver
-- `minio` - MinIO client for object storage
+- `minio` - S3 client library (talks to the RustFS object store)
 
 **Usage Example:**
 ```ts

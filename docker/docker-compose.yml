@@ -22,50 +22,46 @@ services:
       retries: 5
 
   # -------------------------------------------------------------------------
-  # 2. MinIO Service (Storage)
+  # 2. RustFS Service (S3-compatible object storage)
   # -------------------------------------------------------------------------
-  minio:
-    image: minio/minio
-    container_name: dev-minio
+  rustfs:
+    image: rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
+    container_name: dev-rustfs
     restart: always
     ports:
       - "127.0.0.1:9000:9000"
-      - "127.0.0.1:7001:9001"
+      - "127.0.0.1:9001:9001"
     volumes:
-      - minio_data:/data
+      - rustfs_data:/data
     environment:
-      # Use your specific credentials directly as values
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   # -------------------------------------------------------------------------
-  # 3. MinIO Client (Bucket Creation)
+  # 3. Bucket creation (one-shot, idempotent)
   # -------------------------------------------------------------------------
-  minio-setup:
-    image: minio/mc
-    container_name: dev-minio-setup
+  rustfs-setup:
+    image: rustfs/rc:v0.1.36@sha256:ab024bfebee49a750ce886b4c70963ccd9ddaa03f491704a90710641d7a26699
+    container_name: dev-rustfs-setup
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
-    # The application-specific values (BUCKET_NAME, BUCKET_ACCESS_KEY, etc.)
-    # are hardcoded here to ensure the correct setup happens immediately.
     entrypoint: >
       /bin/sh -c "
-      sleep 5;
-      /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin;
-      /usr/bin/mc mb local/jewellery-catalogue-staging --ignore-existing;
-      /usr/bin/mc mb local/jewellery-catalogue --ignore-existing;
-      /usr/bin/mc mb local/shoppingo --ignore-existing;
-      /usr/bin/mc policy set download local/jewellery-catalogue-staging;
-      /usr/bin/mc policy set download local/jewellery-catalogue;
-      /usr/bin/mc policy set download local/shoppingo;
-      exit 0;
+      set -e;
+      rc alias set local http://rustfs:9000 rustfsadmin rustfsadmin;
+      for b in jewellery-catalogue-staging jewellery-catalogue shoppingo; do
+        rc bucket create local/$$b --ignore-existing;
+        rc bucket anonymous set download local/$$b;
+      done
       "
     restart: "no"
 
@@ -90,5 +86,5 @@ services:
 
 volumes:
   mongo_data:
-  minio_data:
+  rustfs_data:
   navidrome_data:
