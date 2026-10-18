@@ -24,7 +24,7 @@ All packages share one version (lockstep), driven by semantic-release on `main`:
 2. `release`: `bunx semantic-release` (`.releaserc.json`, angular preset; `release:` commit type = major). `scripts/stamp-versions.mjs` writes the next version into root + every `packages/*/package.json`, then commits `chore(release): x.y.z [skip ci]` with `CHANGELOG.md` and a `vX.Y.Z` tag.
 3. `publish-npm`: `bun run build`, then `scripts/publish-packages.sh` publishes each non-private package whose version is not yet on npmjs.org (idempotent). Needs secret `NPM_TOKEN` (see [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md)).
 
-The per-package versioning plan (`docs/superpowers/plans/2026-06-20-per-package-versioning.md`, multi-semantic-release) is **not implemented**: there is no MSR dependency, tags are repo-wide `vX.Y.Z`, and `publish-packages.sh` still exists.
+Per-package versioning (multi-semantic-release) is **not implemented**: there is no MSR dependency, tags are repo-wide `vX.Y.Z`, and `publish-packages.sh` still exists.
 
 ## CI assets for consumer repos
 
