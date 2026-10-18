@@ -58,10 +58,10 @@ describe('ObjectStoreConnection', () => {
     it('connects, parses endpoint/port, and reuses or rebuilds client', async () => {
         const conn = new ObjectStoreConnection();
 
-        await conn.connect({ endpoint: 'minio.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
+        await conn.connect({ endpoint: 's3.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
         expect(state.ctorArgs).toHaveLength(1);
         expect(state.ctorArgs[0]).toMatchObject({
-            endPoint: 'minio.local',
+            endPoint: 's3.local',
             port: 9000,
             useSSL: false,
             accessKey: 'ak',
@@ -69,26 +69,26 @@ describe('ObjectStoreConnection', () => {
         });
 
         // Reuse when endpoint unchanged
-        await conn.connect({ endpoint: 'minio.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'other' });
+        await conn.connect({ endpoint: 's3.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'other' });
         expect(state.ctorArgs).toHaveLength(1);
 
         // Recreate when endpoint changes or explicit port provided
         await conn.connect({
-            endpoint: 'minio.other',
+            endpoint: 's3.other',
             port: 7001,
             accessKey: 'ak',
             secretKey: 'sk',
             bucketName: 'bkt',
         });
         expect(state.ctorArgs).toHaveLength(2);
-        expect(state.ctorArgs[1]).toMatchObject({ endPoint: 'minio.other', port: 7001, useSSL: false });
+        expect(state.ctorArgs[1]).toMatchObject({ endPoint: 's3.other', port: 7001, useSSL: false });
     });
 
     it('connects with endpoint missing port and no explicit port', async () => {
         const conn = new ObjectStoreConnection();
 
-        await conn.connect({ endpoint: 'minio.noport', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
-        expect(state.ctorArgs.at(-1)).toMatchObject({ endPoint: 'minio.noport', port: undefined, useSSL: false });
+        await conn.connect({ endpoint: 's3.noport', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
+        expect(state.ctorArgs.at(-1)).toMatchObject({ endPoint: 's3.noport', port: undefined, useSSL: false });
     });
 
     it('delegates getObjectStream/getHeadObject to client with bucketName', async () => {

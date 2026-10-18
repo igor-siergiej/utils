@@ -20,7 +20,7 @@ Runtime deps: `hono`, `minio`, `mongodb`.
 | `dependencyContainer` | `DependencyContainer` | Typed token → constructor/instance registry. |
 | `logger` | `Logger` (implements `ILogger`) | |
 | `mongoDbConnection` | `MongoDbConnection` | `connect(configOverride?)`, `ping()`. |
-| `objectStoreConnection` | `ObjectStoreConnection` | MinIO client: `connect(config?)`, `getObjectStream`, `getHeadObject`, `putObject`, `ping`. |
+| `objectStoreConnection` | `ObjectStoreConnection` | S3 client (`minio` npm lib) for the S3-compatible object store (RustFS): `connect(config?)`, `getObjectStream`, `getHeadObject`, `putObject`, `ping`. |
 
 ### `@imapps/api-utils/hono`
 

@@ -8,7 +8,7 @@ Architecture: [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture
 
 | Package | What | Used by |
 | --- | --- | --- |
-| [`@imapps/api-utils`](packages/api-utils/README.md) | Config, logger, DI container, Mongo + MinIO connections; `./hono` app factory, CORS, request logging, error handler | `packages/api` of shoppingo, mixtape, jewellery-catalogue, imapps-template; kivo |
+| [`@imapps/api-utils`](packages/api-utils/README.md) | Config, logger, DI container, Mongo + S3 object store connections; `./hono` app factory, CORS, request logging, error handler | `packages/api` of shoppingo, mixtape, jewellery-catalogue, imapps-template; kivo |
 | [`@imapps/web-utils`](packages/web-utils/README.md) | React JWT auth: providers, `ProtectedRoute`, token hooks/utils | `packages/web` of shoppingo, mixtape, jewellery-catalogue |
 | [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config | kivo, shoppingo, this repo |
 | [`@imapps/dev-scripts`](packages/dev-scripts/README.md) | `fallow-audit` bin (dead-code/complexity audit, same as CI) | most app and site repos |
@@ -45,6 +45,6 @@ bun run release:dry
 
 Husky + lint-staged run `biome check --fix` on commit.
 
-`docker/docker-compose.yml` provides shared dev backing services, bound to `127.0.0.1`: MongoDB 7 (`27017`), MinIO (`9000`, console `7001`) with buckets created for jewellery-catalogue and shoppingo, and Navidrome (`4533`) reading `../../mixtape/music`. Credentials are dev-only placeholders in the compose file.
+`docker/docker-compose.yml` provides shared dev backing services, bound to `127.0.0.1`: MongoDB 7 (`27017`), RustFS S3-compatible object store (`9000`, console `9001`, creds `rustfsadmin`/`rustfsadmin`) with buckets created for jewellery-catalogue and shoppingo, and Navidrome (`4533`) reading `../../mixtape/music`. Credentials are dev-only placeholders in the compose file.
 
 `docker/bun-git.Dockerfile` + `build-and-push-bun-git.sh` build a Bun + git CI image for the old GitLab setup (default registry `192.168.68.59:5000`); not referenced by current GitHub workflows.
