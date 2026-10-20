@@ -1,6 +1,6 @@
 # CI/CD Pipelines
 
-Shared pipeline scripts and configurations for building and publishing Docker images across all services (shoppingo, kivo, jewellery-catalogue).
+Shared pipeline scripts and configurations for building and publishing Docker images across all services (tandra, kivo, jewellery-catalogue).
 
 ## Usage
 
@@ -43,7 +43,7 @@ Builds and pushes a single Docker image.
 **Example:**
 ```bash
 ./docker-build.sh kivo 1.7.1 ./Dockerfile kivo
-./docker-build.sh shoppingo 1.20.4 ./Dockerfile.api shoppingo-api
+./docker-build.sh tandra 1.20.4 ./Dockerfile.api tandra-api
 ```
 
 ### `publish-images.sh`
@@ -72,7 +72,7 @@ Service configs are JSON files in `config/` directory. Format:
 ```
 
 - `dockerfile`: Path to Dockerfile relative to repo root
-- `tag`: Base tag name (e.g., `kivo`, `shoppingo-api`); version and `-latest` suffix are added automatically
+- `tag`: Base tag name (e.g., `kivo`, `tandra-api`); version and `-latest` suffix are added automatically
 
 **Generated tags:**
 - `igurusama/imapps:{tag}-{version}`
