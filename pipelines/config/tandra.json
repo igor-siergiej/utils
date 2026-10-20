@@ -1,13 +1,13 @@
 {
-  "service": "shoppingo",
+  "service": "tandra",
   "dockerfiles": [
     {
       "dockerfile": "./Dockerfile.api",
-      "tag": "shoppingo-api"
+      "tag": "tandra-api"
     },
     {
       "dockerfile": "./Dockerfile.web",
-      "tag": "shoppingo-web"
+      "tag": "tandra-web"
     }
   ]
 }

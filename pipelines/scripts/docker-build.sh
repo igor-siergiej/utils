@@ -3,7 +3,7 @@ set -e
 
 # Usage: docker-build.sh <service-name> <version> <dockerfile-path> <base-tag>
 # Example: docker-build.sh kivo 1.7.1 ./Dockerfile kivo
-# Example: docker-build.sh shoppingo 1.20.4 ./Dockerfile.api shoppingo-api
+# Example: docker-build.sh tandra 1.20.4 ./Dockerfile.api tandra-api
 
 SERVICE_NAME=$1
 VERSION=$2

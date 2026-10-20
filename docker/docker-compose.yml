@@ -58,7 +58,7 @@ services:
       /bin/sh -c "
       set -e;
       rc alias set local http://rustfs:9000 rustfsadmin rustfsadmin;
-      for b in jewellery-catalogue-staging jewellery-catalogue shoppingo; do
+      for b in jewellery-catalogue-staging jewellery-catalogue tandra; do
         rc bucket create local/$$b --ignore-existing;
         rc bucket anonymous set download local/$$b;
       done
