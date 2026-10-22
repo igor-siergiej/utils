@@ -101,6 +101,9 @@ EOF
 Always pass the body via `--body -` with a quoted heredoc. A grounded body is
 multi-paragraph with backticks and newlines, which do not survive shell
 argument quoting. `--project` is required when promoting a global-inbox task.
+Promoted tasks land in Backlog, the user's pool of refined ideas; the
+`kanban-worker` only picks up `todo`, so the user moves a card there (or asks you
+to) when they want it worked.
 
 The body states, in order:
 1. The current behaviour, with file paths and symbol names.
@@ -132,7 +135,8 @@ forward acceptance criteria that are already satisfied.
 | Promoting when `resolve-repo` finds no checkout | You have not read the code. Report the missing checkout instead. |
 | Inventing a priority | Ask, or infer from the capture's own urgency; never leave it untagged. |
 | Splitting one capture into several items silently | Fine to do, but say so — the human captured one thought. |
-| Promoting into the global inbox without a project | Choose `--project` when promoting; a Backlog task with no project is never worked. |
+| Promoting into the global inbox without a project | Choose `--project` when promoting; a task with no project is never worked. |
+| Promoting straight to `todo` | Backlog is the default; only set `--status todo` when the user asks for the card to be worked. |
 
 ## Inbox Rules You Must Respect
 

@@ -1,11 +1,11 @@
 ---
 name: kanban-worker
-description: Autonomously works a jott project's Backlog tasks against that project's single local checkout — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next backlog item", "run the kanban worker", or similar.
+description: Autonomously works a jott project's Todo tasks against that project's single local checkout — implements the item, runs Playwright e2e locally as a merge gate, opens a PR, reviews it, waits for CI, merges, waits for deploy, runs a live smoke check, and reverts+blocks if that fails. Use when the user says "work the kanban board", "pick up the next todo item", "run the kanban worker", or similar.
 ---
 
 # Kanban worker
 
-Drives a jott project's Backlog to completion, one task
+Drives a jott project's Todo column to completion, one task
 at a time, worked against that project's single local checkout. Deterministic steps are delegated to
 the `kanban-cli` CLI (shipped alongside this skill in `@imapps/kanban-cli`); anything
 requiring judgment — implementing code, debugging failures, writing e2e assertions,
@@ -34,7 +34,7 @@ DB synced (`jott sync`). A project is a jott `--project <P>`; tasks are
 referred to as `#N` (their `number`). Pass `--json` on every `jott` call and
 parse the JSON it prints. `jott task list --json` rows carry `number`,
 `title`, `project`, `status`, `tags`, `meta` (no body); `jott task show <N>
---json` adds `task.body`. Statuses: `inbox`, `backlog`, `in-progress`,
+--json` adds `task.body`. Statuses: `inbox`, `backlog`, `todo`, `in-progress`,
 `blocked`, `done`. Worker state lives in `task.meta`: `branch`, `pr`,
 `merged_commit`, `revert_pr`, `blocked_reason`, `completed_at`, `retries`
 (an object of per-gate counts; missing = all 0).
@@ -68,13 +68,16 @@ the directory holding their checkouts, or to fix the `repoName` in the repo's
 root, then it resolves (follow up with `kanban-cli init-config` if the fresh
 clone has no full config).
 
-**Inbox tasks are not work.** Tasks with status `inbox` are raw captures.
+**Inbox and Backlog tasks are not work.** Tasks with status `inbox` are raw captures.
 You must never implement, promote or delete one. Turning a capture into a
 Backlog task is a human-invoked job for the `refining-kanban-captures` skill.
+Backlog is the user's pool of refined ideas: the user moves a card to `todo` when
+they want it worked. Only work Backlog cards when the user explicitly asks for that
+in this run (e.g. "work the backlog for <P>"); then list `--status backlog` in step 1.
 
 ## Per-item loop
 
-Repeat from step 0 until the Backlog list in step 1 is empty, then stop and report
+Repeat from step 0 until the Todo list in step 1 is empty, then stop and report
 a summary of what was completed/blocked this session.
 
 **[CLI]** = shell out to kanban-cli or jott (deterministic, no judgment). **[Claude]** = your
@@ -106,8 +109,9 @@ own reasoning/tool use.
      If the result carries a `hint`, pass it on to the user once: it means
      `record-usage` was never wired up, so this gate can never pause.)
 
-1. **[CLI]** `jott sync --json`, then `jott task list --project <P> --status backlog --json`. If `tasks` is
-   empty, the project has no more actionable work — stop here. Otherwise take the
+1. **[CLI]** `jott sync --json`, then `jott task list --project <P> --status todo --json`. If `tasks` is
+   empty, the project has no more actionable work — stop here (Backlog cards wait
+   for the user to move them to Todo). Otherwise take the
    first row's `number` as `<N>` and run `jott task show <N> --json` (`task.meta`,
    `task.body`). Then `kanban-cli resolve-repo <P>` → `repo` (see "Tasks live in
    jott" for `RepoResolutionError` / `meta.repo_url`).
@@ -234,7 +238,7 @@ own reasoning/tool use.
 16. **[CLI]** `jott task set <N> --status done --meta completed_at="\"$(date -u +%FT%TZ)\"" --json`,
     then `jott sync --json` (only reached on a clean pass through step 15).
 17. **[Claude]** Give a short summary of what shipped for this item, then go back to
-    step 1 for the next Backlog item.
+    step 1 for the next Todo item.
 
 ## Why retries live in `meta.retries`, not your memory
 
@@ -246,9 +250,9 @@ it from conversation context.
 
 ## One stuck item never stalls the project
 
-Step 1 only ever lists `--status backlog`, so once a task is set to
+Step 1 only ever lists `--status todo`, so once a task is set to
 `blocked` it's automatically skipped on the next iteration — move on to the next
-Backlog item rather than getting stuck.
+Todo item rather than getting stuck.
 
 ## The usage-limit pause only gates between items
 
