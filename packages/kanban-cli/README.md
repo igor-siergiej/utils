@@ -1,6 +1,6 @@
 # @imapps/kanban-cli
 
-CLI + Claude Code skill that works jott tasks to completion, one backlog task at a
+CLI + Claude Code skill that works jott tasks to completion, one Todo task at a
 time, across any of your local repo checkouts: implement the change, run Playwright
 e2e locally as a merge gate, open a PR, wait for CI, merge autonomously, wait for the
 post-merge deploy, run a live Playwright smoke check against staging/prod, and

@@ -9,8 +9,8 @@ Blocked cards mostly wait on a human decision, not on code. This skill turns
 each one into a single, well-framed question, then writes the answer back to
 jott, so a pile of Blocked cards clears in one sitting.
 
-It never implements anything. Unblocked cards go back to Backlog for the
-`kanban-worker` skill to pick up.
+It never implements anything. Unblocked cards go to Todo for the
+`kanban-worker` skill to pick up (they were already chosen for work).
 
 ## Locate tasks and CLI
 
@@ -66,7 +66,7 @@ order. Each question:
   names the actual choice, not "what should we do with this card?".
 - **header:** short project or card tag (max 12 chars).
 - **options** (2-4, recommended first with " (Recommended)"), picked from:
-  - **Unblock to Backlog**, with the concrete amendment, e.g. "use Recraft,
+  - **Unblock to Todo**, with the concrete amendment, e.g. "use Recraft,
     $0.04/icon cap". Description says what changes in the card.
   - **Split**: name the smaller card(s) that can proceed now and what stays
     blocked.
@@ -87,8 +87,8 @@ Per answered card (`<N>` is its number, `<P>` its project):
 
 | Decision | Actions |
 |---|---|
-| Unblock | Write the amended body (amend acceptance criteria, record the decision and date) with `jott task set <N> --body - --json <<'EOF' … EOF` (full new body), then `jott task set <N> --status backlog --unmeta blocked_reason --meta retries='{"implement":0,"e2e_local":0,"ci":0,"deploy":0,"e2e_live":0}' --json`. |
-| Split | Add each new card with `jott task add "<title>" --project <P> --status backlog --tag … --body - --json <<'EOF' … EOF`. Then update the original's body via `--body -` and either keep it Blocked with the remaining reason or drop it. |
+| Unblock | Write the amended body (amend acceptance criteria, record the decision and date) with `jott task set <N> --body - --json <<'EOF' … EOF` (full new body), then `jott task set <N> --status todo --unmeta blocked_reason --meta retries='{"implement":0,"e2e_local":0,"ci":0,"deploy":0,"e2e_live":0}' --json`. |
+| Split | Add each new card with `jott task add "<title>" --project <P> --status todo --tag … --body - --json <<'EOF' … EOF`. Then update the original's body via `--body -` and either keep it Blocked with the remaining reason or drop it. |
 | Drop | Append a `**Dropped <YYYY-MM-DD>:** <reason>` line to the body (write the full new body via `jott task set <N> --body - --json`), then `jott task set <N> --status done --json`. Do not set `completed_at`, since it never shipped. `blocked_reason` is kept as history. |
 | Keep Blocked | Update the reason: run the "Blocking a task" command above with the new reason. |
 
