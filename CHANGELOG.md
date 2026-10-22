@@ -1,3 +1,16 @@
+# [5.0.0](https://github.com/igor-siergiej/utils/compare/v4.0.1...v5.0.0) (2026-10-22)
+
+
+### Features
+
+* **kanban-cli:** kanban-worker works jott's Todo column, not Backlog ([#27](https://github.com/igor-siergiej/utils/issues/27)) ([0984747](https://github.com/igor-siergiej/utils/commit/09847472f650580d7e7ca649c766d2e5c73b6c99)), closes [#160](https://github.com/igor-siergiej/utils/issues/160)
+
+
+### BREAKING CHANGES
+
+* **kanban-cli:** the worker no longer picks up Backlog cards; move a card to
+`todo` to schedule it. Needs a jott build with the `todo` status (schema 4).
+
 ## [4.0.1](https://github.com/igor-siergiej/utils/compare/v4.0.0...v4.0.1) (2026-10-18)
 
 
