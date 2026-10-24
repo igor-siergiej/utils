@@ -1,3 +1,10 @@
+# [5.3.0](https://github.com/igor-siergiej/utils/compare/v5.2.0...v5.3.0) (2026-10-24)
+
+
+### Features
+
+* **kanban-cli:** interactive one-card refine mode ([#30](https://github.com/igor-siergiej/utils/issues/30)) ([d42fa79](https://github.com/igor-siergiej/utils/commit/d42fa79e2a4e6250756a6640e2a2106f7dfee7d7))
+
 # [5.2.0](https://github.com/igor-siergiej/utils/compare/v5.1.0...v5.2.0) (2026-10-24)
 
 
