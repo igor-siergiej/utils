@@ -1,0 +1,29 @@
+{
+  "repoName": "kanban-cli",
+  "dev": {
+    "startCommand": "bun scripts/e2e-server.ts",
+    "healthCheckUrl": "http://127.0.0.1:8798/health",
+    "healthCheckTimeoutMs": 30000,
+    "healthCheckIntervalMs": 1000
+  },
+  "e2e": {
+    "testCommand": "bash scripts/e2e.sh",
+    "smokeGrep": "@smoke",
+    "configPath": "scripts/e2e.sh"
+  },
+  "ci": {
+    "workflowNames": ["CI/CD"],
+    "checkNamesRequired": ["lint", "test"]
+  },
+  "deploy": {
+    "workflowName": "CI/CD",
+    "timeoutMs": 900000,
+    "pollIntervalMs": 15000
+  },
+  "environments": {
+    "npm": { "baseUrl": "https://registry.npmjs.org" }
+  },
+  "targetEnvironment": "npm",
+  "retryPolicy": { "implement": 3, "e2e_local": 3, "ci": 3, "deploy": 2, "e2e_live": 1 },
+  "github": { "defaultBranch": "main", "mergeMethod": "squash" }
+}
