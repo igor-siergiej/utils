@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import { ciWait } from './commands/ciWait';
 import { cloneRepo } from './commands/cloneRepo';
 import { deployWait } from './commands/deployWait';
+import { dispatch } from './commands/dispatch';
 import { e2eBootstrap } from './commands/e2eBootstrap';
 import { e2eLiveRun } from './commands/e2eLiveRun';
 import { e2eLocalRun } from './commands/e2eLocalRun';
@@ -17,6 +18,7 @@ import { repoCheck } from './commands/repoCheck';
 import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
 import { resolveRepoPath } from './repoRegistry/resolveRepo';
+import { ensureWorktree, removeWorktree } from './worktree/worktree';
 
 function printSuccess(data: unknown): void {
     process.stdout.write(`${JSON.stringify(data)}\n`);
@@ -33,7 +35,8 @@ const USAGE =
     '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
-    '          record-usage (reads statusline JSON from stdin), usage-check\n' +
+    '          record-usage (reads statusline JSON from stdin), usage-check,\n' +
+    '          worktree <create|remove> <project> <n>, dispatch [--once]\n' +
     'Task state lives in jott: `jott task … --json`.';
 
 async function runE2e(rest: string[]): Promise<unknown> {
@@ -308,6 +311,26 @@ async function main(): Promise<void> {
                     maxStalenessMs: values['max-staleness-ms'] ? Number(values['max-staleness-ms']) : undefined,
                 })
             );
+            return;
+        }
+        case 'worktree': {
+            const [sub, project, n] = rest;
+            if ((sub !== 'create' && sub !== 'remove') || !project || !Number.isInteger(Number(n))) {
+                throw new Error('Usage: kanban-cli worktree <create|remove> <project> <n>');
+            }
+            const repo = resolveRepoPath(project);
+            if (sub === 'create') {
+                printSuccess({ ok: true, worktree: await ensureWorktree(repo, project, Number(n)) });
+            } else {
+                await removeWorktree(repo, project, Number(n));
+                printSuccess({ ok: true });
+            }
+            return;
+        }
+        case 'dispatch': {
+            const { values } = parseArgs({ args: rest, options: { once: { type: 'boolean' } } });
+            const result = await dispatch({ once: values.once });
+            printSuccess({ ok: true, result });
             return;
         }
         case undefined:

@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"5b0c41de-7b51-4d8e-9a43-0e7c2a1f9d10"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"rejected","resetsAt":1792818600,"rateLimitType":"five_hour","unifiedWindows":{"five_hour":{"utilization":1,"resetsAt":1792818600,"status":"rejected"},"seven_day":{"utilization":0.8,"resetsAt":1792854000,"status":"allowed"}}},"session_id":"5b0c41de-7b51-4d8e-9a43-0e7c2a1f9d10"}
+{"type":"result","subtype":"success","is_error":true,"result":"You've hit your limit · resets 9:30pm","session_id":"5b0c41de-7b51-4d8e-9a43-0e7c2a1f9d10"}

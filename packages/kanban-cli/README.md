@@ -168,6 +168,47 @@ opt-in, not required to use the rest of the CLI. `unknown` carries a `reason`:
 arriving). The first `no-state` result also carries a `hint` explaining the wiring
 above; a `<state file>.hint-shown` marker keeps it from repeating.
 
+## Factory: unattended runs (`kanban-cli dispatch`)
+
+`kanban-cli dispatch` is a long-running loop for foundry. It works jott cards one at a time,
+each in its own git worktree (`<repo>/.worktrees/<project>-<n>`, branch `factory/<project>-<n>`;
+`.worktrees/` is added to `.git/info/exclude` when not already ignored). Your own checkout is
+never touched. Every tick it syncs jott and picks, in order:
+
+1. an `in-progress` card whose `meta.paused_until` has passed (a run that hit the rate limit);
+2. a `todo` card with `meta.go = true`;
+3. any other `todo` card in board order, only when the note `factory/settings` says `auto: on`.
+
+Inbox, Backlog and Blocked cards never run. A worker is a headless harness run in the
+worktree, using the kanban-worker skill's single-card mode. The harness comes from
+`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude` (the only
+adapter so far). Claude runs as `claude -p --dangerously-skip-permissions --output-format
+stream-json`, so it has your full user rights on the host.
+
+- **Rate limit:** a `rate_limit_event` with `status: rejected` pauses the card. It stays
+  `in-progress` with `meta.paused_until` and `meta.session_id`. No new card starts until the
+  reset, and then the run resumes the same session.
+- **Failure:** a crash, an error result, or a run that leaves the card `in-progress` is retried
+  once. The second failure blocks the card with the summary. A card the dispatcher was running
+  when it died counts as one failure on the next start.
+- **Reply:** a blocked card moved back to `todo` with `meta.reply` gets the reply (and the old
+  `blocked_reason`) in its prompt. Both are cleared when the run starts, along with `go`.
+- **Status:** the note `factory/status` holds `state: idle|running <project>#<n>|paused`,
+  `paused_until`, and `updated`.
+- **Log:** one JSON line per run (`card, agent, start, end, outcome, exitCode`) in
+  `~/.local/state/kanban-cli/factory.log` (`KANBAN_FACTORY_LOG`). Harness output is never logged.
+- `--once` runs a single tick and prints its result.
+
+Install as a user service with [`docs/factory.service`](docs/factory.service):
+
+```sh
+cp docs/factory.service ~/.config/systemd/user/kanban-factory.service
+systemctl --user daemon-reload && systemctl --user enable --now kanban-factory
+jott add --path factory/settings "auto: off"
+```
+
+`kanban-cli worktree create|remove <project> <n>` manages a card's worktree by hand.
+
 ## Requirements
 
 `gh` (GitHub CLI) must be installed and authenticated wherever `kanban-cli`'s PR/CI/

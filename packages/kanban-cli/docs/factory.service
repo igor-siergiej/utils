@@ -1,0 +1,13 @@
+[Unit]
+Description=kanban-cli factory dispatcher (works jott cards in git worktrees)
+After=network-online.target
+
+[Service]
+ExecStart=%h/.bun/bin/kanban-cli dispatch
+Environment=KANBAN_CLI_REPO_ROOTS=%h/imapps
+Environment=PATH=%h/.bun/bin:%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
