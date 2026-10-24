@@ -1,5 +1,6 @@
 import type { Board } from './board';
 import type { Harness, HarnessOutcome } from './harness';
+import type { NotifyEvent } from './notify';
 import { type JottTask, nextCard } from './queue';
 import { type FactoryStatus, formatStatus, parseSettings, SETTINGS_NOTE, STATUS_NOTE } from './settings';
 
@@ -33,6 +34,7 @@ export interface LoopDeps {
     removeWorktree(repo: string, project: string, n: number): Promise<void>;
     now(): number;
     log(entry: RunLogEntry): void;
+    notify(event: NotifyEvent): Promise<void>;
 }
 
 export interface LoopState {
@@ -72,6 +74,10 @@ export function workerPrompt(t: JottTask, branch: string): string {
     return lines.join('\n');
 }
 
+function notifyEnd(deps: LoopDeps, t: JottTask, kind: NotifyEvent['kind'], reason?: string): Promise<void> {
+    return deps.notify({ kind, project: t.project ?? '', number: t.number, title: t.title, reason });
+}
+
 async function writeStatus(deps: LoopDeps, status: Omit<FactoryStatus, 'updated'>): Promise<void> {
     await deps.board.writeNote(STATUS_NOTE, formatStatus({ ...status, updated: iso(deps.now()) }));
 }
@@ -85,6 +91,7 @@ async function failAttempt(deps: LoopDeps, t: JottTask, reason: string): Promise
             meta: { blocked_reason: reason, retries: retriesWith(t, n) },
             unmeta: ['factory_run', 'paused_until', 'session_id'],
         });
+        await notifyEnd(deps, t, 'blocked', reason);
         return 'blocked';
     }
     await deps.board.set(t.number, {
@@ -160,11 +167,13 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
         worktree = wt;
     } catch (error) {
+        const reason = `Could not start: ${(error as Error).message}`;
         await deps.board.set(card.number, {
             status: 'blocked',
-            meta: { blocked_reason: `Could not start: ${(error as Error).message}` },
+            meta: { blocked_reason: reason },
             unmeta: ['factory_run', 'paused_until'],
         });
+        await notifyEnd(deps, card, 'blocked', reason);
         entry('error');
         return;
     }
@@ -209,5 +218,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     }
     await deps.board.set(card.number, { unmeta: ['factory_run', 'session_id'] });
     if (after.status === 'done') await deps.removeWorktree(repo, project, card.number);
+    const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
+    await notifyEnd(deps, after, after.status === 'done' ? 'done' : 'blocked', reason);
     entry(after.status === 'done' ? 'done' : 'blocked');
 }

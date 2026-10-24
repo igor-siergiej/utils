@@ -197,6 +197,10 @@ stream-json`, so it has your full user rights on the host.
   `paused_until`, and `updated`.
 - **Log:** one JSON line per run (`card, agent, start, end, outcome, exitCode`) in
   `~/.local/state/kanban-cli/factory.log` (`KANBAN_FACTORY_LOG`). Harness output is never logged.
+- **Phone push:** when a card ends `blocked` or `done`, it POSTs to ntfy at `NTFY_URL`
+  (default `http://100.79.92.93:8090/jott-factory`, tailnet only). Title `<project> #<n> blocked|done`,
+  body the card title plus the first line of `blocked_reason`. Pauses send nothing, and a failed
+  post is logged to stderr, never failing the run.
 - `--once` runs a single tick and prints its result.
 
 Install as a user service with [`docs/factory.service`](docs/factory.service):

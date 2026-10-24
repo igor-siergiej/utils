@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { jottBoard } from '../factory/board';
 import { harnessFor } from '../factory/harness';
 import { type LoopDeps, type LoopState, type RunLogEntry, type TickResult, tick } from '../factory/loop';
+import { notify } from '../factory/notify';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { resolveRepoPath } from '../repoRegistry/resolveRepo';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
@@ -40,6 +41,7 @@ export function realDeps(logPath = defaultLogPath()): LoopDeps {
         removeWorktree,
         now: Date.now,
         log: (entry) => appendLog(logPath, entry),
+        notify: (event) => notify(event),
     };
 }
 
