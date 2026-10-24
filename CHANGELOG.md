@@ -1,3 +1,10 @@
+## [5.5.1](https://github.com/igor-siergiej/utils/compare/v5.5.0...v5.5.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **kanban-cli:** pause the card when the provider is not Claude ([#34](https://github.com/igor-siergiej/utils/issues/34)) ([07e0070](https://github.com/igor-siergiej/utils/commit/07e007064ba02469e7e2ac0a430270fcc4793609))
+
 # [5.5.0](https://github.com/igor-siergiej/utils/compare/v5.4.0...v5.5.0) (2026-10-24)
 
 

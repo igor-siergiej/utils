@@ -1,6 +1,6 @@
 {
   "name": "@imapps/dev-scripts",
-  "version": "5.5.0",
+  "version": "5.5.1",
   "description": "Shared dev/CI scripts for IM Apps projects",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
