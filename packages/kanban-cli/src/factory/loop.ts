@@ -28,6 +28,8 @@ export interface LoopDeps {
     defaultAgent(repo: string): string | undefined;
     /** `factory.defaultModel` from the repo's .kanban-cli.json, when set. */
     defaultModel(repo: string): string | undefined;
+    /** `factory.rateLimitFallbackMinutes` from the repo's .kanban-cli.json, when set. */
+    defaultQuotaFallbackMinutes(repo: string): number | undefined;
     harnessFor(agent: string): Harness;
     ensureWorktree(
         repo: string,
@@ -158,6 +160,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     const project = card.project ?? '';
     let agent = typeof card.meta.agent === 'string' ? card.meta.agent : 'claude';
     let model: string | undefined;
+    let quotaFallbackMinutes: number | undefined;
     const entry = (outcome: RunLogEntry['outcome'], exitCode?: number) =>
         deps.log({ card: label(card), agent, model, start: iso(start), end: iso(deps.now()), outcome, exitCode });
 
@@ -168,6 +171,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
         repo = deps.resolveRepo(project);
         if (typeof card.meta.agent !== 'string') agent = deps.defaultAgent(repo) ?? 'claude';
         model = typeof card.meta.model === 'string' ? card.meta.model : deps.defaultModel(repo);
+        quotaFallbackMinutes = deps.defaultQuotaFallbackMinutes(repo);
         harness = deps.harnessFor(agent);
         const wt = await deps.ensureWorktree(repo, project, card.number);
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
@@ -194,7 +198,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     await deps.board.sync();
     await writeStatus(deps, { state: 'running', card: label(card) });
 
-    const outcome = await harness.run({ cwd: worktree.path, prompt, resume, model });
+    const outcome = await harness.run({ cwd: worktree.path, prompt, resume, model, quotaFallbackMinutes });
     const after = await deps.board.show(card.number);
 
     if (outcome.kind === 'rate_limited') {

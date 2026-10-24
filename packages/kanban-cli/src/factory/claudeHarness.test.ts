@@ -5,6 +5,9 @@ import { claudeArgv, parseClaudeRun } from './claudeHarness';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 
+/** A fixed minute, so the fallback pause is predictable. */
+const NOW = 1_792_867_400_000;
+
 describe('parseClaudeRun', () => {
     it('reads a normal run as done with its session id', () => {
         expect(parseClaudeRun({ exitCode: 0, stdout: fixture('claude-done.jsonl'), stderr: '' })).toEqual({
@@ -19,6 +22,30 @@ describe('parseClaudeRun', () => {
             resetsAt: new Date(1792818600 * 1000).toISOString(),
             sessionId: '5b0c41de-7b51-4d8e-9a43-0e7c2a1f9d10',
         });
+    });
+
+    it('reads a third-party quota error as rate_limited, not as a failure', () => {
+        expect(
+            parseClaudeRun(
+                { exitCode: 1, stdout: fixture('claude-third-party-rate-limited.jsonl'), stderr: '' },
+                30,
+                NOW
+            )
+        ).toEqual({
+            kind: 'rate_limited',
+            resetsAt: new Date(NOW + 30 * 60_000).toISOString(),
+            sessionId: '2867e388-496c-4af0-b82d-eb162caaaf63',
+        });
+    });
+
+    it('pauses for the configured window when the provider gives no reset time', () => {
+        expect(
+            parseClaudeRun(
+                { exitCode: 1, stdout: fixture('claude-third-party-rate-limited.jsonl'), stderr: '' },
+                7,
+                NOW
+            )
+        ).toMatchObject({ kind: 'rate_limited', resetsAt: new Date(NOW + 7 * 60_000).toISOString() });
     });
 
     it('reads a non-zero exit with no limit as failed, keeping the tail of stderr', () => {

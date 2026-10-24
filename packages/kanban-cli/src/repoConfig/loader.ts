@@ -162,11 +162,18 @@ function validateFactory(raw: unknown): FactoryConfig | undefined {
     const obj = requireObject(raw, 'factory');
     const defaultAgent = optionalString(obj.defaultAgent, 'factory.defaultAgent');
     const defaultModel = optionalString(obj.defaultModel, 'factory.defaultModel');
-    if (defaultAgent === undefined && defaultModel === undefined) return undefined;
+    const rateLimitFallbackMinutes =
+        obj.rateLimitFallbackMinutes === undefined
+            ? undefined
+            : optionalNumber(obj.rateLimitFallbackMinutes, 'factory.rateLimitFallbackMinutes', 0);
+    if (defaultAgent === undefined && defaultModel === undefined && rateLimitFallbackMinutes === undefined) {
+        return undefined;
+    }
 
     return {
         ...(defaultAgent !== undefined ? { defaultAgent } : {}),
         ...(defaultModel !== undefined ? { defaultModel } : {}),
+        ...(rateLimitFallbackMinutes !== undefined ? { rateLimitFallbackMinutes } : {}),
     };
 }
 
