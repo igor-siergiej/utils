@@ -213,6 +213,22 @@ jott add --path factory/settings "auto: off"
 
 `kanban-cli worktree create|remove <project> <n>` manages a card's worktree by hand.
 
+## Refining from the phone
+
+The `refining-kanban-captures` skill has an interactive one-card mode: say
+`refine <project> #<n>` and it investigates the repo, asks one question at a
+time, plays back what it understood, then writes a grounded body (with a
+`## Decisions` list) and moves the card to Backlog. Nothing is written if the
+chat ends early.
+
+To reach it from the Claude mobile app, keep Remote Control running on foundry (tmux or a
+user service), connect from the app, and start a fresh session per card (a long-lived
+session loses the prompt cache and costs more):
+
+```sh
+claude remote-control
+```
+
 ## Requirements
 
 `gh` (GitHub CLI) must be installed and authenticated wherever `kanban-cli`'s PR/CI/
