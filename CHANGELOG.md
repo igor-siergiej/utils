@@ -1,3 +1,10 @@
+# [5.2.0](https://github.com/igor-siergiej/utils/compare/v5.1.0...v5.2.0) (2026-10-24)
+
+
+### Features
+
+* **kanban-cli:** notify phone on block and done ([#29](https://github.com/igor-siergiej/utils/issues/29)) ([4525ee0](https://github.com/igor-siergiej/utils/commit/4525ee0e12d96589aa8c6676cf4b6eed3d1b23a5))
+
 # [5.1.0](https://github.com/igor-siergiej/utils/compare/v5.0.0...v5.1.0) (2026-10-24)
 
 
