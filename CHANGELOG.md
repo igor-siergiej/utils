@@ -1,3 +1,10 @@
+# [5.5.0](https://github.com/igor-siergiej/utils/compare/v5.4.0...v5.5.0) (2026-10-24)
+
+
+### Features
+
+* **kanban-cli:** pick the model per card and per repo ([#33](https://github.com/igor-siergiej/utils/issues/33)) ([cdb0efa](https://github.com/igor-siergiej/utils/commit/cdb0efafa6459b45fa6dfbdc7ae05a03987d8bd9))
+
 # [5.4.0](https://github.com/igor-siergiej/utils/compare/v5.3.0...v5.4.0) (2026-10-24)
 
 
