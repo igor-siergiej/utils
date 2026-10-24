@@ -48,3 +48,14 @@ Husky + lint-staged run `biome check --fix` on commit.
 `docker/docker-compose.yml` provides shared dev backing services, bound to `127.0.0.1`: MongoDB 7 (`27017`), RustFS S3-compatible object store (`9000`, console `9001`, creds `rustfsadmin`/`rustfsadmin`) with buckets created for jewellery-catalogue and shoppingo, and Navidrome (`4533`) reading `../../mixtape/music`. Credentials are dev-only placeholders in the compose file.
 
 `docker/bun-git.Dockerfile` + `build-and-push-bun-git.sh` build a Bun + git CI image for the old GitLab setup (default registry `192.168.68.59:5000`); not referenced by current GitHub workflows.
+
+## Factory gates (`.kanban-cli.json`)
+
+`.kanban-cli.json` (`repoName: kanban-cli`) lets the kanban-cli factory work `kanban-cli` cards in this repo. utils is a library monorepo, so each gate maps to the nearest real step:
+
+| Gate | Runs |
+| --- | --- |
+| `e2e local` | `scripts/e2e-server.ts` only answers the gate's health poll on `127.0.0.1:8798`. Then `scripts/e2e.sh` runs `bun run lint`, `turbo run build test`, and the built `kanban-cli --help`. With `--grep <p>`, only tests matching `<p>` run (vitest `-t <p>`), and a pattern that matches no test fails. |
+| `ci` | PR run of workflow `CI/CD`; required checks `lint`, `test` |
+| `deploy` | push-to-main run of `CI/CD` for the merge commit (semantic-release, then `publish-npm`) |
+| `e2e live` | `scripts/e2e.sh` with `E2E_BASE_URL=https://registry.npmjs.org` runs the `@smoke` specs in `scripts/e2e/registry.e2e.ts` with `bun test`. They check that every public package on `origin/main` is on the registry at its version, then install the published `@imapps/kanban-cli` and run its `--help`. They wait up to `E2E_PUBLISH_WAIT_S` (default 300) for the registry, and they only read from it. |
