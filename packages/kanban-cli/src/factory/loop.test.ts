@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Board, CardPatch } from './board';
 import type { Harness, HarnessOutcome } from './harness';
 import { IDLE_SLEEP_MS, type LoopDeps, type RunLogEntry, tick, workerPrompt } from './loop';
+import type { NotifyEvent } from './notify';
 import type { JottTask } from './queue';
 
 const NOW = Date.parse('2026-10-24T20:00:00.000Z');
@@ -40,6 +41,7 @@ const card = (number: number, status: string, meta: Record<string, unknown> = {}
 
 function deps(board: Board, run: (n: number) => HarnessOutcome, onRun?: (n: number) => void) {
     const logs: RunLogEntry[] = [];
+    const notified: NotifyEvent[] = [];
     const prompts: string[] = [];
     const harness: Harness = {
         run: vi.fn(async ({ prompt }) => {
@@ -63,8 +65,11 @@ function deps(board: Board, run: (n: number) => HarnessOutcome, onRun?: (n: numb
         removeWorktree: vi.fn(async () => {}),
         now: () => NOW,
         log: (e) => logs.push(e),
+        notify: async (e) => {
+            notified.push(e);
+        },
     };
-    return { d, logs, prompts, harness };
+    return { d, logs, prompts, harness, notified };
 }
 
 describe('tick', () => {
@@ -96,7 +101,7 @@ describe('tick', () => {
         const tasks = [card(5, 'todo', { go: true })];
         const { board, notes } = fakeBoard(tasks);
         let during: JottTask | undefined;
-        const { d, logs, prompts } = deps(
+        const { d, logs, prompts, notified } = deps(
             board,
             () => ({ kind: 'done', sessionId: 's' }),
             (n) => {
@@ -115,13 +120,34 @@ describe('tick', () => {
         expect(d.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
         expect(tasks[0].meta.factory_run).toBeUndefined();
         expect(logs[0]).toMatchObject({ card: 'tandra#5', agent: 'claude', outcome: 'done' });
+        expect(notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'card 5', reason: undefined }]);
+    });
+
+    it('notifies once with the reason when the worker blocks the card', async () => {
+        const tasks = [card(5, 'todo', { go: true })];
+        const { board } = fakeBoard(tasks);
+        const { d, notified } = deps(
+            board,
+            () => ({ kind: 'done', sessionId: 's' }),
+            () => {
+                tasks[0].status = 'blocked';
+                tasks[0].meta.blocked_reason = 'Need the API key';
+            }
+        );
+
+        await tick(d, { recovered: true });
+
+        expect(notified).toEqual([
+            { kind: 'blocked', project: 'tandra', number: 5, title: 'card 5', reason: 'Need the API key' },
+        ]);
+        expect(d.removeWorktree).not.toHaveBeenCalled();
     });
 
     it('pauses a rate-limited card, keeps it in progress, and sleeps until the reset', async () => {
         const tasks = [card(5, 'todo', { go: true })];
         const { board, notes } = fakeBoard(tasks);
         const resetsAt = '2026-10-24T21:30:00.000Z';
-        const { d } = deps(board, () => ({ kind: 'rate_limited', resetsAt, sessionId: 's1' }));
+        const { d, notified } = deps(board, () => ({ kind: 'rate_limited', resetsAt, sessionId: 's1' }));
 
         await tick(d, { recovered: true });
         const next = await tick(d, { recovered: true });
@@ -131,6 +157,7 @@ describe('tick', () => {
         expect(d.removeWorktree).not.toHaveBeenCalled();
         expect(notes['factory/status']).toContain(`paused_until: ${resetsAt}`);
         expect(next.sleepMs).toBe(Date.parse(resetsAt) - NOW + 30_000);
+        expect(notified).toEqual([]);
     });
 
     it('resumes a paused card after its reset with the saved session', async () => {
@@ -156,15 +183,17 @@ describe('tick', () => {
     it('retries a failed run once, then blocks with the failure summary', async () => {
         const tasks = [card(5, 'todo', { go: true })];
         const { board } = fakeBoard(tasks);
-        const { d, logs } = deps(board, () => ({ kind: 'failed', exitCode: 1, summary: 'boom' }));
+        const { d, logs, notified } = deps(board, () => ({ kind: 'failed', exitCode: 1, summary: 'boom' }));
 
         await tick(d, { recovered: true });
         expect(tasks[0]).toMatchObject({ status: 'in_progress', meta: { retries: { dispatch: 1 } } });
+        expect(notified).toEqual([]);
         await tick(d, { recovered: true });
 
         expect(tasks[0].status).toBe('blocked');
         expect(tasks[0].meta.blocked_reason).toBe('Worker run failed (exit 1): boom');
         expect(logs.map((l) => l.outcome)).toEqual(['failed', 'blocked']);
+        expect(notified).toMatchObject([{ kind: 'blocked', reason: 'Worker run failed (exit 1): boom' }]);
     });
 
     it('treats a worker that leaves the card in progress as a failed attempt', async () => {
