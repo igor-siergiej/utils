@@ -1,3 +1,10 @@
+# [5.1.0](https://github.com/igor-siergiej/utils/compare/v5.0.0...v5.1.0) (2026-10-24)
+
+
+### Features
+
+* **kanban-cli:** factory dispatcher in per-card worktrees ([#28](https://github.com/igor-siergiej/utils/issues/28)) ([840cb12](https://github.com/igor-siergiej/utils/commit/840cb1226e90d6582a6d8c1957d0363822c9d4b7))
+
 # [5.0.0](https://github.com/igor-siergiej/utils/compare/v4.0.1...v5.0.0) (2026-10-22)
 
 
