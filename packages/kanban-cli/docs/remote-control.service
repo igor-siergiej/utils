@@ -1,0 +1,15 @@
+[Unit]
+Description=Claude Code Remote Control (phone refine sessions for the jott factory)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/imapps
+ExecStart=%h/.local/bin/claude remote-control --name foundry
+# stdout is the status TUI redrawing several times a second; errors still reach the journal.
+StandardOutput=null
+Environment=PATH=%h/.bun/bin:%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target

@@ -221,12 +221,15 @@ time, plays back what it understood, then writes a grounded body (with a
 `## Decisions` list) and moves the card to Backlog. Nothing is written if the
 chat ends early.
 
-To reach it from the Claude mobile app, keep Remote Control running on foundry (tmux or a
-user service), connect from the app, and start a fresh session per card (a long-lived
-session loses the prompt cache and costs more):
+To reach it from the Claude mobile app, keep Remote Control running on foundry as a user
+service with [`docs/remote-control.service`](docs/remote-control.service) (new sessions start in
+`~/imapps`), connect from the app, and start a fresh session per card (a long-lived session
+loses the prompt cache and costs more). Remote Control asks for consent once, so run
+`claude remote-control` by hand first and answer `y`:
 
 ```sh
-claude remote-control
+cp docs/remote-control.service ~/.config/systemd/user/claude-remote-control.service
+systemctl --user daemon-reload && systemctl --user enable --now claude-remote-control
 ```
 
 ## Requirements
