@@ -25,6 +25,34 @@ describe('parseOmpRun', () => {
         });
     });
 
+    it('reads a run that retried and recovered from a quota wall as done', () => {
+        expect(parseOmpRun({ exitCode: 0, stdout: fixture('omp-recovered.jsonl'), stderr: '' }, NOW)).toEqual({
+            kind: 'done',
+            sessionId: '01a16f39-c0de-7a01-9b44-2f4f2a91d310',
+        });
+    });
+
+    it('reads a provider failure in its real shape as failed, keeping the provider message', () => {
+        expect(parseOmpRun({ exitCode: 1, stdout: fixture('omp-failed.jsonl'), stderr: '' }, NOW)).toEqual({
+            kind: 'failed',
+            exitCode: 1,
+            summary: '500 {"type":"error","error":{"type":"api_error","message":"Internal server error"}}',
+        });
+    });
+
+    it('fails a run that yielded with work still queued', () => {
+        const stdout = `${JSON.stringify({ type: 'session', id: 's1' })}\n${JSON.stringify({
+            type: 'agent_end',
+            isTerminal: false,
+        })}\n`;
+
+        expect(parseOmpRun({ exitCode: 0, stdout, stderr: '' }, NOW)).toEqual({
+            kind: 'failed',
+            exitCode: 0,
+            summary: 'the agent yielded with work still queued',
+        });
+    });
+
     it('pauses for the default window when a quota error carries no reset time', () => {
         const stdout = `${JSON.stringify({ type: 'session', id: 's1' })}\n${JSON.stringify({
             type: 'error',
@@ -116,5 +144,10 @@ describe('harnessFor', () => {
         expect(harnessFor('omp')).toBeDefined();
         expect(harnessFor('claude')).toBeDefined();
         expect(() => harnessFor('pi:minimax')).toThrow("Unknown agent 'pi:minimax'");
+    });
+
+    it('does not resolve a prototype member to a harness', () => {
+        expect(() => harnessFor('toString')).toThrow("Unknown agent 'toString'");
+        expect(() => harnessFor('constructor')).toThrow("Unknown agent 'constructor'");
     });
 });

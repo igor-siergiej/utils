@@ -194,9 +194,10 @@ Both report the same three outcomes: `done` (with the session id), `rate_limited
 the time the provider says the limit lifts) and `failed`. A provider that reports a quota
 wall but no reset time pauses the card for 30 minutes.
 
-- **Rate limit:** a `rate_limit_event` with `status: rejected` pauses the card. It stays
-  `in-progress` with `meta.paused_until` and `meta.session_id`. No new card starts until the
-  reset, and then the run resumes the same session.
+- **Rate limit:** a `rate_limit_event` with `status: rejected` (claude), or an HTTP 429 /
+  `rate_limit_error` / `usage_limit_reached` / `insufficient_quota` error (omp), pauses the
+  card. It stays `in-progress` with `meta.paused_until` and `meta.session_id`. No new card
+  starts until the reset, and then the run resumes the same session.
 - **Failure:** a crash, an error result, or a run that leaves the card `in-progress` is retried
   once. The second failure blocks the card with the summary. A card the dispatcher was running
   when it died counts as one failure on the next start.

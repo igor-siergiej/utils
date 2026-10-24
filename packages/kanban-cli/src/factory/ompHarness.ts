@@ -39,7 +39,10 @@ function events(stdout: string): OmpEvent[] {
     return stdout.split('\n').flatMap((line) => {
         try {
             const parsed: unknown = JSON.parse(line);
-            return isObject(parsed) ? [parsed as OmpEvent] : [];
+            if (!isObject(parsed)) return [];
+            // omp repeats the whole transcript in agent_end; nothing reads it.
+            if (parsed.type === 'agent_end') delete parsed.messages;
+            return [parsed as OmpEvent];
         } catch {
             return [];
         }
@@ -47,66 +50,97 @@ function events(stdout: string): OmpEvent[] {
 }
 
 /**
+ * When to resume a paused card: the provider's absolute reset if it is still
+ * ahead, else the wait it asked for, else the default window.
+ */
+function quotaResumeAt(payloads: unknown[], now: number): number {
+    let epochReset: number | undefined;
+    let waitMs: number | undefined;
+    for (const payload of payloads) {
+        epochReset ??= quotaEpochReset(payload);
+        const candidate = quotaWaitMs(payload);
+        if (candidate !== undefined && (waitMs === undefined || candidate > waitMs)) waitMs = candidate;
+    }
+    const fallback = now + DEFAULT_QUOTA_PAUSE_MINUTES * 60_000;
+    const candidates = [epochReset, waitMs === undefined ? undefined : now + waitMs, fallback];
+    return candidates.find((at) => at !== undefined && at > now) ?? fallback;
+}
+
+function failureSummary(failing: OmpEvent[], stderr: string): string {
+    for (const event of failing) {
+        const message = event.message;
+        const error = isObject(event.error) ? event.error : undefined;
+        const text =
+            event.errorMessage ??
+            event.finalError ??
+            (typeof error?.message === 'string' ? error.message : undefined) ??
+            (isObject(message) && typeof message.errorMessage === 'string' ? message.errorMessage : undefined) ??
+            (typeof message === 'string' ? message : undefined);
+        if (text) return text.slice(0, 500);
+    }
+    return stderr.slice(-500);
+}
+
+/**
  * Reads one omp run into the outcome the dispatcher acts on.
  *
- * omp reports a quota wall three ways, all of which mean "pause and resume later"
- * rather than "fail": an error event, an assistant message carrying an error
- * status, and its own retry summary. A provider that gives no reset time falls back
- * to a fixed pause.
+ * The last assistant message decides the outcome. omp retries transient provider
+ * errors itself and leaves the failed attempt's events in the stream, so the first
+ * error is not the answer: a run that retried and recovered ends on a normal
+ * message and must count as done, not as a failure or a quota wall.
  */
 export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcome {
     const all = events(run.stdout);
     const sessionId = all.find((e) => e.type === 'session' && typeof e.id === 'string')?.id;
 
-    const quotaEvent = all.find(
-        (e) =>
-            isQuotaError(e) ||
-            (isObject(e.message) && isQuotaError(e.message)) ||
-            (isObject(e.error) && isQuotaError(e.error))
-    );
-    if (quotaEvent) {
-        let epochReset: number | undefined;
-        let waitMs: number | undefined;
-        for (const e of all) {
-            for (const payload of [
-                e,
-                isObject(e.message) ? e.message : undefined,
-                isObject(e.error) ? e.error : undefined,
-            ]) {
-                if (payload === undefined) continue;
-                epochReset ??= quotaEpochReset(payload);
-                const candidate = quotaWaitMs(payload);
-                if (candidate !== undefined && (waitMs === undefined || candidate > waitMs)) waitMs = candidate;
-            }
-        }
-        const resetAt = epochReset ?? (waitMs === undefined ? undefined : now + waitMs);
-        // A reset that already passed would resume the card straight away and spin.
-        const resumeAt = resetAt !== undefined && resetAt > now ? resetAt : now + DEFAULT_QUOTA_PAUSE_MINUTES * 60_000;
-        return {
-            kind: 'rate_limited',
-            resetsAt: new Date(resumeAt).toISOString(),
-            ...(sessionId ? { sessionId } : {}),
-        };
-    }
+    // The last assistant message decides the outcome. omp retries transient provider
+    // errors itself and leaves the failed attempt's events in the stream, so the
+    // first error is not the answer: a run that retried and recovered ends on a
+    // normal message and must count as done, not as a failure or a quota wall.
+    const assistantEvents = all.filter((e) => isObject(e.message) && e.message.role === 'assistant');
+    const lastAssistant = assistantEvents[assistantEvents.length - 1];
+    const lastMessage = isObject(lastAssistant?.message) ? lastAssistant.message : undefined;
+    // Everything after the last assistant message belongs to that same attempt.
+    const tail = all.slice(all.indexOf(lastAssistant) + 1);
+    const assistantFailed = lastMessage?.stopReason === 'error';
 
-    const failure = all.find((e) => e.type === 'error' || (isObject(e.message) && e.message.stopReason === 'error'));
-    if (run.exitCode !== 0 || failure) {
-        const message = failure?.message;
-        const error = isObject(failure?.error) ? failure.error : undefined;
-        const text =
-            failure?.errorMessage ??
-            failure?.finalError ??
-            (typeof error?.message === 'string' ? error.message : undefined) ??
-            (isObject(message) && typeof message.errorMessage === 'string' ? message.errorMessage : undefined) ??
-            (typeof message === 'string' ? message : undefined);
+    // The failing turn: the assistant events since the last one that ended normally.
+    const lastGood = assistantEvents.findLastIndex((e) => isObject(e.message) && e.message.stopReason !== 'error');
+    const failingTurn = assistantEvents.slice(lastGood + 1);
+
+    const errorEvent =
+        assistantEvents.length === 0 ? all.find((e) => e.type === 'error') : tail.find((e) => e.type === 'error');
+    const failure = assistantFailed ? lastAssistant : errorEvent;
+
+    if (failure) {
+        const attempt = assistantFailed ? [...failingTurn, lastMessage, ...tail] : [failure, ...tail];
+        if (attempt.some((payload) => isQuotaError(payload))) {
+            return {
+                kind: 'rate_limited',
+                resetsAt: new Date(quotaResumeAt(attempt, now)).toISOString(),
+                ...(sessionId ? { sessionId } : {}),
+            };
+        }
         return {
             kind: 'failed',
             exitCode: run.exitCode,
-            summary: text ? text.slice(0, 500) : run.stderr.slice(-500),
+            summary: failureSummary([...failingTurn, ...tail], run.stderr),
         };
     }
 
-    if (sessionId && all.some((e) => e.type === 'agent_end')) {
+    if (run.exitCode !== 0) {
+        return { kind: 'failed', exitCode: run.exitCode, summary: run.stderr.slice(-500) };
+    }
+
+    const end = all.findLast((e) => e.type === 'agent_end');
+    if (end?.isTerminal === false) {
+        return {
+            kind: 'failed',
+            exitCode: run.exitCode,
+            summary: 'the agent yielded with work still queued',
+        };
+    }
+    if (sessionId && end) {
         return { kind: 'done', sessionId };
     }
     return { kind: 'failed', exitCode: run.exitCode, summary: 'the run ended without a session id' };

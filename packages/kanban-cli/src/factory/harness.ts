@@ -21,7 +21,8 @@ export interface Harness {
 const HARNESSES: Record<string, Harness> = { claude: claudeHarness, omp: ompHarness };
 
 export function harnessFor(agent: string): Harness {
-    const harness = HARNESSES[agent];
+    // Object.hasOwn, not a plain lookup: "toString" must not resolve to a prototype member.
+    const harness = Object.hasOwn(HARNESSES, agent) ? HARNESSES[agent] : undefined;
     if (!harness) throw new Error(`Unknown agent '${agent}'`);
     return harness;
 }
