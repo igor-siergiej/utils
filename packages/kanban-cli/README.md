@@ -98,7 +98,11 @@ Lives at the root of each repo a task's `project` resolves to. Its `repoName` is
   "targetEnvironment": "staging",
   "retryPolicy": { "implement": 3, "e2e_local": 3, "ci": 3, "deploy": 2, "e2e_live": 1 },
   "github": { "defaultBranch": "main", "mergeMethod": "squash" },
-  "factory": { "defaultAgent": "omp", "defaultModel": "minimax-code/MiniMax-M3" }
+  "factory": {
+    "defaultAgent": "omp",
+    "defaultModel": "minimax-code/MiniMax-M3",
+    "rateLimitFallbackMinutes": 30
+  }
 }
 ```
 
@@ -198,12 +202,14 @@ id (`MiniMax-M3`). Two adapters exist:
 
 Both report the same three outcomes: `done` (with the session id), `rate_limited` (with
 the time the provider says the limit lifts) and `failed`. A provider that reports a quota
-wall but no reset time pauses the card for 30 minutes.
+wall but no reset time pauses the card for `factory.rateLimitFallbackMinutes` (default 30).
 
-- **Rate limit:** a `rate_limit_event` with `status: rejected` (claude), or an HTTP 429 /
-  `rate_limit_error` / `usage_limit_reached` / `insufficient_quota` error (omp), pauses the
-  card. It stays `in-progress` with `meta.paused_until` and `meta.session_id`. No new card
-  starts until the reset, and then the run resumes the same session.
+- **Rate limit:** a `rate_limit_event` with `status: rejected` (claude), an `api_error_status`
+  of 429, or an HTTP 429 / `rate_limit_error` / `usage_limit_reached` / `insufficient_quota`
+  error (omp), pauses the card. It stays `in-progress` with `meta.paused_until` and
+  `meta.session_id`. No new card starts until the reset, and then the run resumes the same
+  session. A provider that says "limited" without saying when lifts the limit pauses the card
+  for `factory.rateLimitFallbackMinutes` (default 30).
 - **Failure:** a crash, an error result, or a run that leaves the card `in-progress` is retried
   once. The second failure blocks the card with the summary. A card the dispatcher was running
   when it died counts as one failure on the next start.

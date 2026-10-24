@@ -15,23 +15,31 @@ export function defaultLogPath(): string {
 }
 
 /**
- * One setting from the repo's `factory` block. The config is read raw, not
- * validated: a repo may carry only a `repoName`, which is enough for the
- * dispatcher to work a card even though the e2e/CI gates do not apply.
+ * The repo's `factory` block. The config is read raw, not validated: a repo may
+ * carry only a `repoName`, which is enough for the dispatcher to work a card even
+ * though the e2e/CI gates do not apply.
  */
-function factorySetting(repo: string, key: 'defaultAgent' | 'defaultModel'): string | undefined {
+function readFactoryBlock(repo: string): Record<string, unknown> | undefined {
     const path = join(repo, CONFIG_FILENAME);
     if (!existsSync(path)) return undefined;
     try {
         const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
         if (!isRecord(raw)) return undefined;
         const factory = raw.factory;
-        if (!isRecord(factory)) return undefined;
-        const value = factory[key];
-        return typeof value === 'string' ? value : undefined;
+        return isRecord(factory) ? factory : undefined;
     } catch {
         return undefined;
     }
+}
+
+function factorySetting(repo: string, key: 'defaultAgent' | 'defaultModel'): string | undefined {
+    const value = readFactoryBlock(repo)?.[key];
+    return typeof value === 'string' ? value : undefined;
+}
+
+function factoryNumber(repo: string, key: 'rateLimitFallbackMinutes'): number | undefined {
+    const value = readFactoryBlock(repo)?.[key];
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function appendLog(path: string, entry: RunLogEntry): void {
@@ -45,6 +53,7 @@ export function realDeps(logPath = defaultLogPath()): LoopDeps {
         resolveRepo: (project) => resolveRepoPath(project),
         defaultAgent: (repo) => factorySetting(repo, 'defaultAgent'),
         defaultModel: (repo) => factorySetting(repo, 'defaultModel'),
+        defaultQuotaFallbackMinutes: (repo) => factoryNumber(repo, 'rateLimitFallbackMinutes'),
         harnessFor,
         ensureWorktree,
         prepareWorktree: (repo, path) => prepareWorktree(repo, path),

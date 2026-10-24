@@ -49,10 +49,12 @@ function deps(
     const notified: NotifyEvent[] = [];
     const prompts: string[] = [];
     const models: (string | undefined)[] = [];
+    const fallbacks: (number | undefined)[] = [];
     const harness: Harness = {
-        run: vi.fn(async ({ prompt, model }) => {
+        run: vi.fn(async ({ prompt, model, quotaFallbackMinutes }) => {
             prompts.push(prompt);
             models.push(model);
+            fallbacks.push(quotaFallbackMinutes);
             const n = Number(prompt.match(/#(\d+)/)?.[1]);
             onRun?.(n);
             return run(n);
@@ -63,6 +65,7 @@ function deps(
         resolveRepo: () => '/repo',
         defaultAgent: () => undefined,
         defaultModel: () => undefined,
+        defaultQuotaFallbackMinutes: () => undefined,
         harnessFor: () => harness,
         ensureWorktree: vi.fn(async (_r, p, n) => ({
             path: `/repo/.worktrees/${p}-${n}`,
@@ -78,7 +81,7 @@ function deps(
         },
         ...overrides,
     };
-    return { d, logs, prompts, models, harness, notified };
+    return { d, logs, prompts, models, fallbacks, harness, notified };
 }
 
 describe('tick', () => {
@@ -164,6 +167,18 @@ describe('tick', () => {
 
         expect(models).toEqual([undefined]);
         expect(logs[0].model).toBeUndefined();
+    });
+
+    it('gives the harness the repo fallback pause for a provider with no reset time', async () => {
+        const tasks = [card(5, 'todo', { go: true })];
+        const { board } = fakeBoard(tasks);
+        const { d, fallbacks } = deps(board, () => ({ kind: 'done', sessionId: 's' }), undefined, {
+            defaultQuotaFallbackMinutes: () => 7,
+        });
+
+        await tick(d, { recovered: true });
+
+        expect(fallbacks).toEqual([7]);
     });
 
     it('notifies once with the reason when the worker blocks the card', async () => {

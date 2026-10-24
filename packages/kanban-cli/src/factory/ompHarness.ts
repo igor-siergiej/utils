@@ -51,7 +51,7 @@ function events(stdout: string): OmpEvent[] {
  * When to resume a paused card: the provider's absolute reset if it is still
  * ahead, else the wait it asked for, else the default window.
  */
-function quotaResumeAt(payloads: unknown[], now: number): number {
+function quotaResumeAt(payloads: unknown[], now: number, fallbackMinutes: number): number {
     let epochReset: number | undefined;
     let waitMs: number | undefined;
     for (const payload of payloads) {
@@ -59,7 +59,7 @@ function quotaResumeAt(payloads: unknown[], now: number): number {
         const candidate = quotaWaitMs(payload);
         if (candidate !== undefined && (waitMs === undefined || candidate > waitMs)) waitMs = candidate;
     }
-    const fallback = now + DEFAULT_QUOTA_PAUSE_MINUTES * 60_000;
+    const fallback = now + fallbackMinutes * 60_000;
     const candidates = [epochReset, waitMs === undefined ? undefined : now + waitMs, fallback];
     return candidates.find((at) => at !== undefined && at > now) ?? fallback;
 }
@@ -87,7 +87,11 @@ function failureSummary(failing: OmpEvent[], stderr: string): string {
  * error is not the answer: a run that retried and recovered ends on a normal
  * message and must count as done, not as a failure or a quota wall.
  */
-export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcome {
+export function parseOmpRun(
+    run: CommandResult,
+    now = Date.now(),
+    fallbackMinutes = DEFAULT_QUOTA_PAUSE_MINUTES
+): HarnessOutcome {
     const all = events(run.stdout);
     const sessionId = all.find((e) => e.type === 'session' && typeof e.id === 'string')?.id;
 
@@ -115,7 +119,7 @@ export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcom
         if (attempt.some((payload) => isQuotaError(payload))) {
             return {
                 kind: 'rate_limited',
-                resetsAt: new Date(quotaResumeAt(attempt, now)).toISOString(),
+                resetsAt: new Date(quotaResumeAt(attempt, now, fallbackMinutes)).toISOString(),
                 ...(sessionId ? { sessionId } : {}),
             };
         }
@@ -145,14 +149,13 @@ export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcom
 }
 
 export const ompHarness: Harness = {
-    async run({ cwd, prompt, resume, model }) {
+    async run({ cwd, prompt, resume, model, quotaFallbackMinutes }) {
         const dir = mkdtempSync(join(tmpdir(), 'kanban-omp-'));
         const config = join(dir, 'omp.yml');
         writeFileSync(config, UNATTENDED_OVERLAY);
         try {
-            return parseOmpRun(
-                await runArgv(ompArgv({ prompt, resume, config, model }), { cwd, env: { CI: undefined } })
-            );
+            const result = await runArgv(ompArgv({ prompt, resume, config, model }), { cwd, env: { CI: undefined } });
+            return parseOmpRun(result, Date.now(), quotaFallbackMinutes);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

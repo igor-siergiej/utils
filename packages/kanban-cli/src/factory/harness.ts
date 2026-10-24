@@ -13,6 +13,8 @@ export interface HarnessRun {
     resume?: string;
     /** Model to run, in the harness's own syntax (omp: `provider/model`). */
     model?: string;
+    /** How long to pause a card when the provider gives no reset time. */
+    quotaFallbackMinutes?: number;
 }
 
 /** One headless agent run for one card. Adding a harness (pi, …) means one more of these. */

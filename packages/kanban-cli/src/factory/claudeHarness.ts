@@ -1,5 +1,6 @@
 import { type CommandResult, runArgv } from '../process/shell';
 import type { Harness, HarnessOutcome } from './harness';
+import { DEFAULT_QUOTA_PAUSE_MINUTES, isQuotaError, quotaWaitMs } from './quota';
 
 export function claudeArgv(opts: { prompt: string; resume?: string; model?: string }): string[] {
     const resume = opts.resume ? ['--resume', opts.resume] : [];
@@ -22,6 +23,8 @@ interface StreamEvent {
     session_id?: string;
     is_error?: boolean;
     result?: unknown;
+    /** HTTP status of a provider error, e.g. 429 from a third-party endpoint. */
+    api_error_status?: number;
     rate_limit_info?: {
         status?: string;
         resetsAt?: number;
@@ -50,21 +53,37 @@ function rejectedReset(e: StreamEvent): number | undefined {
     return resets.length > 0 ? Math.max(...resets) : undefined;
 }
 
-export function parseClaudeRun(run: CommandResult): HarnessOutcome {
+export function parseClaudeRun(
+    run: CommandResult,
+    fallbackMinutes = DEFAULT_QUOTA_PAUSE_MINUTES,
+    now = Date.now()
+): HarnessOutcome {
     const all = events(run.stdout);
     const sessionId = all.find((e) => typeof e.session_id === 'string')?.session_id;
-    const resets = all.map(rejectedReset).filter((r): r is number => r !== undefined);
+    const resets = all.map(rejectedReset).filter((r) => r !== undefined);
     if (resets.length > 0) {
         return { kind: 'rate_limited', resetsAt: new Date(Math.max(...resets) * 1000).toISOString(), sessionId };
     }
+
     const result = all.findLast((e) => e.type === 'result');
+    // A third-party Anthropic-compatible endpoint reports its quota as an API
+    // error, not as a rate_limit_event, so it would otherwise block the card.
+    if (result && (result.is_error || run.exitCode !== 0)) {
+        if (result.api_error_status === 429 || isQuotaError({ result: result.result })) {
+            const wait = quotaWaitMs({ result: result.result });
+            const resumeAt = wait === undefined ? now + fallbackMinutes * 60_000 : now + wait;
+            return { kind: 'rate_limited', resetsAt: new Date(resumeAt).toISOString(), sessionId };
+        }
+    }
+
     if (run.exitCode === 0 && result && !result.is_error && sessionId) return { kind: 'done', sessionId };
     const summary = result?.is_error && typeof result.result === 'string' ? result.result : run.stderr.slice(-500);
     return { kind: 'failed', exitCode: run.exitCode, summary };
 }
 
 export const claudeHarness: Harness = {
-    async run({ cwd, prompt, resume, model }) {
-        return parseClaudeRun(await runArgv(claudeArgv({ prompt, resume, model }), { cwd, env: { CI: undefined } }));
+    async run({ cwd, prompt, resume, model, quotaFallbackMinutes }) {
+        const result = await runArgv(claudeArgv({ prompt, resume, model }), { cwd, env: { CI: undefined } });
+        return parseClaudeRun(result, quotaFallbackMinutes);
     },
 };
