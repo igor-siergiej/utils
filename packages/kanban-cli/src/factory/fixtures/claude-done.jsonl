@@ -1,0 +1,4 @@
+{"type":"system","subtype":"init","session_id":"d13207d3-a65b-415a-8dde-ef688ea44505"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},"session_id":"d13207d3-a65b-415a-8dde-ef688ea44505"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1792818600,"rateLimitType":"five_hour","unifiedWindows":{"five_hour":{"utilization":0.27,"resetsAt":1792818600,"status":"allowed"},"seven_day":{"utilization":0.42,"resetsAt":1792854000,"status":"allowed"}}},"session_id":"d13207d3-a65b-415a-8dde-ef688ea44505"}
+{"type":"result","subtype":"success","is_error":false,"result":"hi","session_id":"d13207d3-a65b-415a-8dde-ef688ea44505"}

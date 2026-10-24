@@ -240,6 +240,24 @@ own reasoning/tool use.
 17. **[Claude]** Give a short summary of what shipped for this item, then go back to
     step 1 for the next Todo item.
 
+## Single-card mode (factory dispatcher)
+
+`kanban-cli dispatch` starts a run with a prompt naming one card ("single-card mode for <P>
+#<N>") in a git worktree it created for that card. In this mode:
+
+- Work only card `<N>`. The card is already `in-progress`, so skip steps 0, 1 and 3. The
+  dispatcher owns the quota, and it pauses and resumes the run around rate limits.
+- `<repo>` for steps 2 and 4–15 is the current directory (the worktree), not the path
+  `resolve-repo` returns. Never `git checkout`, stash or commit in the main checkout.
+- The branch already exists: skip creating one in step 5 and step 6's branch write.
+- Write `meta.step` as you reach each gate (`implementing`, `e2e`, `pr`, `ci`, `merging`,
+  `deploying`, `smoke`), e.g. `jott task set <N> --meta step='"ci"' --json`, then `jott sync --json`.
+  It is what Igor sees on his phone.
+- If the prompt carries "Igor answered your block", that answer resolves the earlier
+  `blocked_reason`. Continue from the branch's current state.
+- End the run after step 16 (or after blocking). The card must finish `done` or `blocked`:
+  a run that leaves it `in-progress` counts as a failed attempt.
+
 ## Why retries live in `meta.retries`, not your memory
 
 `meta.retries` on each task persists across Claude Code sessions/compaction — the whole
