@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { isRecord } from '../typeGuards';
 import { RepoConfigError } from './errors';
 import { validateRepoConfig } from './loader';
 import { CONFIG_FILENAME } from './types';
@@ -37,10 +38,6 @@ const REQUIRED_FIELDS = [
 ];
 
 const PLAYWRIGHT_CONFIGS = ['playwright.config.ts', 'playwright.config.js', 'playwright.config.mjs'];
-
-function isRecord(value: unknown): value is Json {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function readJson(path: string): Json | undefined {
     if (!existsSync(path)) return undefined;

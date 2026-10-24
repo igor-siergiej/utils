@@ -60,4 +60,10 @@ describe('claudeArgv', () => {
         ]);
         expect(claudeArgv({ prompt: 'go', resume: 's1' })).toContain('--resume');
     });
+
+    it('runs the model it is given', () => {
+        const argv = claudeArgv({ prompt: 'go', model: 'MiniMax-M3' });
+
+        expect(argv[argv.indexOf('--model') + 1]).toBe('MiniMax-M3');
+    });
 });

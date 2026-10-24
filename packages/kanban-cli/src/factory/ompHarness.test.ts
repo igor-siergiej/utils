@@ -133,6 +133,12 @@ describe('ompArgv', () => {
         expect(argv[argv.indexOf('--config') + 1]).toBe('/tmp/omp.yml');
     });
 
+    it('runs the model it is given', () => {
+        const argv = ompArgv({ prompt: 'go', model: 'minimax-code/MiniMax-M3' });
+
+        expect(argv[argv.indexOf('--model') + 1]).toBe('minimax-code/MiniMax-M3');
+    });
+
     it('turns the ask tool off so an unattended worker cannot wait for a human', () => {
         expect(UNATTENDED_OVERLAY).toContain('ask:');
         expect(UNATTENDED_OVERLAY).toContain('enabled: false');

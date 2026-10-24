@@ -91,6 +91,20 @@ describe('loadRepoConfig', () => {
         expect(() => loadRepoConfig(repoDir)).toThrow(/targetEnvironment/);
     });
 
+    it('keeps the factory block the dispatcher reads', () => {
+        writeConfig({
+            ...VALID_CONFIG,
+            factory: { defaultAgent: 'omp', defaultModel: 'minimax-code/MiniMax-M3' },
+        });
+
+        const result = loadRepoConfig(repoDir);
+
+        expect(result).toMatchObject({
+            configFound: true,
+            config: { factory: { defaultAgent: 'omp', defaultModel: 'minimax-code/MiniMax-M3' } },
+        });
+    });
+
     it('throws RepoConfigError on invalid JSON', () => {
         writeConfig('{ not valid json');
         expect(() => loadRepoConfig(repoDir)).toThrow(RepoConfigError);

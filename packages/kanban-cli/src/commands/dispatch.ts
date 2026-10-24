@@ -7,19 +7,28 @@ import { type LoopDeps, type LoopState, type RunLogEntry, type TickResult, tick 
 import { notify } from '../factory/notify';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { resolveRepoPath } from '../repoRegistry/resolveRepo';
+import { isRecord } from '../typeGuards';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
 
 export function defaultLogPath(): string {
     return process.env.KANBAN_FACTORY_LOG ?? join(homedir(), '.local', 'state', 'kanban-cli', 'factory.log');
 }
 
-function defaultAgent(repo: string): string | undefined {
+/**
+ * One setting from the repo's `factory` block. The config is read raw, not
+ * validated: a repo may carry only a `repoName`, which is enough for the
+ * dispatcher to work a card even though the e2e/CI gates do not apply.
+ */
+function factorySetting(repo: string, key: 'defaultAgent' | 'defaultModel'): string | undefined {
     const path = join(repo, CONFIG_FILENAME);
     if (!existsSync(path)) return undefined;
     try {
-        const agent = (JSON.parse(readFileSync(path, 'utf8')) as { factory?: { defaultAgent?: unknown } }).factory
-            ?.defaultAgent;
-        return typeof agent === 'string' ? agent : undefined;
+        const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
+        if (!isRecord(raw)) return undefined;
+        const factory = raw.factory;
+        if (!isRecord(factory)) return undefined;
+        const value = factory[key];
+        return typeof value === 'string' ? value : undefined;
     } catch {
         return undefined;
     }
@@ -34,7 +43,8 @@ export function realDeps(logPath = defaultLogPath()): LoopDeps {
     return {
         board: jottBoard,
         resolveRepo: (project) => resolveRepoPath(project),
-        defaultAgent,
+        defaultAgent: (repo) => factorySetting(repo, 'defaultAgent'),
+        defaultModel: (repo) => factorySetting(repo, 'defaultModel'),
         harnessFor,
         ensureWorktree,
         prepareWorktree: (repo, path) => prepareWorktree(repo, path),

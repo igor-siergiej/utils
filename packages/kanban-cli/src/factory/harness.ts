@@ -11,6 +11,8 @@ export interface HarnessRun {
     prompt: string;
     /** Session to continue, from an earlier rate-limited run of the same card. */
     resume?: string;
+    /** Model to run, in the harness's own syntax (omp: `provider/model`). */
+    model?: string;
 }
 
 /** One headless agent run for one card. Adding a harness (pi, …) means one more of these. */

@@ -1,16 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isRecord } from '../typeGuards';
 import { RepoConfigError } from './errors';
-import type {
-    CiConfig,
-    DeployConfig,
-    DevConfig,
-    E2eConfig,
-    EnvironmentConfig,
-    GithubConfig,
-    RepoConfig,
+import {
+    type CiConfig,
+    CONFIG_FILENAME,
+    DEFAULT_RETRY_POLICY,
+    type DeployConfig,
+    type DevConfig,
+    type E2eConfig,
+    type EnvironmentConfig,
+    type FactoryConfig,
+    type GithubConfig,
+    RETRY_GATES,
+    type RepoConfig,
 } from './types';
-import { CONFIG_FILENAME, DEFAULT_RETRY_POLICY, RETRY_GATES } from './types';
 
 export type LoadRepoConfigResult = { configFound: false } | { configFound: true; config: RepoConfig };
 
@@ -29,10 +33,6 @@ export function loadRepoConfig(repoPath: string): LoadRepoConfigResult {
     }
 
     return { configFound: true, config: validateRepoConfig(raw) };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function requireObject(value: unknown, field: string): Record<string, unknown> {
@@ -156,6 +156,20 @@ function validateGithub(raw: unknown): GithubConfig {
     };
 }
 
+function validateFactory(raw: unknown): FactoryConfig | undefined {
+    if (raw === undefined) return undefined;
+
+    const obj = requireObject(raw, 'factory');
+    const defaultAgent = optionalString(obj.defaultAgent, 'factory.defaultAgent');
+    const defaultModel = optionalString(obj.defaultModel, 'factory.defaultModel');
+    if (defaultAgent === undefined && defaultModel === undefined) return undefined;
+
+    return {
+        ...(defaultAgent !== undefined ? { defaultAgent } : {}),
+        ...(defaultModel !== undefined ? { defaultModel } : {}),
+    };
+}
+
 export function validateRepoConfig(raw: unknown): RepoConfig {
     const obj = requireObject(raw, '<root>');
     const targetEnvironment = requireString(obj.targetEnvironment, 'targetEnvironment');
@@ -175,5 +189,6 @@ export function validateRepoConfig(raw: unknown): RepoConfig {
         targetEnvironment,
         retryPolicy: validateRetryPolicy(obj.retryPolicy),
         github: validateGithub(obj.github),
+        factory: validateFactory(obj.factory),
     };
 }

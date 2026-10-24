@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type CommandResult, runArgv } from '../process/shell';
+import { isRecord } from '../typeGuards';
 import type { Harness, HarnessOutcome } from './harness';
 import { DEFAULT_QUOTA_PAUSE_MINUTES, isQuotaError, quotaEpochReset, quotaWaitMs } from './quota';
 
@@ -24,22 +25,19 @@ interface OmpEvent {
     isTerminal?: boolean;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 /** Headless omp run: JSON events on stdout, every tool call auto-approved. */
-export function ompArgv(opts: { prompt: string; resume?: string; config?: string }): string[] {
+export function ompArgv(opts: { prompt: string; resume?: string; config?: string; model?: string }): string[] {
     const resume = opts.resume ? ['--resume', opts.resume] : [];
     const config = opts.config ? ['--config', opts.config] : [];
-    return ['omp', '-p', opts.prompt, '--mode', 'json', '--auto-approve', ...config, ...resume];
+    const model = opts.model ? ['--model', opts.model] : [];
+    return ['omp', '-p', opts.prompt, '--mode', 'json', '--auto-approve', ...model, ...config, ...resume];
 }
 
 function events(stdout: string): OmpEvent[] {
     return stdout.split('\n').flatMap((line) => {
         try {
             const parsed: unknown = JSON.parse(line);
-            if (!isObject(parsed)) return [];
+            if (!isRecord(parsed)) return [];
             // omp repeats the whole transcript in agent_end; nothing reads it.
             if (parsed.type === 'agent_end') delete parsed.messages;
             return [parsed as OmpEvent];
@@ -69,12 +67,12 @@ function quotaResumeAt(payloads: unknown[], now: number): number {
 function failureSummary(failing: OmpEvent[], stderr: string): string {
     for (const event of failing) {
         const message = event.message;
-        const error = isObject(event.error) ? event.error : undefined;
+        const error = isRecord(event.error) ? event.error : undefined;
         const text =
             event.errorMessage ??
             event.finalError ??
             (typeof error?.message === 'string' ? error.message : undefined) ??
-            (isObject(message) && typeof message.errorMessage === 'string' ? message.errorMessage : undefined) ??
+            (isRecord(message) && typeof message.errorMessage === 'string' ? message.errorMessage : undefined) ??
             (typeof message === 'string' ? message : undefined);
         if (text) return text.slice(0, 500);
     }
@@ -97,15 +95,15 @@ export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcom
     // errors itself and leaves the failed attempt's events in the stream, so the
     // first error is not the answer: a run that retried and recovered ends on a
     // normal message and must count as done, not as a failure or a quota wall.
-    const assistantEvents = all.filter((e) => isObject(e.message) && e.message.role === 'assistant');
+    const assistantEvents = all.filter((e) => isRecord(e.message) && e.message.role === 'assistant');
     const lastAssistant = assistantEvents[assistantEvents.length - 1];
-    const lastMessage = isObject(lastAssistant?.message) ? lastAssistant.message : undefined;
+    const lastMessage = isRecord(lastAssistant?.message) ? lastAssistant.message : undefined;
     // Everything after the last assistant message belongs to that same attempt.
     const tail = all.slice(all.indexOf(lastAssistant) + 1);
     const assistantFailed = lastMessage?.stopReason === 'error';
 
     // The failing turn: the assistant events since the last one that ended normally.
-    const lastGood = assistantEvents.findLastIndex((e) => isObject(e.message) && e.message.stopReason !== 'error');
+    const lastGood = assistantEvents.findLastIndex((e) => isRecord(e.message) && e.message.stopReason !== 'error');
     const failingTurn = assistantEvents.slice(lastGood + 1);
 
     const errorEvent =
@@ -147,12 +145,14 @@ export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcom
 }
 
 export const ompHarness: Harness = {
-    async run({ cwd, prompt, resume }) {
+    async run({ cwd, prompt, resume, model }) {
         const dir = mkdtempSync(join(tmpdir(), 'kanban-omp-'));
         const config = join(dir, 'omp.yml');
         writeFileSync(config, UNATTENDED_OVERLAY);
         try {
-            return parseOmpRun(await runArgv(ompArgv({ prompt, resume, config }), { cwd, env: { CI: undefined } }));
+            return parseOmpRun(
+                await runArgv(ompArgv({ prompt, resume, config, model }), { cwd, env: { CI: undefined } })
+            );
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

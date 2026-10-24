@@ -13,6 +13,8 @@ const RESET_SLACK_MS = 30_000;
 export interface RunLogEntry {
     card: string;
     agent: string;
+    /** The model the harness ran, when one was chosen. */
+    model?: string;
     start: string;
     end: string;
     outcome: HarnessOutcome['kind'] | 'blocked' | 'error';
@@ -24,6 +26,8 @@ export interface LoopDeps {
     resolveRepo(project: string): string;
     /** `factory.defaultAgent` from the repo's .kanban-cli.json, when set. */
     defaultAgent(repo: string): string | undefined;
+    /** `factory.defaultModel` from the repo's .kanban-cli.json, when set. */
+    defaultModel(repo: string): string | undefined;
     harnessFor(agent: string): Harness;
     ensureWorktree(
         repo: string,
@@ -153,8 +157,9 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     const start = deps.now();
     const project = card.project ?? '';
     let agent = typeof card.meta.agent === 'string' ? card.meta.agent : 'claude';
+    let model: string | undefined;
     const entry = (outcome: RunLogEntry['outcome'], exitCode?: number) =>
-        deps.log({ card: label(card), agent, start: iso(start), end: iso(deps.now()), outcome, exitCode });
+        deps.log({ card: label(card), agent, model, start: iso(start), end: iso(deps.now()), outcome, exitCode });
 
     let repo: string;
     let worktree: { path: string; branch: string };
@@ -162,6 +167,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     try {
         repo = deps.resolveRepo(project);
         if (typeof card.meta.agent !== 'string') agent = deps.defaultAgent(repo) ?? 'claude';
+        model = typeof card.meta.model === 'string' ? card.meta.model : deps.defaultModel(repo);
         harness = deps.harnessFor(agent);
         const wt = await deps.ensureWorktree(repo, project, card.number);
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
@@ -188,7 +194,7 @@ async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
     await deps.board.sync();
     await writeStatus(deps, { state: 'running', card: label(card) });
 
-    const outcome = await harness.run({ cwd: worktree.path, prompt, resume });
+    const outcome = await harness.run({ cwd: worktree.path, prompt, resume, model });
     const after = await deps.board.show(card.number);
 
     if (outcome.kind === 'rate_limited') {
