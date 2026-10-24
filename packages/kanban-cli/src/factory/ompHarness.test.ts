@@ -38,6 +38,19 @@ describe('parseOmpRun', () => {
         });
     });
 
+    it('does not resume straight away when the provider reset has already passed', () => {
+        const stdout = `${JSON.stringify({ type: 'session', id: 's1' })}\n${JSON.stringify({
+            type: 'error',
+            error: { type: 'rate_limit_error', message: 'quota exceeded', resets_at: (NOW - 60_000) / 1000 },
+        })}\n`;
+
+        expect(parseOmpRun({ exitCode: 1, stdout, stderr: '' }, NOW)).toEqual({
+            kind: 'rate_limited',
+            resetsAt: new Date(NOW + 30 * 60_000).toISOString(),
+            sessionId: 's1',
+        });
+    });
+
     it('reads a non-zero exit with no limit as failed, keeping the tail of stderr', () => {
         const stderr = `${'x'.repeat(600)}boom`;
 

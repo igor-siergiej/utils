@@ -80,9 +80,11 @@ export function parseOmpRun(run: CommandResult, now = Date.now()): HarnessOutcom
             }
         }
         const resetAt = epochReset ?? (waitMs === undefined ? undefined : now + waitMs);
+        // A reset that already passed would resume the card straight away and spin.
+        const resumeAt = resetAt !== undefined && resetAt > now ? resetAt : now + DEFAULT_QUOTA_PAUSE_MINUTES * 60_000;
         return {
             kind: 'rate_limited',
-            resetsAt: new Date(resetAt ?? now + DEFAULT_QUOTA_PAUSE_MINUTES * 60_000).toISOString(),
+            resetsAt: new Date(resumeAt).toISOString(),
             ...(sessionId ? { sessionId } : {}),
         };
     }
