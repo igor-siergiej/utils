@@ -1,0 +1,6 @@
+{"type":"session","version":3,"id":"01a16f39-a3c1-7484-8ea2-ebc8fb1d1e7f","timestamp":"2026-10-24T18:43:30.881Z","cwd":"/tmp/omp-harness-test"}
+{"type":"agent_start"}
+{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"Reply with exactly: ACK"}],"attribution":"user","timestamp":1792867411531}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"ACK"}],"api":"anthropic-messages","provider":"minimax-code","model":"MiniMax-M3","usage":{"input":8842,"output":3,"cacheRead":182,"cacheWrite":0,"totalTokens":9027},"stopReason":"stop","timestamp":1792867411531,"completedAt":1792867411622}}
+{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"ACK"}],"stopReason":"stop","completedAt":1792867411622},"toolResults":[]}
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"Reply with exactly: ACK"}]},{"role":"assistant","content":[{"type":"text","text":"ACK"}]}],"isTerminal":true,"yielded":true}

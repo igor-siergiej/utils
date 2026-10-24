@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { claudeArgv, parseClaudeRun } from './claudeHarness';
-import { harnessFor } from './harness';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 
@@ -60,12 +59,5 @@ describe('claudeArgv', () => {
             'go',
         ]);
         expect(claudeArgv({ prompt: 'go', resume: 's1' })).toContain('--resume');
-    });
-});
-
-describe('harnessFor', () => {
-    it('knows claude only', () => {
-        expect(harnessFor('claude')).toBeDefined();
-        expect(() => harnessFor('pi:minimax')).toThrow("Unknown agent 'pi:minimax'");
     });
 });

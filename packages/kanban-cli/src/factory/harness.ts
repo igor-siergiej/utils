@@ -1,4 +1,5 @@
 import { claudeHarness } from './claudeHarness';
+import { ompHarness } from './ompHarness';
 
 export type HarnessOutcome =
     | { kind: 'done'; sessionId: string }
@@ -17,10 +18,11 @@ export interface Harness {
     run(opts: HarnessRun): Promise<HarnessOutcome>;
 }
 
-const HARNESSES: Record<string, Harness> = { claude: claudeHarness };
+const HARNESSES: Record<string, Harness> = { claude: claudeHarness, omp: ompHarness };
 
 export function harnessFor(agent: string): Harness {
-    const harness = HARNESSES[agent];
+    // Object.hasOwn, not a plain lookup: "toString" must not resolve to a prototype member.
+    const harness = Object.hasOwn(HARNESSES, agent) ? HARNESSES[agent] : undefined;
     if (!harness) throw new Error(`Unknown agent '${agent}'`);
     return harness;
 }

@@ -181,13 +181,23 @@ never touched. Every tick it syncs jott and picks, in order:
 
 Inbox, Backlog and Blocked cards never run. A worker is a headless harness run in the
 worktree, using the kanban-worker skill's single-card mode. The harness comes from
-`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude` (the only
-adapter so far). Claude runs as `claude -p --dangerously-skip-permissions --output-format
-stream-json`, so it has your full user rights on the host.
+`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude`. Two
+adapters exist:
 
-- **Rate limit:** a `rate_limit_event` with `status: rejected` pauses the card. It stays
-  `in-progress` with `meta.paused_until` and `meta.session_id`. No new card starts until the
-  reset, and then the run resumes the same session.
+- `claude` runs as `claude -p --dangerously-skip-permissions --output-format stream-json`,
+  so it has your full user rights on the host.
+- `omp` runs as `omp -p <prompt> --mode json --auto-approve`, with an overlay that turns
+  omp's `ask` tool off — an unattended worker has to decide, not wait for a human. It
+  resumes a paused run with `omp --resume <session-id>`.
+
+Both report the same three outcomes: `done` (with the session id), `rate_limited` (with
+the time the provider says the limit lifts) and `failed`. A provider that reports a quota
+wall but no reset time pauses the card for 30 minutes.
+
+- **Rate limit:** a `rate_limit_event` with `status: rejected` (claude), or an HTTP 429 /
+  `rate_limit_error` / `usage_limit_reached` / `insufficient_quota` error (omp), pauses the
+  card. It stays `in-progress` with `meta.paused_until` and `meta.session_id`. No new card
+  starts until the reset, and then the run resumes the same session.
 - **Failure:** a crash, an error result, or a run that leaves the card `in-progress` is retried
   once. The second failure blocks the card with the summary. A card the dispatcher was running
   when it died counts as one failure on the next start.
