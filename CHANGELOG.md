@@ -1,3 +1,10 @@
+# [5.4.0](https://github.com/igor-siergiej/utils/compare/v5.3.0...v5.4.0) (2026-10-24)
+
+
+### Features
+
+* **kanban-cli:** add an omp harness adapter for the factory ([#32](https://github.com/igor-siergiej/utils/issues/32)) ([bf46b2e](https://github.com/igor-siergiej/utils/commit/bf46b2e9c67f7ab7c056eaa847f6c32e58171a11))
+
 # [5.3.0](https://github.com/igor-siergiej/utils/compare/v5.2.0...v5.3.0) (2026-10-24)
 
 
