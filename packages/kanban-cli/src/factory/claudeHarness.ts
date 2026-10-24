@@ -1,12 +1,14 @@
 import { type CommandResult, runArgv } from '../process/shell';
 import type { Harness, HarnessOutcome } from './harness';
 
-export function claudeArgv(opts: { prompt: string; resume?: string }): string[] {
+export function claudeArgv(opts: { prompt: string; resume?: string; model?: string }): string[] {
     const resume = opts.resume ? ['--resume', opts.resume] : [];
+    const model = opts.model ? ['--model', opts.model] : [];
     return [
         'claude',
         '-p',
         '--dangerously-skip-permissions',
+        ...model,
         ...resume,
         '--output-format',
         'stream-json',
@@ -62,7 +64,7 @@ export function parseClaudeRun(run: CommandResult): HarnessOutcome {
 }
 
 export const claudeHarness: Harness = {
-    async run({ cwd, prompt, resume }) {
-        return parseClaudeRun(await runArgv(claudeArgv({ prompt, resume }), { cwd, env: { CI: undefined } }));
+    async run({ cwd, prompt, resume, model }) {
+        return parseClaudeRun(await runArgv(claudeArgv({ prompt, resume, model }), { cwd, env: { CI: undefined } }));
     },
 };

@@ -60,6 +60,8 @@ unset.
 | `retries` | object `{implement, e2e_local, ci, deploy, e2e_live}`, numbers | worker retry gates; zeroed on leaving Blocked |
 | `blocked_reason` | string | worker / triage when moving to Blocked; removed on leaving Blocked |
 | `completed_at` | string, ISO 8601 | worker step 16 |
+| `agent` | string | harness the factory runs the card with (`claude` or `omp`) |
+| `model` | string | model that harness runs, in the harness's own syntax |
 
 ## Per-repo config — `.kanban-cli.json`
 
@@ -95,7 +97,8 @@ Lives at the root of each repo a task's `project` resolves to. Its `repoName` is
   },
   "targetEnvironment": "staging",
   "retryPolicy": { "implement": 3, "e2e_local": 3, "ci": 3, "deploy": 2, "e2e_live": 1 },
-  "github": { "defaultBranch": "main", "mergeMethod": "squash" }
+  "github": { "defaultBranch": "main", "mergeMethod": "squash" },
+  "factory": { "defaultAgent": "omp", "defaultModel": "minimax-code/MiniMax-M3" }
 }
 ```
 
@@ -181,8 +184,11 @@ never touched. Every tick it syncs jott and picks, in order:
 
 Inbox, Backlog and Blocked cards never run. A worker is a headless harness run in the
 worktree, using the kanban-worker skill's single-card mode. The harness comes from
-`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude`. Two
-adapters exist:
+`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude`. The
+model comes from `meta.model`, else `factory.defaultModel` in `.kanban-cli.json`, else
+whatever the harness is configured with. The model id is the harness's own syntax:
+omp takes `provider/model` (`minimax-code/MiniMax-M3`), Claude Code takes a bare model
+id (`MiniMax-M3`). Two adapters exist:
 
 - `claude` runs as `claude -p --dangerously-skip-permissions --output-format stream-json`,
   so it has your full user rights on the host.
@@ -205,7 +211,7 @@ wall but no reset time pauses the card for 30 minutes.
   `blocked_reason`) in its prompt. Both are cleared when the run starts, along with `go`.
 - **Status:** the note `factory/status` holds `state: idle|running <project>#<n>|paused`,
   `paused_until`, and `updated`.
-- **Log:** one JSON line per run (`card, agent, start, end, outcome, exitCode`) in
+- **Log:** one JSON line per run (`card, agent, model, start, end, outcome, exitCode`) in
   `~/.local/state/kanban-cli/factory.log` (`KANBAN_FACTORY_LOG`). Harness output is never logged.
 - **Phone push:** when a card ends `blocked` or `done`, it POSTs to ntfy at `NTFY_URL`
   (default `http://100.79.92.93:8090/jott-factory`, tailnet only). Title `<project> #<n> blocked|done`,

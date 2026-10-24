@@ -41,6 +41,13 @@ export interface GithubConfig {
     mergeMethod: 'squash' | 'merge' | 'rebase';
 }
 
+export interface FactoryConfig {
+    /** Harness the dispatcher runs when a card names none. */
+    defaultAgent?: string;
+    /** Model that harness runs when a card names none. */
+    defaultModel?: string;
+}
+
 export interface RepoConfig {
     repoName: string;
     dev: DevConfig;
@@ -51,6 +58,8 @@ export interface RepoConfig {
     targetEnvironment: string;
     retryPolicy: RetryPolicy;
     github: GithubConfig;
+    /** Factory dispatcher settings; the worker loop does not need them. */
+    factory?: FactoryConfig;
 }
 
 export const CONFIG_FILENAME = '.kanban-cli.json';

@@ -39,13 +39,20 @@ const card = (number: number, status: string, meta: Record<string, unknown> = {}
     position: number,
 });
 
-function deps(board: Board, run: (n: number) => HarnessOutcome, onRun?: (n: number) => void) {
+function deps(
+    board: Board,
+    run: (n: number) => HarnessOutcome,
+    onRun?: (n: number) => void,
+    overrides: Partial<LoopDeps> = {}
+) {
     const logs: RunLogEntry[] = [];
     const notified: NotifyEvent[] = [];
     const prompts: string[] = [];
+    const models: (string | undefined)[] = [];
     const harness: Harness = {
-        run: vi.fn(async ({ prompt }) => {
+        run: vi.fn(async ({ prompt, model }) => {
             prompts.push(prompt);
+            models.push(model);
             const n = Number(prompt.match(/#(\d+)/)?.[1]);
             onRun?.(n);
             return run(n);
@@ -55,6 +62,7 @@ function deps(board: Board, run: (n: number) => HarnessOutcome, onRun?: (n: numb
         board,
         resolveRepo: () => '/repo',
         defaultAgent: () => undefined,
+        defaultModel: () => undefined,
         harnessFor: () => harness,
         ensureWorktree: vi.fn(async (_r, p, n) => ({
             path: `/repo/.worktrees/${p}-${n}`,
@@ -68,8 +76,9 @@ function deps(board: Board, run: (n: number) => HarnessOutcome, onRun?: (n: numb
         notify: async (e) => {
             notified.push(e);
         },
+        ...overrides,
     };
-    return { d, logs, prompts, harness, notified };
+    return { d, logs, prompts, models, harness, notified };
 }
 
 describe('tick', () => {
@@ -121,6 +130,40 @@ describe('tick', () => {
         expect(tasks[0].meta.factory_run).toBeUndefined();
         expect(logs[0]).toMatchObject({ card: 'tandra#5', agent: 'claude', outcome: 'done' });
         expect(notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'card 5', reason: undefined }]);
+    });
+
+    it('runs the model the card names', async () => {
+        const tasks = [card(5, 'todo', { go: true, model: 'minimax-code/MiniMax-M3' })];
+        const { board } = fakeBoard(tasks);
+        const { d, models, logs } = deps(board, () => ({ kind: 'done', sessionId: 's' }));
+
+        await tick(d, { recovered: true });
+
+        expect(models).toEqual(['minimax-code/MiniMax-M3']);
+        expect(logs[0]).toMatchObject({ card: 'tandra#5', model: 'minimax-code/MiniMax-M3' });
+    });
+
+    it('falls back to the repo default model when the card names none', async () => {
+        const tasks = [card(5, 'todo', { go: true })];
+        const { board } = fakeBoard(tasks);
+        const { d, models } = deps(board, () => ({ kind: 'done', sessionId: 's' }), undefined, {
+            defaultModel: () => 'repo/model',
+        });
+
+        await tick(d, { recovered: true });
+
+        expect(models).toEqual(['repo/model']);
+    });
+
+    it('leaves the model unset when neither the card nor the repo names one', async () => {
+        const tasks = [card(5, 'todo', { go: true })];
+        const { board } = fakeBoard(tasks);
+        const { d, models, logs } = deps(board, () => ({ kind: 'done', sessionId: 's' }));
+
+        await tick(d, { recovered: true });
+
+        expect(models).toEqual([undefined]);
+        expect(logs[0].model).toBeUndefined();
     });
 
     it('notifies once with the reason when the worker blocks the card', async () => {
