@@ -1,3 +1,20 @@
+# [6.0.0](https://github.com/igor-siergiej/utils/compare/v5.5.1...v6.0.0) (2026-10-25)
+
+
+* feat(kanban-cli)!: dispatch from the jott server factory API ([#36](https://github.com/igor-siergiej/utils/issues/36)) ([ea8760e](https://github.com/igor-siergiej/utils/commit/ea8760e3e73e61d960701835e3bf20e925d58957)), closes [#N](https://github.com/igor-siergiej/utils/issues/N)
+
+
+### BREAKING CHANGES
+
+* `factory.defaultAgent` and `factory.defaultModel` are gone
+from `.kanban-cli.json` (only `rateLimitFallbackMinutes` remains), and the
+dispatcher no longer reads `meta.go`, `meta.agent`, `meta.model`,
+`meta.paused_until`, `meta.session_id`, `meta.reply` or the
+`factory/settings` / `factory/status` notes. `dispatch` requires
+JOTT_URL and JOTT_DISPATCHER_TOKEN and exits 1 without them.
+
+Co-authored-by: igor-siergiej <igor-siergiej@users.noreply.github.com>
+
 ## [5.5.1](https://github.com/igor-siergiej/utils/compare/v5.5.0...v5.5.1) (2026-10-24)
 
 
