@@ -1,45 +1,39 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { type ApiConfig, configFromEnv, dispatcherApi } from '../factory/api';
 import { jottBoard } from '../factory/board';
 import { harnessFor } from '../factory/harness';
-import { type LoopDeps, type LoopState, type RunLogEntry, type TickResult, tick } from '../factory/loop';
+import { type CycleResult, cycle, HEARTBEAT_MS, type LoopDeps, type RunLogEntry } from '../factory/loop';
 import { notify } from '../factory/notify';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { resolveRepoPath } from '../repoRegistry/resolveRepo';
 import { isRecord } from '../typeGuards';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
 
+const CLAIM_BACKOFF_FIRST_MS = 10_000;
+const CLAIM_BACKOFF_MAX_MS = 60_000;
+
 export function defaultLogPath(): string {
     return process.env.KANBAN_FACTORY_LOG ?? join(homedir(), '.local', 'state', 'kanban-cli', 'factory.log');
 }
 
 /**
- * The repo's `factory` block. The config is read raw, not validated: a repo may
- * carry only a `repoName`, which is enough for the dispatcher to work a card even
- * though the e2e/CI gates do not apply.
+ * `factory.rateLimitFallbackMinutes` from the repo's .kanban-cli.json. The config is
+ * read raw, not validated: a repo may carry only a `repoName`, which is enough for the
+ * dispatcher to work a card even though the e2e/CI gates do not apply.
  */
-function readFactoryBlock(repo: string): Record<string, unknown> | undefined {
+function quotaFallbackMinutes(repo: string): number | undefined {
     const path = join(repo, CONFIG_FILENAME);
     if (!existsSync(path)) return undefined;
     try {
         const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
-        if (!isRecord(raw)) return undefined;
-        const factory = raw.factory;
-        return isRecord(factory) ? factory : undefined;
+        const value = isRecord(raw) && isRecord(raw.factory) ? raw.factory.rateLimitFallbackMinutes : undefined;
+        return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
     } catch {
         return undefined;
     }
-}
-
-function factorySetting(repo: string, key: 'defaultAgent' | 'defaultModel'): string | undefined {
-    const value = readFactoryBlock(repo)?.[key];
-    return typeof value === 'string' ? value : undefined;
-}
-
-function factoryNumber(repo: string, key: 'rateLimitFallbackMinutes'): number | undefined {
-    const value = readFactoryBlock(repo)?.[key];
-    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function appendLog(path: string, entry: RunLogEntry): void {
@@ -47,37 +41,43 @@ function appendLog(path: string, entry: RunLogEntry): void {
     appendFileSync(path, `${JSON.stringify(entry)}\n`);
 }
 
-export function realDeps(logPath = defaultLogPath()): LoopDeps {
+export function realDeps(config: ApiConfig = configFromEnv(), logPath = defaultLogPath()): LoopDeps {
     return {
+        api: dispatcherApi(config),
         board: jottBoard,
         resolveRepo: (project) => resolveRepoPath(project),
-        defaultAgent: (repo) => factorySetting(repo, 'defaultAgent'),
-        defaultModel: (repo) => factorySetting(repo, 'defaultModel'),
-        defaultQuotaFallbackMinutes: (repo) => factoryNumber(repo, 'rateLimitFallbackMinutes'),
+        quotaFallbackMinutes,
         harnessFor,
         ensureWorktree,
         prepareWorktree: (repo, path) => prepareWorktree(repo, path),
         removeWorktree,
         now: Date.now,
         log: (entry) => appendLog(logPath, entry),
+        warn: (message) => process.stderr.write(`${message}\n`),
         notify: (event) => notify(event),
+        heartbeatMs: HEARTBEAT_MS,
     };
 }
 
-/** Works jott cards forever (or one tick with `once`); see the README's factory section. */
-export async function dispatch(options: { once?: boolean; deps?: LoopDeps } = {}): Promise<TickResult | undefined> {
+/**
+ * Asks the jott server for work and runs it, forever (or one claim with `once`).
+ * The claim long-polls, so there is no sleep between claims; a failing server is
+ * retried with a backoff. See the README's factory section.
+ */
+export async function dispatch(options: { once?: boolean; deps?: LoopDeps } = {}): Promise<CycleResult | undefined> {
     const deps = options.deps ?? realDeps();
-    const state: LoopState = { recovered: false };
-    if (options.once) return tick(deps, state);
+    if (options.once) return cycle(deps);
+    let backoff = CLAIM_BACKOFF_FIRST_MS;
     for (;;) {
-        let result: TickResult;
         try {
-            result = await tick(deps, state);
+            const result = await cycle(deps);
+            backoff = CLAIM_BACKOFF_FIRST_MS;
+            if (result.ran) process.stdout.write(`${JSON.stringify({ ok: true, ran: result.ran })}\n`);
         } catch (error) {
-            process.stderr.write(`${JSON.stringify({ ok: false, error: (error as Error).message })}\n`);
-            result = { sleepMs: 60_000 };
+            const message = error instanceof Error ? error.message : String(error);
+            process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+            await sleep(backoff);
+            backoff = Math.min(backoff * 2, CLAIM_BACKOFF_MAX_MS);
         }
-        if (result.ran) process.stdout.write(`${JSON.stringify({ ok: true, ran: result.ran })}\n`);
-        await Bun.sleep(result.sleepMs);
     }
 }

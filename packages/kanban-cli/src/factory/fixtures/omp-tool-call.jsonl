@@ -1,0 +1,11 @@
+{"type":"session","version":3,"id":"01a1707a-6477-7426-b18d-beace7ddf12b","timestamp":"2026-10-25T00:33:51.735Z","cwd":"/tmp/omp-harness-test"}
+{"type":"agent_start"}
+{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"Use your bash tool to run exactly: echo hello-factory. Then reply with exactly: DONE"}]}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to run a bash command."},{"type":"toolCall","id":"call_01a1707a6c32764dbdf354bb","name":"bash","arguments":{"i":"Running echo hello-factory","command":"echo hello-factory"},"intent":"Running echo hello-factory"}],"stopReason":"toolUse"}}
+{"type":"tool_execution_start","toolCallId":"call_01a1707a6c32764dbdf354bb","toolName":"bash","args":{"command":"echo hello-factory"},"intent":"Running echo hello-factory"}
+{"type":"tool_execution_end","toolCallId":"call_01a1707a6c32764dbdf354bb","toolName":"bash","isError":false,"result":{"content":[{"type":"text","text":"hello-factory\n"}]}}
+{"type":"message_end","message":{"role":"toolResult","content":[{"type":"text","text":"hello-factory\n"}]}}
+{"type":"turn_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to run a bash command."},{"type":"toolCall","id":"call_01a1707a6c32764dbdf354bb","name":"bash","arguments":{"i":"Running echo hello-factory","command":"echo hello-factory"},"intent":"Running echo hello-factory"}],"stopReason":"toolUse"}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"DONE"}],"stopReason":"stop"}}
+{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"DONE"}],"stopReason":"stop"}}
+{"type":"agent_end","messages":[{"role":"user","content":[{"type":"text","text":"Use your bash tool to run exactly: echo hello-factory. Then reply with exactly: DONE"}]},{"role":"assistant","content":[{"type":"toolCall","id":"call_01a1707a6c32764dbdf354bb","name":"bash","arguments":{"i":"Running echo hello-factory","command":"echo hello-factory"},"intent":"Running echo hello-factory"}]},{"role":"toolResult","content":[{"type":"text","text":"hello-factory\n"}]},{"role":"assistant","content":[{"type":"text","text":"DONE"}]}],"isTerminal":true,"yielded":true}

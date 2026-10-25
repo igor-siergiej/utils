@@ -1,4 +1,5 @@
-import { type CommandResult, runArgv } from '../process/shell';
+import { type CommandResult, runArgvStreaming } from '../process/shell';
+import { claudeActivity } from './activity';
 import type { Harness, HarnessOutcome } from './harness';
 import { DEFAULT_QUOTA_PAUSE_MINUTES, isQuotaError, quotaWaitMs } from './quota';
 
@@ -82,8 +83,20 @@ export function parseClaudeRun(
 }
 
 export const claudeHarness: Harness = {
-    async run({ cwd, prompt, resume, model, quotaFallbackMinutes }) {
-        const result = await runArgv(claudeArgv({ prompt, resume, model }), { cwd, env: { CI: undefined } });
+    async run({ cwd, prompt, resume, model, quotaFallbackMinutes, onLine, signal }) {
+        const result = await runArgvStreaming(claudeArgv({ prompt, resume, model }), {
+            cwd,
+            env: { CI: undefined },
+            onLine,
+            signal,
+        });
+        if (result.killed) {
+            return {
+                kind: 'stopped',
+                sessionId: events(result.stdout).find((e) => typeof e.session_id === 'string')?.session_id,
+            };
+        }
         return parseClaudeRun(result, quotaFallbackMinutes);
     },
+    activity: claudeActivity,
 };

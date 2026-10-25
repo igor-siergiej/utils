@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runShell, startShellInBackground } from './shell';
+import { runArgvStreaming, runShell, startShellInBackground } from './shell';
 
 // These exercise real OS processes: fork/exec and signal delivery are not something
 // fake timers can advance, so the two helpers below poll the kernel and return as soon
@@ -74,6 +74,35 @@ describe('startShellInBackground kill', () => {
         await tracked.kill();
 
         for (const pid of [tracked.pid, ...children, ...grandchildren]) {
+            expect(isAlive(pid)).toBe(false);
+        }
+    });
+});
+
+describe('runArgvStreaming', () => {
+    it('delivers lines before exit and kills the tree on abort', async () => {
+        const lines: string[] = [];
+        const controller = new AbortController();
+        const running = runArgvStreaming(['bash', '-c', 'echo a; echo $$; (sleep 120 & wait)'], {
+            cwd: process.cwd(),
+            onLine: (line) => lines.push(line),
+            signal: controller.signal,
+        });
+
+        const deadline = Date.now() + 10000;
+        while (lines.length < 2 && Date.now() < deadline) await tick();
+        expect(lines).toEqual(['a', expect.stringMatching(/^\d+$/)]);
+        const root = Number(lines[1]);
+        const children = await waitForChildren(root);
+        const grandchildren = (await Promise.all(children.map((child) => waitForChildren(child, 2000)))).flat();
+        expect(grandchildren.length).toBeGreaterThan(0);
+
+        controller.abort();
+        const result = await running;
+
+        expect(result.killed).toBe(true);
+        expect(result.stdout).toBe(`a\n${root}\n`);
+        for (const pid of [root, ...children, ...grandchildren]) {
             expect(isAlive(pid)).toBe(false);
         }
     });

@@ -6,6 +6,8 @@ After=network-online.target
 ExecStart=%h/.bun/bin/kanban-cli dispatch
 Environment=KANBAN_CLI_REPO_ROOTS=%h/imapps
 Environment=PATH=%h/.bun/bin:%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# JOTT_URL and JOTT_DISPATCHER_TOKEN (plus any provider keys), mode 600.
+EnvironmentFile=-%h/.config/kanban-factory.env
 Restart=always
 RestartSec=30
 

@@ -6,16 +6,20 @@ export interface CommandResult {
     stderr: string;
 }
 
-function collect(child: ChildProcess): Promise<CommandResult> {
+function collect(child: ChildProcess, onStdout?: (chunk: string) => void): Promise<CommandResult> {
     const { promise, resolve, reject } = Promise.withResolvers<CommandResult>();
 
     let stdout = '';
     let stderr = '';
-    child.stdout?.on('data', (chunk: Buffer) => {
-        stdout += chunk.toString();
+    // Decoded as UTF-8 by the stream, so a character split across two chunks stays whole.
+    child.stdout?.setEncoding('utf8');
+    child.stderr?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk: string) => {
+        stdout += chunk;
+        onStdout?.(chunk);
     });
-    child.stderr?.on('data', (chunk: Buffer) => {
-        stderr += chunk.toString();
+    child.stderr?.on('data', (chunk: string) => {
+        stderr += chunk;
     });
 
     child.once('error', reject);
@@ -58,6 +62,51 @@ export async function runArgv(argv: string[], options: RunOptions): Promise<Comm
 /** Runs a shell string via bash -lc — for the arbitrary commands a repo's own .kanban-cli.json supplies. */
 export async function runShell(command: string, options: RunOptions): Promise<CommandResult> {
     return runArgv(['bash', '-lc', command], options);
+}
+
+export interface StreamingOptions extends RunOptions {
+    /** Called with each complete stdout line while the command runs, then the unterminated tail on exit. */
+    onLine(line: string): void;
+    /** Aborting kills the command's whole process tree. */
+    signal?: AbortSignal;
+}
+
+/**
+ * `runArgv` that hands stdout over line by line as it arrives and can be stopped.
+ * The full output is still returned, for parsers that read the whole run.
+ */
+export async function runArgvStreaming(
+    argv: string[],
+    options: StreamingOptions
+): Promise<CommandResult & { killed: boolean }> {
+    const [command, ...args] = argv;
+    const child = spawn(command, args, {
+        cwd: options.cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: buildEnv(options.env),
+    });
+
+    let partial = '';
+    const done = collect(child, (chunk) => {
+        const lines = (partial + chunk).split('\n');
+        partial = lines.pop() ?? '';
+        for (const line of lines) options.onLine(line);
+    });
+
+    let killing: Promise<void> | undefined;
+    const kill = () => {
+        if (child.pid !== undefined) killing ??= killProcessTree(child.pid);
+    };
+    if (options.signal?.aborted) kill();
+    options.signal?.addEventListener('abort', kill, { once: true });
+    try {
+        const result = await done;
+        if (partial) options.onLine(partial);
+        await killing;
+        return { ...result, killed: killing !== undefined };
+    } finally {
+        options.signal?.removeEventListener('abort', kill);
+    }
 }
 
 export interface TrackedProcess {

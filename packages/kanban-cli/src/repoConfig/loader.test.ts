@@ -94,14 +94,14 @@ describe('loadRepoConfig', () => {
     it('keeps the factory block the dispatcher reads', () => {
         writeConfig({
             ...VALID_CONFIG,
-            factory: { defaultAgent: 'omp', defaultModel: 'minimax-code/MiniMax-M3' },
+            factory: { rateLimitFallbackMinutes: 45 },
         });
 
         const result = loadRepoConfig(repoDir);
 
         expect(result).toMatchObject({
             configFound: true,
-            config: { factory: { defaultAgent: 'omp', defaultModel: 'minimax-code/MiniMax-M3' } },
+            config: { factory: { rateLimitFallbackMinutes: 45 } },
         });
     });
 

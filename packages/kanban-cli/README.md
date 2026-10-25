@@ -53,15 +53,13 @@ unset.
 |---|---|---|
 | `slug` | string | migration only (old card id) |
 | `repo_url` | string | migration (board `repoUrl` frontmatter); humans for new projects |
-| `branch` | string | worker step 6 |
+| `branch` | string | worker step 6; the factory dispatcher when it starts a run |
 | `pr` | number | worker step 9 |
 | `merged_commit` | string | worker step 13 |
 | `revert_pr` | number | worker step 15 |
 | `retries` | object `{implement, e2e_local, ci, deploy, e2e_live}`, numbers | worker retry gates; zeroed on leaving Blocked |
 | `blocked_reason` | string | worker / triage when moving to Blocked; removed on leaving Blocked |
 | `completed_at` | string, ISO 8601 | worker step 16 |
-| `agent` | string | harness the factory runs the card with (`claude` or `omp`) |
-| `model` | string | model that harness runs, in the harness's own syntax |
 
 ## Per-repo config — `.kanban-cli.json`
 
@@ -99,8 +97,6 @@ Lives at the root of each repo a task's `project` resolves to. Its `repoName` is
   "retryPolicy": { "implement": 3, "e2e_local": 3, "ci": 3, "deploy": 2, "e2e_live": 1 },
   "github": { "defaultBranch": "main", "mergeMethod": "squash" },
   "factory": {
-    "defaultAgent": "omp",
-    "defaultModel": "minimax-code/MiniMax-M3",
     "rateLimitFallbackMinutes": 30
   }
 }
@@ -177,60 +173,78 @@ above; a `<state file>.hint-shown` marker keeps it from repeating.
 
 ## Factory: unattended runs (`kanban-cli dispatch`)
 
-`kanban-cli dispatch` is a long-running loop for foundry. It works jott cards one at a time,
+`kanban-cli dispatch` is a long-running loop for foundry. The jott server decides what runs
+(`jott factory …`, view 3 of the TUI, the Factory tab on Android): the queue, auto mode, each
+card's harness and model, retries, per-provider quota pauses, Stop, and run history all live
+there. The dispatcher asks for work, runs it, and reports back. It works one card at a time,
 each in its own git worktree (`<repo>/.worktrees/<project>-<n>`, branch `factory/<project>-<n>`;
 `.worktrees/` is added to `.git/info/exclude` when not already ignored). Your own checkout is
-never touched. Every tick it syncs jott and picks, in order:
+never touched.
 
-1. an `in-progress` card whose `meta.paused_until` has passed (a run that hit the rate limit);
-2. a `todo` card with `meta.go = true`;
-3. any other `todo` card in board order, only when the note `factory/settings` says `auto: on`.
+It talks to `$JOTT_URL` with `Authorization: Bearer $JOTT_DISPATCHER_TOKEN` (a device token
+with the `dispatcher` role). Both come from the process environment; the service loads them from
+`~/.config/kanban-factory.env`. Without them `dispatch` exits 1.
 
-Inbox, Backlog and Blocked cards never run. A worker is a headless harness run in the
-worktree, using the kanban-worker skill's single-card mode. The harness comes from
-`meta.agent`, else `factory.defaultAgent` in `.kanban-cli.json`, else `claude`. The
-model comes from `meta.model`, else `factory.defaultModel` in `.kanban-cli.json`, else
-whatever the harness is configured with. The model id is the harness's own syntax:
-omp takes `provider/model` (`minimax-code/MiniMax-M3`), Claude Code takes a bare model
-id (`MiniMax-M3`). Two adapters exist:
+Each cycle is one `POST /v1/dispatcher/claim` (a long poll of up to 25 s):
+
+- **Blocks:** the claim lists cards the server decided are blocked (an `error`, or a second
+  failure in a row). The dispatcher moves each to Blocked locally with the server's reason, syncs,
+  and sends the phone push. The server never writes tasks; column moves stay local `jott` writes.
+- **Run:** the claimed card is set `in-progress` (and `blocked_reason` cleared), its worktree is
+  made (and `bun install`ed when new), and the harness the server picked runs the kanban-worker
+  skill's single-card mode in it, with the server's model and, for a resumed card, its session. An
+  answer to an earlier block (`jott factory reply`) and the old `blocked_reason` go in the prompt.
+  The run's outcome goes back with `POST /v1/dispatcher/runs/<id>/end`; the server answers
+  `none`, `retry` (card stays in progress, nothing written) or `block` (with a reason).
+- **Heartbeat and activity:** from the moment of the claim, every 5 s, the dispatcher sends the
+  run's latest activity: the newest assistant text, or a tool name plus its JSON args, never
+  thinking or tool results, cut to 200 characters with `Bearer …`, `token=…`-style values and any
+  Bitwarden (`bw `, `BW_SESSION`) call args masked. A run the server stops hearing from for 60 s
+  is failed there. Harness output is parsed in memory only and never logged or kept on disk.
+- **Stop:** when Igor stops a run, the next heartbeat answers `stop: true`; the harness's whole
+  process tree is killed (SIGTERM, then SIGKILL after 2 s), the card goes to Blocked with
+  `Stopped from jott`, and the session id goes to the server so the card can resume it.
+- **Card id guard:** every local write first checks that the local `#N` has the server's card
+  id; card numbers can change on a sync collision, and a mismatch is skipped and logged.
+
+A worker is a headless harness run. The model id is the harness's own syntax: omp takes
+`provider/model` (`minimax-code/MiniMax-M3`), Claude Code takes a bare model id. Two adapters
+exist:
 
 - `claude` runs as `claude -p --dangerously-skip-permissions --output-format stream-json`,
   so it has your full user rights on the host.
 - `omp` runs as `omp -p <prompt> --mode json --auto-approve`, with an overlay that turns
   omp's `ask` tool off — an unattended worker has to decide, not wait for a human. It
-  resumes a paused run with `omp --resume <session-id>`.
+  resumes a session with `omp --resume <session-id>`.
 
-Both report the same three outcomes: `done` (with the session id), `rate_limited` (with
-the time the provider says the limit lifts) and `failed`. A provider that reports a quota
-wall but no reset time pauses the card for `factory.rateLimitFallbackMinutes` (default 30).
+Both report `done` (with the session id), `rate_limited` (with the time the provider says the
+limit lifts), `failed`, or `stopped`. After `done` the dispatcher reads the card: `done` removes
+the worktree, `blocked` reports the worker's `blocked_reason`, and anything else counts as a
+failure ("The worker finished without moving the card to done or blocked.").
 
 - **Rate limit:** a `rate_limit_event` with `status: rejected` (claude), an `api_error_status`
   of 429, or an HTTP 429 / `rate_limit_error` / `usage_limit_reached` / `insufficient_quota`
-  error (omp), pauses the card. It stays `in-progress` with `meta.paused_until` and
-  `meta.session_id`. No new card starts until the reset, and then the run resumes the same
-  session. A provider that says "limited" without saying when lifts the limit pauses the card
-  for `factory.rateLimitFallbackMinutes` (default 30).
-- **Failure:** a crash, an error result, or a run that leaves the card `in-progress` is retried
-  once. The second failure blocks the card with the summary. A card the dispatcher was running
-  when it died counts as one failure on the next start.
-- **Reply:** a blocked card moved back to `todo` with `meta.reply` gets the reply (and the old
-  `blocked_reason`) in its prompt. Both are cleared when the run starts, along with `go`.
-- **Status:** the note `factory/status` holds `state: idle|running <project>#<n>|paused`,
-  `paused_until`, and `updated`.
-- **Log:** one JSON line per run (`card, agent, model, start, end, outcome, exitCode`) in
-  `~/.local/state/kanban-cli/factory.log` (`KANBAN_FACTORY_LOG`). Harness output is never logged.
+  error (omp) ends the run `rate_limited` with the reset time; the card stays `in-progress` and
+  the server pauses that provider and resumes the session after the reset. A provider that says
+  "limited" without saying when uses `factory.rateLimitFallbackMinutes` (default 30).
+- **Server down:** claims back off (10 s doubling to 60 s, `{ok:false,error}` on stderr). A run
+  in flight keeps running, and its `end` is retried until the server answers.
+- **Log:** one JSON line per run (`run, card, agent, model, start, end, outcome, exitCode`) in
+  `~/.local/state/kanban-cli/factory.log` (`KANBAN_FACTORY_LOG`).
 - **Phone push:** when a card ends `blocked` or `done`, it POSTs to ntfy at `NTFY_URL`
   (default `http://100.79.92.93:8090/jott-factory`, tailnet only). Title `<project> #<n> blocked|done`,
-  body the card title plus the first line of `blocked_reason`. Pauses send nothing, and a failed
-  post is logged to stderr, never failing the run.
-- `--once` runs a single tick and prints its result.
+  body the card title plus the first line of `blocked_reason`. Stops and pauses send nothing, and a
+  failed post is logged to stderr, never failing the run.
+- `--once` runs a single claim and prints `{ok:true, result:{ran?, outcome?, blocked:[…]}}`.
 
-Install as a user service with [`docs/factory.service`](docs/factory.service):
+Install as a user service with [`docs/factory.service`](docs/factory.service), after minting a
+dispatcher token on the server (`bun run cli device add <name> --role dispatcher`):
 
 ```sh
+printf 'JOTT_URL=%s\nJOTT_DISPATCHER_TOKEN=%s\n' "$url" "$token" >> ~/.config/kanban-factory.env
+chmod 600 ~/.config/kanban-factory.env
 cp docs/factory.service ~/.config/systemd/user/kanban-factory.service
 systemctl --user daemon-reload && systemctl --user enable --now kanban-factory
-jott add --path factory/settings "auto: off"
 ```
 
 `kanban-cli worktree create|remove <project> <n>` manages a card's worktree by hand.
