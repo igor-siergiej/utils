@@ -1,35 +1,43 @@
-import type { Board } from './board';
+import { setTimeout as sleep } from 'node:timers/promises';
+import {
+    ApiError,
+    type ClaimCard,
+    type ClaimedRun,
+    type DispatcherApi,
+    type EndAnswer,
+    type EndBody,
+    type EndOutcome,
+} from './api';
+import { type Board, type JottTask, localCard, setCard } from './board';
 import type { Harness, HarnessOutcome } from './harness';
 import type { NotifyEvent } from './notify';
-import { type JottTask, nextCard } from './queue';
-import { type FactoryStatus, formatStatus, parseSettings, SETTINGS_NOTE, STATUS_NOTE } from './settings';
 
-export const IDLE_SLEEP_MS = 60_000;
-/** Runs per card before a crashing card is blocked: the first try plus one retry. */
-export const MAX_ATTEMPTS = 2;
-/** Slack after a quota reset before resuming, so the window has really rolled over. */
-const RESET_SLACK_MS = 30_000;
+export const HEARTBEAT_MS = 5_000;
+const END_RETRY_FIRST_MS = 5_000;
+const END_RETRY_MAX_MS = 60_000;
+export const STOPPED_REASON = 'Stopped from jott';
+
+/** `lost`: the server ended the run under us (dead-dispatcher rule); nothing is written or sent. */
+export type RunOutcome = EndOutcome | 'lost';
 
 export interface RunLogEntry {
+    /** Server run id. */
+    run: string;
     card: string;
     agent: string;
-    /** The model the harness ran, when one was chosen. */
     model?: string;
     start: string;
     end: string;
-    outcome: HarnessOutcome['kind'] | 'blocked' | 'error';
+    outcome: RunOutcome;
     exitCode?: number;
 }
 
 export interface LoopDeps {
+    api: DispatcherApi;
     board: Board;
     resolveRepo(project: string): string;
-    /** `factory.defaultAgent` from the repo's .kanban-cli.json, when set. */
-    defaultAgent(repo: string): string | undefined;
-    /** `factory.defaultModel` from the repo's .kanban-cli.json, when set. */
-    defaultModel(repo: string): string | undefined;
     /** `factory.rateLimitFallbackMinutes` from the repo's .kanban-cli.json, when set. */
-    defaultQuotaFallbackMinutes(repo: string): number | undefined;
+    quotaFallbackMinutes(repo: string): number | undefined;
     harnessFor(agent: string): Harness;
     ensureWorktree(
         repo: string,
@@ -40,195 +48,273 @@ export interface LoopDeps {
     removeWorktree(repo: string, project: string, n: number): Promise<void>;
     now(): number;
     log(entry: RunLogEntry): void;
+    /** Diagnostics for a human reading the service journal (stderr in production). */
+    warn(message: string): void;
     notify(event: NotifyEvent): Promise<void>;
+    heartbeatMs: number;
 }
 
-export interface LoopState {
-    /** Crash recovery runs once, on the first tick after the dispatcher starts. */
-    recovered: boolean;
-}
-
-export interface TickResult {
+export interface CycleResult {
+    /** `<project>#<n>` of the card that ran. */
     ran?: string;
-    sleepMs: number;
+    outcome?: RunOutcome;
+    /** Cards blocked locally because the server said so. */
+    blocked: string[];
 }
 
-const label = (t: JottTask) => `${t.project}#${t.number}`;
-const iso = (ms: number) => new Date(ms).toISOString();
+const label = (card: ClaimCard) => `${card.project ?? ''}#${card.number}`;
+const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function attempts(t: JottTask): number {
-    const retries = t.meta.retries;
-    const n =
-        typeof retries === 'object' && retries !== null ? (retries as Record<string, unknown>).dispatch : undefined;
-    return typeof n === 'number' ? n : 0;
-}
-
-function retriesWith(t: JottTask, dispatch: number): Record<string, unknown> {
-    const retries = typeof t.meta.retries === 'object' && t.meta.retries !== null ? t.meta.retries : {};
-    return { ...(retries as Record<string, unknown>), dispatch };
-}
-
-export function workerPrompt(t: JottTask, branch: string): string {
+export function workerPrompt(
+    card: Pick<ClaimCard, 'project' | 'number'>,
+    branch: string,
+    answer: { reply?: string; blocked_reason?: string } = {}
+): string {
     const lines = [
-        `Use the kanban-worker skill in single-card mode for ${t.project} #${t.number}.`,
+        `Use the kanban-worker skill in single-card mode for ${card.project} #${card.number}.`,
         `Work in the current directory (a git worktree on branch ${branch}); do not touch any other checkout.`,
     ];
-    if (typeof t.meta.reply === 'string') {
-        if (typeof t.meta.blocked_reason === 'string') lines.push(`It was blocked: ${t.meta.blocked_reason}`);
-        lines.push(`Igor answered your block: ${t.meta.reply}`);
+    if (answer.reply) {
+        if (answer.blocked_reason) lines.push(`It was blocked: ${answer.blocked_reason}`);
+        lines.push(`Igor answered your block: ${answer.reply}`);
     }
     return lines.join('\n');
 }
 
-function notifyEnd(deps: LoopDeps, t: JottTask, kind: NotifyEvent['kind'], reason?: string): Promise<void> {
-    return deps.notify({ kind, project: t.project ?? '', number: t.number, title: t.title, reason });
-}
-
-async function writeStatus(deps: LoopDeps, status: Omit<FactoryStatus, 'updated'>): Promise<void> {
-    await deps.board.writeNote(STATUS_NOTE, formatStatus({ ...status, updated: iso(deps.now()) }));
-}
-
-/** Counts a failed attempt: retried on the next tick below the cap, blocked at it. */
-async function failAttempt(deps: LoopDeps, t: JottTask, reason: string): Promise<'retry' | 'blocked'> {
-    const n = attempts(t) + 1;
-    if (n >= MAX_ATTEMPTS) {
-        await deps.board.set(t.number, {
-            status: 'blocked',
-            meta: { blocked_reason: reason, retries: retriesWith(t, n) },
-            unmeta: ['factory_run', 'paused_until', 'session_id'],
-        });
-        await notifyEnd(deps, t, 'blocked', reason);
-        return 'blocked';
+/**
+ * Moves a server-named card to Blocked locally and syncs. A card whose local number is
+ * another card is skipped (logged): the server keeps asking until the sync lands it.
+ */
+async function blockCard(deps: LoopDeps, card: ClaimCard, reason: string, notify: boolean): Promise<boolean> {
+    try {
+        await setCard(deps.board, card, { status: 'blocked', meta: { blocked_reason: reason } });
+        await deps.board.sync();
+    } catch (error) {
+        deps.warn(`${label(card)} not blocked locally: ${message(error)}`);
+        return false;
     }
-    await deps.board.set(t.number, {
-        meta: { retries: retriesWith(t, n), paused_until: iso(deps.now()) },
-        unmeta: ['factory_run', 'session_id'],
-    });
-    return 'retry';
+    if (notify) {
+        await deps.notify({
+            kind: 'blocked',
+            project: card.project ?? '',
+            number: card.number,
+            title: card.title,
+            reason,
+        });
+    }
+    return true;
 }
 
-/** A card the dispatcher was running when it died counts as one failed attempt. */
-async function recover(deps: LoopDeps, tasks: JottTask[]): Promise<void> {
-    for (const t of tasks) {
-        if (t.status === 'in_progress' && t.meta.factory_run === true && t.meta.paused_until === undefined) {
-            await failAttempt(deps, t, 'The dispatcher stopped while this card was running.');
+/** Sends `end` until the server answers; a 4xx (run already ended, bad body) is logged and dropped. */
+async function endRun(deps: LoopDeps, id: string, body: EndBody): Promise<EndAnswer | undefined> {
+    for (let wait = END_RETRY_FIRST_MS; ; wait = Math.min(wait * 2, END_RETRY_MAX_MS)) {
+        try {
+            return await deps.api.end(id, body);
+        } catch (error) {
+            if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+                deps.warn(`run ${id}: end dropped: ${error.message}`);
+                return undefined;
+            }
+            deps.warn(`run ${id}: end failed, retrying in ${wait / 1000} s: ${message(error)}`);
+            await sleep(wait);
         }
     }
 }
 
-export async function tick(deps: LoopDeps, state: LoopState): Promise<TickResult> {
-    try {
-        await deps.board.sync();
-    } catch {
-        return { sleepMs: IDLE_SLEEP_MS };
-    }
-    let tasks = await deps.board.list();
-    if (!state.recovered) {
-        state.recovered = true;
-        await recover(deps, tasks);
-        tasks = await deps.board.list();
-    }
-
-    const now = deps.now();
-    const pauses = tasks
-        .filter((t) => t.status === 'in_progress' && typeof t.meta.paused_until === 'string')
-        .map((t) => Date.parse(t.meta.paused_until as string))
-        .filter((at) => at > now);
-    if (pauses.length > 0) {
-        const until = Math.max(...pauses);
-        await writeStatus(deps, { state: 'paused', pausedUntil: iso(until) });
-        return { sleepMs: until - now + RESET_SLACK_MS };
-    }
-
-    const settings = parseSettings(await deps.board.readNote(SETTINGS_NOTE));
-    const card = nextCard(tasks, settings, now);
-    if (!card) {
-        await writeStatus(deps, {
-            state: 'idle',
-            note: settings.valid ? undefined : `${SETTINGS_NOTE} unreadable: auto is off`,
-        });
-        await deps.board.sync();
-        return { sleepMs: IDLE_SLEEP_MS };
-    }
-    await runCard(deps, card);
-    await deps.board.sync();
-    return { ran: label(card), sleepMs: 0 };
+interface Live {
+    controller: AbortController;
+    activity?: string;
+    lost: boolean;
 }
 
-async function runCard(deps: LoopDeps, card: JottTask): Promise<void> {
-    const start = deps.now();
-    const project = card.project ?? '';
-    let agent = typeof card.meta.agent === 'string' ? card.meta.agent : 'claude';
-    let model: string | undefined;
-    let quotaFallbackMinutes: number | undefined;
-    const entry = (outcome: RunLogEntry['outcome'], exitCode?: number) =>
-        deps.log({ card: label(card), agent, model, start: iso(start), end: iso(deps.now()), outcome, exitCode });
+/**
+ * Heartbeats from the moment of the claim, so a slow worktree prep is not declared
+ * dead. One request in flight at a time; `stop` or a run the server already ended
+ * aborts the run.
+ */
+function startHeartbeat(deps: LoopDeps, id: string, live: Live): () => void {
+    let inFlight = false;
+    const timer = setInterval(() => {
+        if (inFlight || live.controller.signal.aborted) return;
+        inFlight = true;
+        deps.api
+            .heartbeat(id, live.activity)
+            .then(
+                ({ stop }) => {
+                    if (stop) live.controller.abort();
+                },
+                (error: unknown) => {
+                    if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
+                        live.lost = true;
+                        live.controller.abort();
+                        deps.warn(`run ${id} lost: ${error.message}`);
+                    } else {
+                        deps.warn(`run ${id}: heartbeat failed: ${message(error)}`);
+                    }
+                }
+            )
+            .finally(() => {
+                inFlight = false;
+            });
+    }, deps.heartbeatMs);
+    return () => clearInterval(timer);
+}
 
+interface Finish {
+    body: EndBody;
+    /** Runs once the server took the outcome. */
+    after?: () => Promise<void>;
+}
+
+async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish | 'lost'> {
+    const { card } = run;
+    const project = card.project ?? '';
     let repo: string;
-    let worktree: { path: string; branch: string };
     let harness: Harness;
+    let worktree: { path: string; branch: string };
     try {
+        await deps.board.sync();
+        await setCard(deps.board, card, { status: 'in-progress', unmeta: ['blocked_reason'] });
+        await deps.board.sync();
         repo = deps.resolveRepo(project);
-        if (typeof card.meta.agent !== 'string') agent = deps.defaultAgent(repo) ?? 'claude';
-        model = typeof card.meta.model === 'string' ? card.meta.model : deps.defaultModel(repo);
-        quotaFallbackMinutes = deps.defaultQuotaFallbackMinutes(repo);
-        harness = deps.harnessFor(agent);
+        harness = deps.harnessFor(run.harness);
         const wt = await deps.ensureWorktree(repo, project, card.number);
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
+        await setCard(deps.board, card, { meta: { branch: wt.branch } });
         worktree = wt;
     } catch (error) {
-        const reason = `Could not start: ${(error as Error).message}`;
-        await deps.board.set(card.number, {
-            status: 'blocked',
-            meta: { blocked_reason: reason },
-            unmeta: ['factory_run', 'paused_until'],
-        });
-        await notifyEnd(deps, card, 'blocked', reason);
-        entry('error');
-        return;
+        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
     }
 
-    const prompt = workerPrompt(card, worktree.branch);
-    const resume = typeof card.meta.session_id === 'string' ? card.meta.session_id : undefined;
-    await deps.board.set(card.number, {
-        status: 'in-progress',
-        meta: { factory_run: true, step: 'starting', branch: worktree.branch },
-        unmeta: ['paused_until', 'go', 'reply', 'blocked_reason'],
+    const stopped = (sessionId?: string): Finish => ({
+        body: { outcome: 'stopped', ...(sessionId ? { session_id: sessionId } : {}) },
+        after: async () => {
+            await blockCard(deps, card, STOPPED_REASON, false);
+        },
     });
-    await deps.board.sync();
-    await writeStatus(deps, { state: 'running', card: label(card) });
+    // Stop (or loss) while the worktree was being prepared: the harness never starts.
+    if (live.lost) return 'lost';
+    if (live.controller.signal.aborted) return stopped();
 
-    const outcome = await harness.run({ cwd: worktree.path, prompt, resume, model, quotaFallbackMinutes });
-    const after = await deps.board.show(card.number);
+    let outcome: HarnessOutcome;
+    try {
+        outcome = await harness.run({
+            cwd: worktree.path,
+            prompt: workerPrompt(card, worktree.branch, run),
+            resume: run.resume_session,
+            model: run.model || undefined,
+            quotaFallbackMinutes: deps.quotaFallbackMinutes(repo),
+            onLine: (line) => {
+                live.activity = harness.activity(line) ?? live.activity;
+            },
+            signal: live.controller.signal,
+        });
+    } catch (error) {
+        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
+    }
+    if (live.lost) return 'lost';
 
-    if (outcome.kind === 'rate_limited') {
-        const meta: Record<string, unknown> = { paused_until: outcome.resetsAt };
-        if (outcome.sessionId) meta.session_id = outcome.sessionId;
-        await deps.board.set(card.number, { meta });
-        entry('rate_limited');
-        return;
+    switch (outcome.kind) {
+        case 'stopped':
+            return stopped(outcome.sessionId);
+        case 'rate_limited':
+            return {
+                body: {
+                    outcome: 'rate_limited',
+                    resets_at: Date.parse(outcome.resetsAt),
+                    ...(outcome.sessionId ? { session_id: outcome.sessionId } : {}),
+                },
+            };
+        case 'failed':
+            return {
+                body: {
+                    outcome: 'failed',
+                    exit_code: outcome.exitCode,
+                    summary: `Worker run failed (exit ${outcome.exitCode}): ${outcome.summary}`,
+                },
+            };
+        case 'done':
+            break;
     }
-    if (outcome.kind === 'failed') {
-        const result = await failAttempt(
-            deps,
-            after,
-            `Worker run failed (exit ${outcome.exitCode}): ${outcome.summary}`
-        );
-        entry(result === 'blocked' ? 'blocked' : 'failed', outcome.exitCode);
-        return;
+
+    let after: JottTask;
+    try {
+        await deps.board.sync();
+        after = await localCard(deps.board, card);
+    } catch (error) {
+        return { body: { outcome: 'failed', summary: `Could not read the card after the run: ${message(error)}` } };
     }
-    if (after.status === 'in_progress') {
-        const result = await failAttempt(
-            deps,
-            after,
-            'The worker finished without moving the card to done or blocked.'
-        );
-        entry(result === 'blocked' ? 'blocked' : 'failed');
-        return;
+    const event = { project, number: card.number, title: card.title };
+    if (after.status === 'done') {
+        return {
+            body: { outcome: 'done', session_id: outcome.sessionId },
+            after: async () => {
+                await deps.removeWorktree(repo, project, card.number).catch((error: unknown) => {
+                    deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
+                });
+                await deps.notify({ kind: 'done', ...event });
+            },
+        };
     }
-    await deps.board.set(card.number, { unmeta: ['factory_run', 'session_id'] });
-    if (after.status === 'done') await deps.removeWorktree(repo, project, card.number);
-    const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
-    await notifyEnd(deps, after, after.status === 'done' ? 'done' : 'blocked', reason);
-    entry(after.status === 'done' ? 'done' : 'blocked');
+    if (after.status === 'blocked') {
+        const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
+        return {
+            body: { outcome: 'blocked', session_id: outcome.sessionId, ...(reason ? { summary: reason } : {}) },
+            after: () => deps.notify({ kind: 'blocked', ...event, reason }),
+        };
+    }
+    return {
+        body: {
+            outcome: 'failed',
+            session_id: outcome.sessionId,
+            summary: 'The worker finished without moving the card to done or blocked.',
+        },
+    };
+}
+
+async function runClaimed(deps: LoopDeps, run: ClaimedRun): Promise<{ ran: string; outcome: RunOutcome }> {
+    const start = deps.now();
+    const live: Live = { controller: new AbortController(), lost: false };
+    const stopHeartbeat = startHeartbeat(deps, run.id, live);
+    let outcome: RunOutcome = 'lost';
+    let exitCode: number | undefined;
+    try {
+        const finish = await work(deps, run, live);
+        if (finish !== 'lost') {
+            outcome = finish.body.outcome;
+            exitCode = finish.body.exit_code;
+            // The server stops listening for heartbeats once the run ended.
+            stopHeartbeat();
+            const answer = await endRun(deps, run.id, finish.body);
+            await finish.after?.();
+            if (answer?.action === 'block') await blockCard(deps, run.card, answer.reason, true);
+        }
+    } finally {
+        stopHeartbeat();
+        deps.log({
+            run: run.id,
+            card: label(run.card),
+            agent: run.harness,
+            model: run.model || undefined,
+            start: new Date(start).toISOString(),
+            end: new Date(deps.now()).toISOString(),
+            outcome,
+            exitCode,
+        });
+    }
+    return { ran: label(run.card), outcome };
+}
+
+/** One claim: applies the server's blocks, then works the claimed run, if any, to its end. */
+export async function cycle(deps: LoopDeps): Promise<CycleResult> {
+    const claim = await deps.api.claim();
+    const blocked: string[] = [];
+    if (claim.block.length > 0) {
+        await deps.board.sync().catch((error: unknown) => deps.warn(`jott sync failed: ${message(error)}`));
+        for (const { card, reason } of claim.block) {
+            if (await blockCard(deps, card, reason, true)) blocked.push(label(card));
+        }
+    }
+    if (!claim.run) return { blocked };
+    return { ...(await runClaimed(deps, claim.run)), blocked };
 }

@@ -250,9 +250,10 @@ own reasoning/tool use.
 - `<repo>` for steps 2 and 4–15 is the current directory (the worktree), not the path
   `resolve-repo` returns. Never `git checkout`, stash or commit in the main checkout.
 - The branch already exists: skip creating one in step 5 and step 6's branch write.
-- Write `meta.step` as you reach each gate (`implementing`, `e2e`, `pr`, `ci`, `merging`,
-  `deploying`, `smoke`), e.g. `jott task set <N> --meta step='"ci"' --json`, then `jott sync --json`.
-  It is what Igor sees on his phone.
+- Report each gate as you reach it (`implementing`, `e2e`, `pr`, `ci`, `merging`, `deploying`,
+  `smoke`) with `jott factory step <N> "<text>" --json`. It is an API call to the jott server, so
+  no `jott sync` is needed; if it fails, carry on — the step is display only. It is what Igor sees
+  on his phone.
 - If the prompt carries "Igor answered your block", that answer resolves the earlier
   `blocked_reason`. Continue from the branch's current state.
 - End the run after step 16 (or after blocking). The card must finish `done` or `blocked`:

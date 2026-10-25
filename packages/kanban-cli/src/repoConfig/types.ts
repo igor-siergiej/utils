@@ -42,10 +42,6 @@ export interface GithubConfig {
 }
 
 export interface FactoryConfig {
-    /** Harness the dispatcher runs when a card names none. */
-    defaultAgent?: string;
-    /** Model that harness runs when a card names none. */
-    defaultModel?: string;
     /** How long to pause a card when the provider gives no reset time. */
     rateLimitFallbackMinutes?: number;
 }

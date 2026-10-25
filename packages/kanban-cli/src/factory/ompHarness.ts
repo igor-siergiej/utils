@@ -1,8 +1,9 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { type CommandResult, runArgv } from '../process/shell';
+import { type CommandResult, runArgvStreaming } from '../process/shell';
 import { isRecord } from '../typeGuards';
+import { ompActivity } from './activity';
 import type { Harness, HarnessOutcome } from './harness';
 import { DEFAULT_QUOTA_PAUSE_MINUTES, isQuotaError, quotaEpochReset, quotaWaitMs } from './quota';
 
@@ -149,15 +150,27 @@ export function parseOmpRun(
 }
 
 export const ompHarness: Harness = {
-    async run({ cwd, prompt, resume, model, quotaFallbackMinutes }) {
+    async run({ cwd, prompt, resume, model, quotaFallbackMinutes, onLine, signal }) {
         const dir = mkdtempSync(join(tmpdir(), 'kanban-omp-'));
         const config = join(dir, 'omp.yml');
         writeFileSync(config, UNATTENDED_OVERLAY);
         try {
-            const result = await runArgv(ompArgv({ prompt, resume, config, model }), { cwd, env: { CI: undefined } });
+            const result = await runArgvStreaming(ompArgv({ prompt, resume, config, model }), {
+                cwd,
+                env: { CI: undefined },
+                onLine,
+                signal,
+            });
+            if (result.killed) {
+                return {
+                    kind: 'stopped',
+                    sessionId: events(result.stdout).find((e) => e.type === 'session' && typeof e.id === 'string')?.id,
+                };
+            }
             return parseOmpRun(result, Date.now(), quotaFallbackMinutes);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
     },
+    activity: ompActivity,
 };

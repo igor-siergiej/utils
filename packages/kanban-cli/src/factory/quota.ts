@@ -2,9 +2,9 @@
  * Quota detection shared by the factory harnesses.
  *
  * A provider that says "you hit your limit" must pause the card, not fail it: the
- * dispatcher keeps the card `in-progress` with `meta.paused_until` and resumes the
- * same session once the window rolls over. Only a real failure (a crash, a rejected
- * request) blocks the card.
+ * dispatcher ends the run `rate_limited` with the reset time, the card stays
+ * `in-progress`, and the jott server resumes the same session once the window rolls
+ * over. Only a real failure (a crash, a rejected request) blocks the card.
  */
 import { isRecord } from '../typeGuards';
 
