@@ -339,7 +339,8 @@ async function workBuild(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<F
 /**
  * A refine run: the refining skill reads the repo and writes the card back. It never
  * moves the card out of its column — a refined capture stays in Backlog (or Inbox) for
- * Igor to queue — so no status is written here.
+ * Igor to queue — so the refine itself writes no status. A stopped run is the
+ * exception: it blocks the card, exactly like a stopped build.
  */
 async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish | 'lost'> {
     const { card } = run;
