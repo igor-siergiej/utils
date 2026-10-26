@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, configFromEnv, dispatcherApi } from './api';
 
+const CARD = { id: 'task-5', number: 5, project: 'tandra', title: 'card 5' };
+
 function server(status: number, body: unknown) {
     const calls: { url: string; init: RequestInit }[] = [];
     const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -32,6 +34,33 @@ describe('dispatcherApi', () => {
 
     it('rejects a claim whose run lacks a card', async () => {
         const { fetch } = server(200, { run: { id: 'r1', harness: 'omp', model: 'm' }, block: [] });
+        const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
+
+        await expect(api.claim()).rejects.toThrow(/unexpected response/);
+    });
+
+    it('takes the run kind the server sends', async () => {
+        const { fetch } = server(200, {
+            run: { id: 'r1', kind: 'refine', card: CARD, harness: 'omp', model: 'm' },
+            block: [],
+        });
+        const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
+
+        expect((await api.claim()).run?.kind).toBe('refine');
+    });
+
+    it('accepts a run without a kind: an older server only ever runs builds', async () => {
+        const { fetch } = server(200, { run: { id: 'r1', card: CARD, harness: 'omp', model: 'm' }, block: [] });
+        const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
+
+        expect((await api.claim()).run?.kind).toBeUndefined();
+    });
+
+    it('rejects a run with an unknown kind', async () => {
+        const { fetch } = server(200, {
+            run: { id: 'r1', kind: 'polish', card: CARD, harness: 'omp', model: 'm' },
+            block: [],
+        });
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
 
         await expect(api.claim()).rejects.toThrow(/unexpected response/);

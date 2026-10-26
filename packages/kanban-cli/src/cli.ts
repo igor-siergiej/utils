@@ -32,11 +32,11 @@ function printError(error: unknown): void {
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
     'Commands: resolve-repo <project>, clone <project> [--url <repoUrl>],\n' +
-    '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
+    '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>] [--force],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
     '          record-usage (reads statusline JSON from stdin), usage-check,\n' +
-    '          worktree <create|remove> <project> <n>, dispatch [--once]\n' +
+    '          worktree <create|remove> <project> <n> [--kind build|refine], dispatch [--once]\n' +
     'Task state lives in jott: `jott task … --json`.';
 
 async function runE2e(rest: string[]): Promise<unknown> {
@@ -248,6 +248,7 @@ async function main(): Promise<void> {
                     target: { type: 'string' },
                     symlink: { type: 'boolean' },
                     skill: { type: 'string' },
+                    force: { type: 'boolean' },
                 },
             });
             if (!values.target) throw new Error('--target is required');
@@ -255,6 +256,7 @@ async function main(): Promise<void> {
                 installSkill(values.target, {
                     mode: values.symlink ? 'symlink' : 'copy',
                     skill: values.skill,
+                    force: values.force,
                 })
             );
             return;
@@ -314,15 +316,21 @@ async function main(): Promise<void> {
             return;
         }
         case 'worktree': {
-            const [sub, project, n] = rest;
+            const { values, positionals } = parseArgs({
+                args: rest,
+                options: { kind: { type: 'string' } },
+                allowPositionals: true,
+            });
+            const [sub, project, n] = positionals;
             if ((sub !== 'create' && sub !== 'remove') || !project || !Number.isInteger(Number(n))) {
-                throw new Error('Usage: kanban-cli worktree <create|remove> <project> <n>');
+                throw new Error('Usage: kanban-cli worktree <create|remove> <project> <n> [--kind build|refine]');
             }
+            const kind = values.kind === 'refine' ? 'refine' : 'build';
             const repo = resolveRepoPath(project);
             if (sub === 'create') {
-                printSuccess({ ok: true, worktree: await ensureWorktree(repo, project, Number(n)) });
+                printSuccess({ ok: true, worktree: await ensureWorktree(repo, project, Number(n), kind) });
             } else {
-                await removeWorktree(repo, project, Number(n));
+                await removeWorktree(repo, project, Number(n), kind);
                 printSuccess({ ok: true });
             }
             return;

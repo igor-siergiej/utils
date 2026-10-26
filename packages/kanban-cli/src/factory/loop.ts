@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import type { WorktreeKind } from '../worktree/worktree';
 import {
     ApiError,
     type ClaimCard,
@@ -36,16 +37,19 @@ export interface LoopDeps {
     api: DispatcherApi;
     board: Board;
     resolveRepo(project: string): string;
+    /** The first `KANBAN_CLI_REPO_ROOTS` entry: where a project-less refine runs. */
+    repoRoot(): string;
     /** `factory.rateLimitFallbackMinutes` from the repo's .kanban-cli.json, when set. */
     quotaFallbackMinutes(repo: string): number | undefined;
     harnessFor(agent: string): Harness;
     ensureWorktree(
         repo: string,
         project: string,
-        n: number
+        n: number,
+        kind: WorktreeKind
     ): Promise<{ path: string; branch: string; created: boolean }>;
     prepareWorktree(repo: string, path: string): Promise<void>;
-    removeWorktree(repo: string, project: string, n: number): Promise<void>;
+    removeWorktree(repo: string, project: string, n: number, kind: WorktreeKind): Promise<void>;
     now(): number;
     log(entry: RunLogEntry): void;
     /** Diagnostics for a human reading the service journal (stderr in production). */
@@ -74,11 +78,31 @@ export function workerPrompt(
         `Use the kanban-worker skill in single-card mode for ${card.project} #${card.number}.`,
         `Work in the current directory (a git worktree on branch ${branch}); do not touch any other checkout.`,
     ];
-    if (answer.reply) {
-        if (answer.blocked_reason) lines.push(`It was blocked: ${answer.blocked_reason}`);
-        lines.push(`Igor answered your block: ${answer.reply}`);
-    }
+    lines.push(...replyLines(answer));
     return lines.join('\n');
+}
+
+/**
+ * The prompt for a refine run: the refining skill in factory mode, plus whatever Igor
+ * answered the last block. A card without a project has to be routed first.
+ */
+export function refinePrompt(
+    card: Pick<ClaimCard, 'project' | 'number'>,
+    answer: { reply?: string; blocked_reason?: string } = {}
+): string {
+    const where = card.project ? `${card.project} #${card.number}` : `#${card.number} (no project yet: route it first)`;
+    const lines = [`Use the refining-kanban-captures skill in factory mode for ${where}.`];
+    lines.push(...replyLines(answer));
+    return lines.join('\n');
+}
+
+/** The lines an answer to an earlier block adds to a prompt. */
+function replyLines(answer: { reply?: string; blocked_reason?: string }): string[] {
+    if (!answer.reply) return [];
+    return [
+        ...(answer.blocked_reason ? [`It was blocked: ${answer.blocked_reason}`] : []),
+        `Igor answered your block: ${answer.reply}`,
+    ];
 }
 
 /**
@@ -166,7 +190,90 @@ interface Finish {
     after?: () => Promise<void>;
 }
 
+/** What the harness needs: where to run, what to say, and where the repo config lives. */
+interface HarnessCall {
+    cwd: string;
+    prompt: string;
+    config: string;
+}
+
+/** The harness's verdict: the run ended, the harness is done, or the server ended it. */
+type Driven = { kind: 'done'; sessionId: string } | { kind: 'end'; end: Finish } | 'lost';
+
+/**
+ * Runs the harness and maps its outcome onto the run's end body. A finished harness is
+ * handed back to the caller: what the card's state means is the caller's business.
+ */
+async function driveHarness(
+    deps: LoopDeps,
+    run: ClaimedRun,
+    live: Live,
+    harness: Harness,
+    call: HarnessCall
+): Promise<Driven> {
+    const stopped = (sessionId?: string): Finish => ({
+        body: { outcome: 'stopped', ...(sessionId ? { session_id: sessionId } : {}) },
+        after: async () => {
+            await blockCard(deps, run.card, STOPPED_REASON, false);
+        },
+    });
+    // Stop (or loss) while the worktree was being prepared: the harness never starts.
+    if (live.lost) return 'lost';
+    if (live.controller.signal.aborted) return { kind: 'end', end: stopped() };
+
+    let outcome: HarnessOutcome;
+    try {
+        outcome = await harness.run({
+            cwd: call.cwd,
+            prompt: call.prompt,
+            resume: run.resume_session,
+            model: run.model || undefined,
+            quotaFallbackMinutes: deps.quotaFallbackMinutes(call.config),
+            onLine: (line) => {
+                live.activity = harness.activity(line) ?? live.activity;
+            },
+            signal: live.controller.signal,
+        });
+    } catch (error) {
+        return { kind: 'end', end: { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } } };
+    }
+    if (live.lost) return 'lost';
+
+    switch (outcome.kind) {
+        case 'stopped':
+            return { kind: 'end', end: stopped(outcome.sessionId) };
+        case 'rate_limited':
+            return {
+                kind: 'end',
+                end: {
+                    body: {
+                        outcome: 'rate_limited',
+                        resets_at: Date.parse(outcome.resetsAt),
+                        ...(outcome.sessionId ? { session_id: outcome.sessionId } : {}),
+                    },
+                },
+            };
+        case 'failed':
+            return {
+                kind: 'end',
+                end: {
+                    body: {
+                        outcome: 'failed',
+                        exit_code: outcome.exitCode,
+                        summary: `Worker run failed (exit ${outcome.exitCode}): ${outcome.summary}`,
+                    },
+                },
+            };
+        case 'done':
+            return { kind: 'done', sessionId: outcome.sessionId };
+    }
+}
+
 async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish | 'lost'> {
+    return run.kind === 'refine' ? workRefine(deps, run, live) : workBuild(deps, run, live);
+}
+
+async function workBuild(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish | 'lost'> {
     const { card } = run;
     const project = card.project ?? '';
     let repo: string;
@@ -178,7 +285,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         await deps.board.sync();
         repo = deps.resolveRepo(project);
         harness = deps.harnessFor(run.harness);
-        const wt = await deps.ensureWorktree(repo, project, card.number);
+        const wt = await deps.ensureWorktree(repo, project, card.number, 'build');
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
         await setCard(deps.board, card, { meta: { branch: wt.branch } });
         worktree = wt;
@@ -186,56 +293,13 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
     }
 
-    const stopped = (sessionId?: string): Finish => ({
-        body: { outcome: 'stopped', ...(sessionId ? { session_id: sessionId } : {}) },
-        after: async () => {
-            await blockCard(deps, card, STOPPED_REASON, false);
-        },
+    const driven = await driveHarness(deps, run, live, harness, {
+        cwd: worktree.path,
+        prompt: workerPrompt(card, worktree.branch, run),
+        config: repo,
     });
-    // Stop (or loss) while the worktree was being prepared: the harness never starts.
-    if (live.lost) return 'lost';
-    if (live.controller.signal.aborted) return stopped();
-
-    let outcome: HarnessOutcome;
-    try {
-        outcome = await harness.run({
-            cwd: worktree.path,
-            prompt: workerPrompt(card, worktree.branch, run),
-            resume: run.resume_session,
-            model: run.model || undefined,
-            quotaFallbackMinutes: deps.quotaFallbackMinutes(repo),
-            onLine: (line) => {
-                live.activity = harness.activity(line) ?? live.activity;
-            },
-            signal: live.controller.signal,
-        });
-    } catch (error) {
-        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
-    }
-    if (live.lost) return 'lost';
-
-    switch (outcome.kind) {
-        case 'stopped':
-            return stopped(outcome.sessionId);
-        case 'rate_limited':
-            return {
-                body: {
-                    outcome: 'rate_limited',
-                    resets_at: Date.parse(outcome.resetsAt),
-                    ...(outcome.sessionId ? { session_id: outcome.sessionId } : {}),
-                },
-            };
-        case 'failed':
-            return {
-                body: {
-                    outcome: 'failed',
-                    exit_code: outcome.exitCode,
-                    summary: `Worker run failed (exit ${outcome.exitCode}): ${outcome.summary}`,
-                },
-            };
-        case 'done':
-            break;
-    }
+    if (driven === 'lost') return 'lost';
+    if (driven.kind === 'end') return driven.end;
 
     let after: JottTask;
     try {
@@ -247,9 +311,9 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     const event = { project, number: card.number, title: card.title };
     if (after.status === 'done') {
         return {
-            body: { outcome: 'done', session_id: outcome.sessionId },
+            body: { outcome: 'done', session_id: driven.sessionId },
             after: async () => {
-                await deps.removeWorktree(repo, project, card.number).catch((error: unknown) => {
+                await deps.removeWorktree(repo, project, card.number, 'build').catch((error: unknown) => {
                     deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
                 });
                 await deps.notify({ kind: 'done', ...event });
@@ -259,15 +323,94 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     if (after.status === 'blocked') {
         const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
         return {
-            body: { outcome: 'blocked', session_id: outcome.sessionId, ...(reason ? { summary: reason } : {}) },
+            body: { outcome: 'blocked', session_id: driven.sessionId, ...(reason ? { summary: reason } : {}) },
             after: () => deps.notify({ kind: 'blocked', ...event, reason }),
         };
     }
     return {
         body: {
             outcome: 'failed',
-            session_id: outcome.sessionId,
+            session_id: driven.sessionId,
             summary: 'The worker finished without moving the card to done or blocked.',
+        },
+    };
+}
+
+/**
+ * A refine run: the refining skill reads the repo and writes the card back. It never
+ * moves the card out of its column — a refined capture stays in Backlog (or Inbox) for
+ * Igor to queue — so the refine itself writes no status. A stopped run is the
+ * exception: it blocks the card, exactly like a stopped build.
+ */
+async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish | 'lost'> {
+    const { card } = run;
+    const project = card.project ?? '';
+    let repo: string | undefined;
+    let cwd: string;
+    let harness: Harness;
+    try {
+        await deps.board.sync();
+        await setCard(deps.board, card, { unmeta: ['blocked_reason', 'refined_at'] });
+        await deps.board.sync();
+        harness = deps.harnessFor(run.harness);
+        if (project) {
+            repo = deps.resolveRepo(project);
+            // A refine reads the shipped code, so it gets its own worktree, always fresh.
+            await deps.removeWorktree(repo, project, card.number, 'refine');
+            const wt = await deps.ensureWorktree(repo, project, card.number, 'refine');
+            if (wt.created) await deps.prepareWorktree(repo, wt.path);
+            cwd = wt.path;
+        } else {
+            // No project yet: the skill routes the card, so it runs where the checkouts are.
+            cwd = deps.repoRoot();
+        }
+    } catch (error) {
+        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
+    }
+
+    const driven = await driveHarness(deps, run, live, harness, {
+        cwd,
+        prompt: refinePrompt(card, run),
+        config: repo ?? cwd,
+    });
+    if (driven === 'lost') return 'lost';
+    // The refine's worktree is scratch — nothing in it is ever committed — so it goes
+    // whatever the outcome was.
+    if (repo !== undefined) {
+        await deps.removeWorktree(repo, project, card.number, 'refine').catch((error: unknown) => {
+            deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
+        });
+    }
+    if (driven.kind === 'end') return driven.end;
+
+    let after: JottTask;
+    try {
+        await deps.board.sync();
+        after = await localCard(deps.board, card);
+    } catch (error) {
+        return { body: { outcome: 'failed', summary: `Could not read the card after the run: ${message(error)}` } };
+    }
+    // The skill rewrites the card (title, maybe project), so notify with what it wrote.
+    const event = { project: after.project ?? project, number: card.number, title: after.title };
+    // `refined_at` is the skill's own signal that it wrote the card.
+    if (typeof after.meta.refined_at === 'string') {
+        return {
+            body: { outcome: 'done', session_id: driven.sessionId },
+            after: () => deps.notify({ kind: 'done', ...event }),
+        };
+    }
+    if (after.status === 'blocked') {
+        const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
+        return {
+            body: { outcome: 'blocked', session_id: driven.sessionId, ...(reason ? { summary: reason } : {}) },
+            after: () => deps.notify({ kind: 'blocked', ...event, reason }),
+        };
+    }
+    return {
+        body: {
+            outcome: 'failed',
+            session_id: driven.sessionId,
+            summary: 'The refine run finished without writing the card.',
         },
     };
 }

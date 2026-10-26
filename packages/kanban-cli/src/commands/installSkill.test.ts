@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -56,5 +56,41 @@ describe('installSkill', () => {
 
     it('errors on an unknown skill name', () => {
         expect(() => installSkill(target(), { skill: 'nope' })).toThrow(/nope/);
+    });
+
+    it('refreshes an already-installed skill when forced', () => {
+        const dir = target();
+        mkdirSync(join(dir, 'kanban-worker'), { recursive: true });
+        writeFileSync(join(dir, 'kanban-worker', 'SKILL.md'), 'existing');
+
+        const result = installSkill(dir, { skill: 'kanban-worker', force: true });
+
+        expect(result.installed.map((entry) => entry.skill)).toEqual(['kanban-worker']);
+        expect(result.skipped).toEqual([]);
+        expect(readFileSync(join(dir, 'kanban-worker', 'SKILL.md'), 'utf8')).not.toBe('existing');
+    });
+
+    it('replaces a symlinked install instead of writing through it', () => {
+        const dir = target();
+        const packaged = join(dir, 'packaged.md');
+        writeFileSync(packaged, 'packaged');
+        mkdirSync(join(dir, 'kanban-worker'), { recursive: true });
+        symlinkSync(packaged, join(dir, 'kanban-worker', 'SKILL.md'));
+
+        installSkill(dir, { skill: 'kanban-worker', force: true });
+
+        expect(readFileSync(packaged, 'utf8')).toBe('packaged');
+        expect(readFileSync(join(dir, 'kanban-worker', 'SKILL.md'), 'utf8')).not.toBe('packaged');
+    });
+
+    it('treats a dangling symlink as an installed skill', () => {
+        const dir = target();
+        mkdirSync(join(dir, 'kanban-worker'), { recursive: true });
+        symlinkSync(join(dir, 'gone.md'), join(dir, 'kanban-worker', 'SKILL.md'));
+
+        const result = installSkill(dir, { skill: 'kanban-worker' });
+
+        expect(result.skipped.map((entry) => entry.skill)).toEqual(['kanban-worker']);
+        expect(result.installed).toEqual([]);
     });
 });

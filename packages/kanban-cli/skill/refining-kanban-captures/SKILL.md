@@ -1,6 +1,6 @@
 ---
 name: refining-kanban-captures
-description: Use when asked to refine jott Inbox tasks (a project's captures, or the project-less global inbox) into proper Backlog items - "refine the board", "refine the inbox", "drain the inbox", "refine my captures", "turn my notes into cards" - and for a back-and-forth chat on one card: "refine <project> #N", "let's refine #N". Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
+description: Use when asked to refine jott Inbox tasks (a project's captures, or the project-less global inbox) into proper Backlog items - "refine the board", "refine the inbox", "drain the inbox", "refine my captures", "turn my notes into cards" - for a back-and-forth chat on one card: "refine <project> #N", "let's refine #N", and in factory mode, when the jott factory dispatcher hands it one card to refine headless. Investigates the target repo before promoting anything, so a promoted item carries grounded acceptance criteria instead of restated wishes.
 ---
 
 # Refining Kanban Captures
@@ -14,9 +14,11 @@ already done. Every `jott` call takes `--json`; tasks are `#N`.
 **A capture is one sentence of intent. An item is a contract.** The gap between
 those two is filled by reading the repo, never by rephrasing the capture.
 
-**Never invoked automatically.** The `kanban-worker` loop ignores Inbox tasks
-entirely. Captures become work only when a human asks for a refinement pass and
-sees the result.
+**Never built automatically.** The `kanban-worker` loop ignores Inbox tasks
+entirely: a capture becomes work only when a human moves it to Todo, after a
+refinement pass they asked for and saw the result. The factory dispatcher may
+run this skill on one card at a time (see Factory Mode), but a refined capture
+still lands in Backlog — a human queues it.
 
 ## Step 0: The Global Inbox (if asked to "refine the inbox")
 
@@ -178,6 +180,92 @@ Rules:
 - Never move the card past `backlog`. The user marks it Go or moves it to
   `todo` when they want it worked.
 
+## Factory Mode (dispatcher, one card)
+
+The jott factory dispatcher can hand this skill one card to refine, headless:
+"Use the refining-kanban-captures skill in factory mode for `<P>` #`<N>`." There is
+no chat and no human in the loop. The card is in `inbox` or `backlog`, and the run
+ends when the card is written (the dispatcher sees `meta.refined_at`) or when the
+card is blocked with a question (the dispatcher sees `blocked_reason`).
+
+Everything from the procedure above applies — investigate the repo, ground the
+body in real files, keep the capture's own wording. These are the differences:
+
+1. **Route first.** A card without a project is routed before anything else: pick
+   the project from the capture and the checkouts under the repo roots
+   (`KANBAN_CLI_REPO_ROOTS`, default `$HOME`) and set it with
+   `jott task set <N> --project <P> --json`. Then read that project's code — the
+   current directory when the dispatcher already gave you the project (it is a
+   worktree of it), otherwise `kanban-cli resolve-repo <P>` → `repo`. If you cannot
+   tell which project the capture belongs to, block it with that as your one
+   question (step 3) instead of guessing — the run then ends and you are asked again
+   with the answer.
+2. **Investigate** (step 3 of the procedure): read the code, establish the current
+   behaviour, what is already shipped, and what must not be rebuilt.
+3. **One question, by blocking.** When the intent is genuinely unclear and the
+   repo cannot answer it, block the card with that single question and end the
+   run. The dispatcher reads the reason out of the card and hands it back to you
+   in the next run ("Igor answered your block: …").
+
+   ```sh
+   jott task set <N> --status blocked --json --meta blocked_reason="$(jq -Rs 'rtrimstr("\n")' <<'EOF'
+   <the one question>
+   EOF
+   )"
+   jott sync --json
+   ```
+
+   The reason goes verbatim between the heredoc lines — it may hold backticks,
+   quotes and newlines. Ask one thing: "Which project is this about?" is a
+   question, "Describe what you want" is not.
+4. **Already shipped?** Block the card with the evidence (PR number, file path)
+   and end the run. Never delete a card in factory mode: the human decides what
+   happens to it.
+5. **One chunk** — the capture is one piece of work. Rewrite the card in place in
+   the Backlog format of step 4 (current behaviour, what must not be rebuilt,
+   `**Acceptance criteria**`), plus `## Decisions` listing your own calls:
+
+   ```sh
+   jott task set <N> --title "<title>" --status backlog --tag <area> --tag P2 \
+       --meta refined_at="\"$(date -u +%FT%TZ)\"" --body - --json <<'EOF'
+   <full body>
+   EOF
+   jott sync --json
+   ```
+
+   `refined_at` is how the dispatcher knows the card was written, so it goes in
+   the same write as the body.
+6. **Several chunks** — the capture is more than one PR. Create one Backlog card
+   per chunk, in the order they must ship, each small enough to ship on its own:
+
+   ```sh
+   jott task add "<title of chunk k>" --status backlog --tag <area> --tag P2 \
+       --project <P> --body - --json <<'EOF'
+   <body of chunk k>
+   EOF
+   jott task set <new number> --meta after="\"<id of chunk k-1>\"" \
+       --meta refined_from="\"<id of the parent card>\"" --json
+   jott sync --json
+   ```
+
+   The chain is on **ids**, not numbers: chunk k>1 waits for chunk k-1, so once
+   the chunks are queued the factory builds them in order and never two at once.
+   (Queuing them is the user's call — a Backlog card is not work.) Every chunk
+   carries `refined_from` = the parent's id. `jott task add --json` prints the new
+   card, ids included. Then the parent gets the summary and is done:
+
+   ```sh
+   jott task set <N> --body - --status done \
+       --meta refined_at="\"$(date -u +%FT%TZ)\"" --json <<'EOF'
+   <parent body>
+
+   Refined into #<a> → #<b> → #<c>
+   EOF
+   jott sync --json
+   ```
+7. **Never `todo`.** A refined card goes to Backlog; the user moves it to Todo
+   when they want it worked.
+
 ## Anti-Patterns
 
 | Anti-pattern | Why it is wrong |
@@ -192,6 +280,9 @@ Rules:
 | Interactive mode: asking several questions in one message | The user answers on a phone, one thumb. One question, one answer. |
 | Interactive mode: writing the card before the play-back | The play-back is where wrong assumptions surface. Write only after it. |
 | Promoting straight to `todo` | Backlog is the default; only set `--status todo` when the user asks for the card to be worked. |
+| Factory mode: deleting a card | Nobody is watching. Block it with the evidence and let the human decide. |
+| Factory mode: refining into `todo` | A refined card waits in Backlog until a human queues it. |
+| Factory mode: asking a question in the body of the card | A question blocks the card (`blocked_reason`); the answer comes back to the next run. |
 
 ## Inbox Rules You Must Respect
 

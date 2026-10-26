@@ -8,12 +8,17 @@ export interface ClaimCard {
     title: string;
 }
 
+/** What the server asked for: a build (the kanban-worker skill) or a refine (the refining skill). */
+export type RunKind = 'build' | 'refine';
+
 export interface ClaimedRun {
     /** Server run id: heartbeat and end go to `/v1/dispatcher/runs/<id>`. */
     id: string;
     card: ClaimCard;
     harness: string;
     model: string;
+    /** The run's kind. Absent on a server that only knows builds; those runs are builds. */
+    kind?: RunKind;
     resume_session?: string;
     reply?: string;
     blocked_reason?: string;
@@ -94,6 +99,10 @@ function isCard(v: unknown): v is ClaimCard {
 
 const optionalString = (v: unknown) => v === undefined || typeof v === 'string';
 
+function isRunKind(v: unknown): v is RunKind {
+    return v === 'build' || v === 'refine';
+}
+
 function isClaimedRun(v: unknown): v is ClaimedRun {
     return (
         isRecord(v) &&
@@ -101,6 +110,7 @@ function isClaimedRun(v: unknown): v is ClaimedRun {
         isCard(v.card) &&
         typeof v.harness === 'string' &&
         typeof v.model === 'string' &&
+        (v.kind === undefined || isRunKind(v.kind)) &&
         optionalString(v.resume_session) &&
         optionalString(v.reply) &&
         optionalString(v.blocked_reason)
