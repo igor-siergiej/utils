@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import type { WorktreeKind } from '../worktree/worktree';
 import {
     ApiError,
     type ClaimCard,
@@ -44,10 +45,11 @@ export interface LoopDeps {
     ensureWorktree(
         repo: string,
         project: string,
-        n: number
+        n: number,
+        kind: WorktreeKind
     ): Promise<{ path: string; branch: string; created: boolean }>;
     prepareWorktree(repo: string, path: string): Promise<void>;
-    removeWorktree(repo: string, project: string, n: number): Promise<void>;
+    removeWorktree(repo: string, project: string, n: number, kind: WorktreeKind): Promise<void>;
     now(): number;
     log(entry: RunLogEntry): void;
     /** Diagnostics for a human reading the service journal (stderr in production). */
@@ -283,7 +285,7 @@ async function workBuild(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<F
         await deps.board.sync();
         repo = deps.resolveRepo(project);
         harness = deps.harnessFor(run.harness);
-        const wt = await deps.ensureWorktree(repo, project, card.number);
+        const wt = await deps.ensureWorktree(repo, project, card.number, 'build');
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
         await setCard(deps.board, card, { meta: { branch: wt.branch } });
         worktree = wt;
@@ -311,7 +313,7 @@ async function workBuild(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<F
         return {
             body: { outcome: 'done', session_id: driven.sessionId },
             after: async () => {
-                await deps.removeWorktree(repo, project, card.number).catch((error: unknown) => {
+                await deps.removeWorktree(repo, project, card.number, 'build').catch((error: unknown) => {
                     deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
                 });
                 await deps.notify({ kind: 'done', ...event });
@@ -352,7 +354,9 @@ async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<
         harness = deps.harnessFor(run.harness);
         if (project) {
             repo = deps.resolveRepo(project);
-            const wt = await deps.ensureWorktree(repo, project, card.number);
+            // A refine reads the shipped code, so it gets its own worktree, always fresh.
+            await deps.removeWorktree(repo, project, card.number, 'refine');
+            const wt = await deps.ensureWorktree(repo, project, card.number, 'refine');
             if (wt.created) await deps.prepareWorktree(repo, wt.path);
             cwd = wt.path;
         } else {
@@ -366,9 +370,16 @@ async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<
     const driven = await driveHarness(deps, run, live, harness, {
         cwd,
         prompt: refinePrompt(card, run),
-        config: cwd,
+        config: repo ?? cwd,
     });
     if (driven === 'lost') return 'lost';
+    // The refine's worktree is scratch — nothing in it is ever committed — so it goes
+    // whatever the outcome was.
+    if (repo !== undefined) {
+        await deps.removeWorktree(repo, project, card.number, 'refine').catch((error: unknown) => {
+            deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
+        });
+    }
     if (driven.kind === 'end') return driven.end;
 
     let after: JottTask;
@@ -384,14 +395,7 @@ async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<
     if (typeof after.meta.refined_at === 'string') {
         return {
             body: { outcome: 'done', session_id: driven.sessionId },
-            after: async () => {
-                if (repo !== undefined) {
-                    await deps.removeWorktree(repo, project, card.number).catch((error: unknown) => {
-                        deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
-                    });
-                }
-                await deps.notify({ kind: 'done', ...event });
-            },
+            after: () => deps.notify({ kind: 'done', ...event }),
         };
     }
     if (after.status === 'blocked') {

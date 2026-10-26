@@ -194,10 +194,12 @@ body in real files, keep the capture's own wording. These are the differences:
 1. **Route first.** A card without a project is routed before anything else: pick
    the project from the capture and the checkouts under the repo roots
    (`KANBAN_CLI_REPO_ROOTS`, default `$HOME`) and set it with
-   `jott task set <N> --project <P> --json`. Then work in that project's checkout
-   (`kanban-cli resolve-repo <P>` → `repo`). If you cannot tell which project the
-   capture belongs to, block it with that as your one question (step 3) instead of
-   guessing — the run then ends and you are asked again with the answer.
+   `jott task set <N> --project <P> --json`. Then read that project's code — the
+   current directory when the dispatcher already gave you the project (it is a
+   worktree of it), otherwise `kanban-cli resolve-repo <P>` → `repo`. If you cannot
+   tell which project the capture belongs to, block it with that as your one
+   question (step 3) instead of guessing — the run then ends and you are asked again
+   with the answer.
 2. **Investigate** (step 3 of the procedure): read the code, establish the current
    behaviour, what is already shipped, and what must not be rebuilt.
 3. **One question, by blocking.** When the intent is genuinely unclear and the
@@ -246,10 +248,11 @@ body in real files, keep the capture's own wording. These are the differences:
    jott sync --json
    ```
 
-   The chain is on **ids**, not numbers: chunk k>1 waits for chunk k-1, so the
-   factory builds them in order and never two at once. Every chunk carries
-   `refined_from` = the parent's id. `jott task add --json` prints the new card,
-   ids included. Then the parent gets the summary and is done:
+   The chain is on **ids**, not numbers: chunk k>1 waits for chunk k-1, so once
+   the chunks are queued the factory builds them in order and never two at once.
+   (Queuing them is the user's call — a Backlog card is not work.) Every chunk
+   carries `refined_from` = the parent's id. `jott task add --json` prints the new
+   card, ids included. Then the parent gets the summary and is done:
 
    ```sh
    jott task set <N> --body - --status done \

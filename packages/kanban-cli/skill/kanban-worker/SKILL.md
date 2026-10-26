@@ -62,6 +62,7 @@ and continue with reads only if they agree.
 other card's **id**, not its number. The jott server enforces it: a card whose
 dependency is not `done` is never claimed, so the worker never sees it. Cards
 chained by a refine run carry it (see the `refining-kanban-captures` skill).
+A Backlog card is never claimed either — the user moves it to `todo` first.
 
 The checkout for project `<P>` comes from **[CLI]** `kanban-cli resolve-repo <P>`
 → `repo`. It resolves by scanning `KANBAN_CLI_REPO_ROOTS` (default `$HOME`,

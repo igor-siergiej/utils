@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,7 +53,8 @@ export function installSkill(target: string, options: InstallSkillOptions = {}) 
         const destDir = join(target, skill);
         const destFile = join(destDir, 'SKILL.md');
 
-        if (existsSync(destFile) && !options.force) {
+        // A dangling symlink is an installed skill too: `existsSync` follows it and says no.
+        if (lstatSync(destFile, { throwIfNoEntry: false }) !== undefined && !options.force) {
             skipped.push({ skill, path: destFile, reason: 'already_installed' });
             continue;
         }

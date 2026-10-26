@@ -8,14 +8,24 @@ export interface Worktree {
     created: boolean;
 }
 
+/**
+ * Which run a worktree belongs to. A refine reads the shipped code, so it gets its
+ * own worktree and branch: it never inherits a build's half-finished tree.
+ */
+export type WorktreeKind = 'build' | 'refine';
+
 export const WORKTREES_DIR = '.worktrees';
 
-export function worktreePath(repo: string, project: string, n: number): string {
-    return join(repo, WORKTREES_DIR, `${project}-${n}`);
+function kindSuffix(kind: WorktreeKind): string {
+    return kind === 'refine' ? '-refine' : '';
 }
 
-export function worktreeBranch(project: string, n: number): string {
-    return `factory/${project}-${n}`;
+export function worktreePath(repo: string, project: string, n: number, kind: WorktreeKind = 'build'): string {
+    return join(repo, WORKTREES_DIR, `${project}-${n}${kindSuffix(kind)}`);
+}
+
+export function worktreeBranch(project: string, n: number, kind: WorktreeKind = 'build'): string {
+    return `factory/${project}-${n}${kindSuffix(kind)}`;
 }
 
 async function git(repo: string, args: string[]): Promise<string> {
@@ -43,9 +53,14 @@ async function excludeWorktreesDir(repo: string): Promise<void> {
     appendFileSync(exclude, `${current === '' || current.endsWith('\n') ? '' : '\n'}${WORKTREES_DIR}/\n`);
 }
 
-export async function ensureWorktree(repo: string, project: string, n: number): Promise<Worktree> {
-    const path = worktreePath(repo, project, n);
-    const branch = worktreeBranch(project, n);
+export async function ensureWorktree(
+    repo: string,
+    project: string,
+    n: number,
+    kind: WorktreeKind = 'build'
+): Promise<Worktree> {
+    const path = worktreePath(repo, project, n, kind);
+    const branch = worktreeBranch(project, n, kind);
     if (existsSync(path)) return { path, branch, created: false };
 
     await excludeWorktreesDir(repo);
@@ -57,10 +72,15 @@ export async function ensureWorktree(repo: string, project: string, n: number): 
     return { path, branch, created: true };
 }
 
-export async function removeWorktree(repo: string, project: string, n: number): Promise<void> {
-    const path = worktreePath(repo, project, n);
+export async function removeWorktree(
+    repo: string,
+    project: string,
+    n: number,
+    kind: WorktreeKind = 'build'
+): Promise<void> {
+    const path = worktreePath(repo, project, n, kind);
     if (existsSync(path)) await git(repo, ['worktree', 'remove', '--force', path]);
-    await runArgv(['git', 'branch', '-D', worktreeBranch(project, n)], { cwd: repo });
+    await runArgv(['git', 'branch', '-D', worktreeBranch(project, n, kind)], { cwd: repo });
 }
 
 /** Copies the git-ignored `.env*` files a fresh worktree lacks, then installs dependencies. */

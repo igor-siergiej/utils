@@ -82,4 +82,15 @@ describe('installSkill', () => {
         expect(readFileSync(packaged, 'utf8')).toBe('packaged');
         expect(readFileSync(join(dir, 'kanban-worker', 'SKILL.md'), 'utf8')).not.toBe('packaged');
     });
+
+    it('treats a dangling symlink as an installed skill', () => {
+        const dir = target();
+        mkdirSync(join(dir, 'kanban-worker'), { recursive: true });
+        symlinkSync(join(dir, 'gone.md'), join(dir, 'kanban-worker', 'SKILL.md'));
+
+        const result = installSkill(dir, { skill: 'kanban-worker' });
+
+        expect(result.skipped.map((entry) => entry.skill)).toEqual(['kanban-worker']);
+        expect(result.installed).toEqual([]);
+    });
 });

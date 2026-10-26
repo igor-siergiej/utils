@@ -62,7 +62,7 @@ unset.
 | `retries` | object `{implement, e2e_local, ci, deploy, e2e_live}`, numbers | worker retry gates; zeroed on leaving Blocked |
 | `blocked_reason` | string | worker / triage when moving to Blocked; removed on leaving Blocked |
 | `completed_at` | string, ISO 8601 | worker step 16 |
-| `after` | string | a refine run: the **id** of the card this one waits for; the factory builds it only once that card is `done` |
+| `after` | string | a refine run: the **id** of the card this one waits for; the factory builds it only once that card is `done` — and only once it is queued, since a Backlog card is not work |
 | `refined_from` | string | a refine run: the **id** of the card this one was split out of |
 | `refined_at` | string, ISO 8601 | a refine run: when the card was written (the dispatcher's success signal) |
 
@@ -251,15 +251,19 @@ refine builds nothing: it reads the repo and writes the card back — one rewrit
 Backlog card, or a chain of them, each waiting on the previous one through
 `meta.after`.
 
-- The card keeps its column (`inbox` or `backlog`): a refine never writes a status.
-  Only `blocked_reason` and `refined_at` are cleared before the run.
-- A card with a project gets a worktree like a build, but no `meta.branch`. A card
-  without one runs in the first `KANBAN_CLI_REPO_ROOTS` entry, where the skill can
-  route it to a project.
-- The run succeeded when the card carries `meta.refined_at`: the worktree is removed
-  and the phone is notified. A blocked card ends the run `blocked` with its reason
-  (the answer comes back in the next run), and anything else fails with "The refine
-  run finished without writing the card."
+- The card keeps its column (`inbox` or `backlog`): the refine itself never writes a
+  status. Only `blocked_reason` and `refined_at` are cleared before the run. A stopped
+  run is the one exception — it blocks the card, exactly like a stopped build.
+- A card with a project gets its own worktree (`<repo>/.worktrees/<project>-<n>-refine`,
+  branch `factory/<project>-<n>-refine`), always a fresh checkout of the default
+  branch, so a refine never reads a build's leftovers. It is scratch: it goes when
+  the run ends, whatever the outcome. No `meta.branch` is written. A card without a
+  project runs in the first `KANBAN_CLI_REPO_ROOTS` entry, where the skill can route
+  it to a project.
+- The run succeeded when the card carries `meta.refined_at`: the phone is notified. A
+  blocked card ends the run `blocked` with its reason (the answer comes back in the
+  next run), and anything else fails with "The refine run finished without writing
+  the card."
 
 Install as a user service with [`docs/factory.service`](docs/factory.service), after minting a
 dispatcher token on the server (`bun run cli device add <name> --role dispatcher`):
@@ -271,7 +275,8 @@ cp docs/factory.service ~/.config/systemd/user/kanban-factory.service
 systemctl --user daemon-reload && systemctl --user enable --now kanban-factory
 ```
 
-`kanban-cli worktree create|remove <project> <n>` manages a card's worktree by hand.
+`kanban-cli worktree create|remove <project> <n> [--kind build|refine]` manages a card's
+worktree by hand.
 
 ## Refining from the phone
 

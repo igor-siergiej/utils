@@ -56,4 +56,13 @@ describe('worktrees', () => {
         expect(existsSync(path)).toBe(false);
         expect(git('branch', '--list', 'factory/tandra-3')).toBe('');
     });
+
+    it('gives a refine its own worktree and branch, so it never reads a build leftovers', async () => {
+        const build = await ensureWorktree(repo, 'tandra', 5);
+        const refine = await ensureWorktree(repo, 'tandra', 5, 'refine');
+
+        expect(refine.path).not.toBe(build.path);
+        expect(refine.branch).toBe('factory/tandra-5-refine');
+        expect(git('-C', refine.path, 'branch', '--show-current')).toBe('factory/tandra-5-refine');
+    });
 });

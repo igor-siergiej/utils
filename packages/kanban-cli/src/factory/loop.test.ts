@@ -102,12 +102,15 @@ function setup(opts: {
         repoRoot: () => '/roots',
         quotaFallbackMinutes: () => 45,
         harnessFor: vi.fn(() => harness),
-        ensureWorktree: vi.fn(async (_r, p, n) => {
+        ensureWorktree: vi.fn(async (_r, p, n, kind) => {
             order.push('worktree');
-            return { path: `/repo/.worktrees/${p}-${n}`, branch: `factory/${p}-${n}`, created: true };
+            const suffix = kind === 'refine' ? '-refine' : '';
+            return { path: `/repo/.worktrees/${p}-${n}${suffix}`, branch: `factory/${p}-${n}${suffix}`, created: true };
         }),
         prepareWorktree: vi.fn(async () => {}),
-        removeWorktree: vi.fn(async () => {}),
+        removeWorktree: vi.fn(async () => {
+            order.push('removeWorktree');
+        }),
         now: () => Date.parse('2026-10-25T10:00:00.000Z'),
         log: (e) => logs.push(e),
         warn: (m) => warnings.push(m),
@@ -149,7 +152,7 @@ describe('cycle', () => {
         const result = await cycle(s.deps);
 
         expect(result).toEqual({ ran: 'tandra#5', outcome: 'done', blocked: [] });
-        expect(s.order).toEqual(['set in-progress', 'worktree', 'set branch', 'harness']);
+        expect(s.order).toEqual(['set in-progress', 'worktree', 'set branch', 'harness', 'removeWorktree']);
         expect(s.sets[0].patch).toEqual({ status: 'in-progress', unmeta: ['blocked_reason'] });
         expect(s.deps.harnessFor).toHaveBeenCalledWith('omp');
         expect(s.runs[0]).toMatchObject({
@@ -293,7 +296,7 @@ describe('cycle', () => {
             await cycle(s.deps);
 
             expect(s.ends).toEqual([{ outcome: 'done', session_id: 's-1' }]);
-            expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
+            expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'build');
             expect(s.notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'card 5' }]);
             expect(s.logs).toEqual([
                 expect.objectContaining({ run: 'run-1', card: 'tandra#5', agent: 'omp', outcome: 'done' }),
@@ -435,12 +438,25 @@ describe('refine runs', () => {
         expect(s.sets).toHaveLength(1);
         expect(s.sets[0].patch).toEqual({ unmeta: ['blocked_reason', 'refined_at'] });
         expect(s.tasks[0].status).toBe('backlog');
-        expect(s.deps.ensureWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
-        expect(s.runs[0].cwd).toBe('/repo/.worktrees/tandra-5');
+        expect(s.deps.ensureWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'refine');
+        expect(s.runs[0].cwd).toBe('/repo/.worktrees/tandra-5-refine');
         expect(s.runs[0].prompt).toBe(refinePrompt(CARD, {}));
         expect(s.ends).toEqual([{ outcome: 'done', session_id: 's-1' }]);
-        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
+        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'refine');
         expect(s.notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'Refined card' }]);
+    });
+
+    it('starts the refine from a fresh worktree, never from a build leftovers', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine' }),
+            tasks: [task('backlog')],
+            run: async (_r, tasks) => refined(tasks),
+        });
+
+        await cycle(s.deps);
+
+        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'refine');
+        expect(s.order.indexOf('removeWorktree')).toBeLessThan(s.order.indexOf('worktree'));
     });
 
     it('tells the skill which project the card belongs to and what the answer was', async () => {
@@ -495,7 +511,7 @@ describe('refine runs', () => {
         expect(s.notified).toEqual([
             { kind: 'blocked', project: 'tandra', number: 5, title: 'card 5', reason: 'Which project is this about?' },
         ]);
-        expect(s.deps.removeWorktree).not.toHaveBeenCalled();
+        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'refine');
     });
 
     it('fails a refine that wrote nothing', async () => {
@@ -510,6 +526,34 @@ describe('refine runs', () => {
                 summary: 'The refine run finished without writing the card.',
             },
         ]);
-        expect(s.deps.removeWorktree).not.toHaveBeenCalled();
+        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5, 'refine');
+    });
+
+    it('ends a stopped refine like a build: the card goes to blocked', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine' }),
+            tasks: [task('backlog')],
+            run: async () => ({ kind: 'stopped', sessionId: 's-7' }),
+        });
+
+        await cycle(s.deps);
+
+        expect(s.ends).toEqual([{ outcome: 'stopped', session_id: 's-7' }]);
+        expect(s.tasks[0]).toMatchObject({ status: 'blocked', meta: { blocked_reason: STOPPED_REASON } });
+    });
+
+    it('ends a rate-limited refine like a build and leaves the card alone', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine' }),
+            tasks: [task('backlog')],
+            run: async () => ({ kind: 'rate_limited', resetsAt: '2026-10-25T15:00:00.000Z', sessionId: 's-2' }),
+        });
+
+        await cycle(s.deps);
+
+        expect(s.ends).toEqual([
+            { outcome: 'rate_limited', resets_at: Date.parse('2026-10-25T15:00:00.000Z'), session_id: 's-2' },
+        ]);
+        expect(s.tasks[0].status).toBe('backlog');
     });
 });
