@@ -423,7 +423,10 @@ describe('refine runs', () => {
         const s = setup({
             claim: claimed({ kind: 'refine' }),
             tasks: [task('backlog')],
-            run: async (_r, tasks) => refined(tasks),
+            run: async (_r, tasks) => {
+                tasks[0].title = 'Refined card';
+                return refined(tasks);
+            },
         });
 
         const result = await cycle(s.deps);
@@ -437,7 +440,7 @@ describe('refine runs', () => {
         expect(s.runs[0].prompt).toBe(refinePrompt(CARD, {}));
         expect(s.ends).toEqual([{ outcome: 'done', session_id: 's-1' }]);
         expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
-        expect(s.notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'card 5' }]);
+        expect(s.notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'Refined card' }]);
     });
 
     it('tells the skill which project the card belongs to and what the answer was', async () => {

@@ -378,7 +378,8 @@ async function workRefine(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<
     } catch (error) {
         return { body: { outcome: 'failed', summary: `Could not read the card after the run: ${message(error)}` } };
     }
-    const event = { project, number: card.number, title: card.title };
+    // The skill rewrites the card (title, maybe project), so notify with what it wrote.
+    const event = { project: after.project ?? project, number: card.number, title: after.title };
     // `refined_at` is the skill's own signal that it wrote the card.
     if (typeof after.meta.refined_at === 'string') {
         return {
