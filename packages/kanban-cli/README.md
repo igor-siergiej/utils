@@ -20,7 +20,9 @@ kanban-cli install-skill --target <repo>/.claude/skills     # scoped to one repo
 ```
 
 Pass `--symlink` instead of the default copy if you want the installed skill to track
-future `kanban-cli` upgrades without reinstalling.
+future `kanban-cli` upgrades without reinstalling. An installed copy is never
+overwritten on its own: after an upgrade, refresh it with
+`kanban-cli install-skill --target ~/.claude/skills --force`.
 
 ## Tasks live in jott
 
@@ -60,6 +62,9 @@ unset.
 | `retries` | object `{implement, e2e_local, ci, deploy, e2e_live}`, numbers | worker retry gates; zeroed on leaving Blocked |
 | `blocked_reason` | string | worker / triage when moving to Blocked; removed on leaving Blocked |
 | `completed_at` | string, ISO 8601 | worker step 16 |
+| `after` | string | a refine run: the **id** of the card this one waits for; the factory builds it only once that card is `done` |
+| `refined_from` | string | a refine run: the **id** of the card this one was split out of |
+| `refined_at` | string, ISO 8601 | a refine run: when the card was written (the dispatcher's success signal) |
 
 ## Per-repo config — `.kanban-cli.json`
 
@@ -237,6 +242,25 @@ failure ("The worker finished without moving the card to done or blocked.").
   failed post is logged to stderr, never failing the run.
 - `--once` runs a single claim and prints `{ok:true, result:{ran?, outcome?, blocked:[…]}}`.
 
+### Refine runs
+
+A claimed run can also be a **refine**: the server sends `kind: "refine"` with the
+claim (a server that sends no kind only ever runs builds). The dispatcher then runs
+the `refining-kanban-captures` skill in its factory mode instead of the worker. A
+refine builds nothing: it reads the repo and writes the card back — one rewritten
+Backlog card, or a chain of them, each waiting on the previous one through
+`meta.after`.
+
+- The card keeps its column (`inbox` or `backlog`): a refine never writes a status.
+  Only `blocked_reason` and `refined_at` are cleared before the run.
+- A card with a project gets a worktree like a build, but no `meta.branch`. A card
+  without one runs in the first `KANBAN_CLI_REPO_ROOTS` entry, where the skill can
+  route it to a project.
+- The run succeeded when the card carries `meta.refined_at`: the worktree is removed
+  and the phone is notified. A blocked card ends the run `blocked` with its reason
+  (the answer comes back in the next run), and anything else fails with "The refine
+  run finished without writing the card."
+
 Install as a user service with [`docs/factory.service`](docs/factory.service), after minting a
 dispatcher token on the server (`bun run cli device add <name> --role dispatcher`):
 
@@ -290,7 +314,7 @@ kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]
 
 kanban-cli repo-check <repoPath>
 kanban-cli init-config <repoPath> [--repo-name <n>] [--base-url <url>] [--environment <name>]
-kanban-cli install-skill --target <dir> [--skill <name>] [--symlink]
+kanban-cli install-skill --target <dir> [--skill <name>] [--symlink] [--force]
 
 kanban-cli e2e local <repoPath> [--grep <pattern>]
 kanban-cli e2e live <repoPath> --url <baseUrl> [--grep <pattern>]
@@ -319,7 +343,9 @@ without reverting. `result.stage` is `ci`, `deploy`, `e2e_live` or `done`.
 
 `install-skill` installs every packaged skill (`kanban-worker`,
 `refining-kanban-captures` and `triaging-blocked-cards`) unless `--skill <name>` narrows it, and never
-overwrites a skill that is already present — it reports those as `skipped`.
+overwrites a skill that is already present — it reports those as `skipped`. `--force`
+overwrites them instead, which is how an installed copy picks up a newer packaged
+skill (the factory dispatcher runs the installed copy, not the one in the repo).
 
 `ci wait --required <name>` (repeatable) narrows the gate to those checks — and waits
 for each of them to *appear*: a required job GitHub has not reported yet counts as

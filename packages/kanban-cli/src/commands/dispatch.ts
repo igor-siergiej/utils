@@ -8,7 +8,7 @@ import { harnessFor } from '../factory/harness';
 import { type CycleResult, cycle, HEARTBEAT_MS, type LoopDeps, type RunLogEntry } from '../factory/loop';
 import { notify } from '../factory/notify';
 import { CONFIG_FILENAME } from '../repoConfig/types';
-import { resolveRepoPath } from '../repoRegistry/resolveRepo';
+import { repoRoots, resolveRepoPath } from '../repoRegistry/resolveRepo';
 import { isRecord } from '../typeGuards';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
 
@@ -46,6 +46,7 @@ export function realDeps(config: ApiConfig = configFromEnv(), logPath = defaultL
         api: dispatcherApi(config),
         board: jottBoard,
         resolveRepo: (project) => resolveRepoPath(project),
+        repoRoot: () => repoRoots()[0],
         quotaFallbackMinutes,
         harnessFor,
         ensureWorktree,

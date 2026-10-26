@@ -32,7 +32,7 @@ function printError(error: unknown): void {
 const USAGE =
     'Usage: kanban-cli <command> ...\n' +
     'Commands: resolve-repo <project>, clone <project> [--url <repoUrl>],\n' +
-    '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>],\n' +
+    '          repo-check <repoPath>, init-config <repoPath>, install-skill --target <dir> [--skill <name>] [--force],\n' +
     '          e2e <local|live|bootstrap> <repoPath>, pr <create|status|merge|revert>,\n' +
     '          ci wait <repoPath> <prNumber>, deploy wait <repoPath>, ship <repoPath>,\n' +
     '          record-usage (reads statusline JSON from stdin), usage-check,\n' +
@@ -248,6 +248,7 @@ async function main(): Promise<void> {
                     target: { type: 'string' },
                     symlink: { type: 'boolean' },
                     skill: { type: 'string' },
+                    force: { type: 'boolean' },
                 },
             });
             if (!values.target) throw new Error('--target is required');
@@ -255,6 +256,7 @@ async function main(): Promise<void> {
                 installSkill(values.target, {
                     mode: values.symlink ? 'symlink' : 'copy',
                     skill: values.skill,
+                    force: values.force,
                 })
             );
             return;

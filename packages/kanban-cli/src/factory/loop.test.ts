@@ -2,10 +2,18 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, type Claim, type ClaimedRun, type DispatcherApi, type EndAnswer, type EndBody } from './api';
+import {
+    ApiError,
+    type Claim,
+    type ClaimCard,
+    type ClaimedRun,
+    type DispatcherApi,
+    type EndAnswer,
+    type EndBody,
+} from './api';
 import type { Board, CardPatch, JottTask } from './board';
 import type { Harness, HarnessOutcome, HarnessRun } from './harness';
-import { cycle, type LoopDeps, type RunLogEntry, STOPPED_REASON, workerPrompt } from './loop';
+import { cycle, type LoopDeps, type RunLogEntry, refinePrompt, STOPPED_REASON, workerPrompt } from './loop';
 import type { NotifyEvent } from './notify';
 
 const STATUS_FROM_CLI: Record<string, string> = { 'in-progress': 'in_progress' };
@@ -28,7 +36,8 @@ function fakeBoard(tasks: JottTask[], order: string[] = []) {
             return structuredClone(t);
         },
         set: async (n, patch) => {
-            order.push(`set ${patch.status ?? Object.keys(patch.meta ?? {}).join(',')}`);
+            const what = patch.status ?? (Object.keys(patch.meta ?? {}).join(',') || (patch.unmeta ?? []).join(','));
+            order.push(`set ${what}`);
             sets.push({ n, patch });
             const t = tasks.find((x) => x.number === n) as JottTask;
             if (patch.status) t.status = STATUS_FROM_CLI[patch.status] ?? patch.status;
@@ -90,6 +99,7 @@ function setup(opts: {
         api,
         board,
         resolveRepo: () => '/repo',
+        repoRoot: () => '/roots',
         quotaFallbackMinutes: () => 45,
         harnessFor: vi.fn(() => harness),
         ensureWorktree: vi.fn(async (_r, p, n) => {
@@ -384,5 +394,119 @@ describe('cycle', () => {
         expect(s.ends).toEqual([]);
         expect(laterSets(s.sets)).toEqual([]);
         expect(s.notified).toEqual([]);
+    });
+
+    it('runs a build when the server sends no kind', async () => {
+        const s = setup({
+            claim: claimed(),
+            run: async (_r, tasks) => {
+                tasks[0].status = 'done';
+                return { kind: 'done', sessionId: 's-1' };
+            },
+        });
+
+        await cycle(s.deps);
+
+        expect(s.sets[0].patch).toEqual({ status: 'in-progress', unmeta: ['blocked_reason'] });
+        expect(s.sets[1].patch).toEqual({ meta: { branch: 'factory/tandra-5' } });
+        expect(s.runs[0].prompt).toContain('Use the kanban-worker skill in single-card mode');
+    });
+});
+
+describe('refine runs', () => {
+    const refined = (tasks: JottTask[]) => {
+        tasks[0].meta.refined_at = '2026-10-25T10:00:00.000Z';
+        return { kind: 'done', sessionId: 's-1' } as HarnessOutcome;
+    };
+
+    it('works the card in a worktree, without moving it out of its column', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine' }),
+            tasks: [task('backlog')],
+            run: async (_r, tasks) => refined(tasks),
+        });
+
+        const result = await cycle(s.deps);
+
+        expect(result).toEqual({ ran: 'tandra#5', outcome: 'done', blocked: [] });
+        expect(s.sets).toHaveLength(1);
+        expect(s.sets[0].patch).toEqual({ unmeta: ['blocked_reason', 'refined_at'] });
+        expect(s.tasks[0].status).toBe('backlog');
+        expect(s.deps.ensureWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
+        expect(s.runs[0].cwd).toBe('/repo/.worktrees/tandra-5');
+        expect(s.runs[0].prompt).toBe(refinePrompt(CARD, {}));
+        expect(s.ends).toEqual([{ outcome: 'done', session_id: 's-1' }]);
+        expect(s.deps.removeWorktree).toHaveBeenCalledWith('/repo', 'tandra', 5);
+        expect(s.notified).toEqual([{ kind: 'done', project: 'tandra', number: 5, title: 'card 5' }]);
+    });
+
+    it('tells the skill which project the card belongs to and what the answer was', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine', reply: 'the API one', blocked_reason: 'which API?' }),
+            tasks: [task('backlog')],
+            run: async (_r, tasks) => refined(tasks),
+        });
+
+        await cycle(s.deps);
+
+        expect(s.runs[0].prompt).toBe(
+            'Use the refining-kanban-captures skill in factory mode for tandra #5.\n' +
+                'It was blocked: which API?\n' +
+                'Igor answered your block: the API one'
+        );
+    });
+
+    it('works a project-less card in the repo root, without a worktree', async () => {
+        const card: ClaimCard = { ...CARD, project: null };
+        const s = setup({
+            claim: { run: { id: 'run-1', card, harness: 'omp', model: 'm', kind: 'refine' }, block: [] },
+            tasks: [{ ...card, status: 'inbox', tags: [], meta: {} }],
+            run: async (_r, tasks) => refined(tasks),
+        });
+
+        await cycle(s.deps);
+
+        expect(s.deps.ensureWorktree).not.toHaveBeenCalled();
+        expect(s.deps.removeWorktree).not.toHaveBeenCalled();
+        expect(s.runs[0].cwd).toBe('/roots');
+        expect(s.runs[0].prompt).toBe(
+            'Use the refining-kanban-captures skill in factory mode for #5 (no project yet: route it first).'
+        );
+        expect(s.ends).toEqual([{ outcome: 'done', session_id: 's-1' }]);
+    });
+
+    it('ends blocked with the reason the skill wrote', async () => {
+        const s = setup({
+            claim: claimed({ kind: 'refine' }),
+            tasks: [task('backlog')],
+            run: async (_r, tasks) => {
+                tasks[0].status = 'blocked';
+                tasks[0].meta.blocked_reason = 'Which project is this about?';
+                return { kind: 'done', sessionId: 's-1' };
+            },
+        });
+
+        await cycle(s.deps);
+
+        expect(s.ends).toEqual([{ outcome: 'blocked', session_id: 's-1', summary: 'Which project is this about?' }]);
+        expect(s.notified).toEqual([
+            { kind: 'blocked', project: 'tandra', number: 5, title: 'card 5', reason: 'Which project is this about?' },
+        ]);
+        expect(s.deps.removeWorktree).not.toHaveBeenCalled();
+    });
+
+    it('fails a refine that wrote nothing', async () => {
+        const s = setup({ claim: claimed({ kind: 'refine' }), tasks: [task('backlog')] });
+
+        await cycle(s.deps);
+
+        expect(s.ends).toEqual([
+            {
+                outcome: 'failed',
+                session_id: 's-1',
+                summary: 'The refine run finished without writing the card.',
+            },
+        ]);
+        expect(s.deps.removeWorktree).not.toHaveBeenCalled();
     });
 });
