@@ -13,7 +13,7 @@ interface Deps extends Record<string, unknown> {
 describe('DependencyContainer', () => {
     beforeEach(() => {
         // reset the private singleton between tests
-        Reflect.set(DependencyContainer, 'instance', undefined);
+        DependencyContainer['instance'] = undefined;
     });
 
     it('registers and resolves singletons', () => {
@@ -27,6 +27,21 @@ describe('DependencyContainer', () => {
         expect(foo1).toBeInstanceOf(Foo);
         expect(foo1.n).toBe(1);
         expect(foo2).toBe(foo1);
+    });
+
+    it('keeps constructors and instances as plain objects keyed by token (consumers reset them in tests)', () => {
+        const di = DependencyContainer.getInstance<Deps>();
+
+        di.registerSingleton('foo', Foo);
+        di.resolve('foo', 1);
+
+        expect(Object.keys(di['constructors'])).toEqual(['foo']);
+        expect('foo' in di['instances']).toBe(true);
+
+        di['instances'] = {};
+        di['constructors'] = {};
+
+        expect(() => di.resolve('foo')).toThrow(/not registered/);
     });
 
     it('throws when resolving unregistered token', () => {

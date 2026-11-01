@@ -17,10 +17,11 @@ export const parsers = {
         return n;
     },
     boolean: (v: string) => v === 'true',
-    json: <T>(v: string): T => JSON.parse(v),
+    // SAFETY: the caller names the type the variable's JSON holds; nothing here can check it, same as before.
+    json: <T>(v: string) => JSON.parse(v) as T,
 };
 
-export function getEnv(key: string, parser?: undefined, fallback?: string): string;
+export function getEnv<T extends string = string>(key: string, parser?: undefined, fallback?: T): T;
 export function getEnv<T>(key: string, parser: EnvParser<T>, fallback?: T): T;
 export function getEnv<T>(
     key: string,

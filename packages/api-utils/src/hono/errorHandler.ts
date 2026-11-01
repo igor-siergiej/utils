@@ -31,14 +31,11 @@ export const errorHandler =
             const userId = c.get('userId');
             const message = err.message ?? 'Internal Server Error';
 
-            const meta = {
-                method,
-                path,
-                requestId,
-                status: statusCode,
-                userId: userId || undefined,
-                ...(err instanceof APIError ? { errorName: err.name } : { stack: err.stack }),
-            };
+            const core = { method, path, requestId, status: statusCode };
+            const withUser = userId ? { ...core, userId } : core;
+
+            const meta =
+                err instanceof APIError ? { ...withUser, errorName: err.name } : { ...withUser, stack: err.stack };
 
             if (statusCode >= 500) {
                 logger.error(message, { requestId }, meta);

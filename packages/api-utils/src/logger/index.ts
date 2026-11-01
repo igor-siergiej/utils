@@ -19,8 +19,8 @@ export class Logger implements ILogger {
         if (meta.length === 0) return JSON.stringify(base);
 
         const first = meta[0];
-        // Object(first) === first is true only for objects (and functions); primitives are not flattened.
-        const flattened = first && Object(first) === first ? Object.entries(first) : [];
+        // Only objects are flattened: primitives and functions are not.
+        const flattened = first && Object(first) === first && !(first instanceof Function) ? Object.entries(first) : [];
         const topLevel = flattened.filter(([key]) => !RESERVED_KEYS.has(key));
 
         return JSON.stringify({ ...base, meta, ...Object.fromEntries(topLevel) });

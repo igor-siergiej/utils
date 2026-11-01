@@ -53,6 +53,13 @@ describe('errorHandler', () => {
         });
     });
 
+    it('omits userId from the logged meta when the request has none', async () => {
+        logger.warn.mockClear();
+        await app.request('/api-error');
+
+        expect(logger.warn.mock.calls[0][2]).not.toHaveProperty('userId');
+    });
+
     it('logs plain 5xx at error with stack and no errorName', async () => {
         logger.error.mockClear();
         await app.request('/plain-error');

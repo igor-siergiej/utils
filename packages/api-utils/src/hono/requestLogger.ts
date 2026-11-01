@@ -44,15 +44,9 @@ export const requestLogger = (logger: ILogger) => async (c: Context<RequestVaria
 
     if (UNLOGGED_PATHS.has(url) && status < 400) return;
 
-    const meta = {
-        method,
-        path: url,
-        route,
-        status,
-        durationMs,
-        requestId,
-        userId: c.get('userId') || undefined,
-    };
+    const core = { method, path: url, route, status, durationMs, requestId };
+    const userId = c.get('userId');
+    const meta = userId ? { ...core, userId } : core;
 
     const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
     const message = `${method} ${route} - ${status} ${durationMs}ms`;
