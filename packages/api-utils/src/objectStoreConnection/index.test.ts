@@ -1,9 +1,10 @@
 import { Readable } from 'node:stream';
 
+import type { ClientOptions } from 'minio';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ObjectStoreConnection } from './index';
-import type { ObjectStoreConfig } from './types';
+import type { ObjectStoreClientFactory, ObjectStoreConfig } from './types';
 
 const state = vi.hoisted(() => ({
     getObject: vi.fn<(...args: Array<any>) => any>(() => Readable.from('ok')),
@@ -11,35 +12,32 @@ const state = vi.hoisted(() => ({
         Promise.resolve({ metaData: { 'content-type': 'image/webp' } })
     ),
     putObject: vi.fn<(...args: Array<any>) => any>(() => Promise.resolve()),
-    ctorArgs: [] as Array<any>,
+    listBuckets: vi.fn<(...args: Array<any>) => any>(() => Promise.resolve([])),
 }));
 
-vi.mock('minio', () => {
-    class FakeClient {
-        public getObject: (...args: Array<any>) => any;
-        public statObject: (...args: Array<any>) => any;
-        public putObject: (...args: Array<any>) => any;
-        constructor(opts: any) {
-            state.ctorArgs.push(opts);
-            this.getObject = (...a: Array<any>) => state.getObject(...a);
-            this.statObject = (...a: Array<any>) => state.statObject(...a);
-            this.putObject = (...a: Array<any>) => state.putObject(...a);
-        }
-    }
+const ctorArgs: Array<ClientOptions> = [];
 
-    return { Client: FakeClient };
-});
+const createClient: ObjectStoreClientFactory = (options) => {
+    ctorArgs.push(options);
+
+    return {
+        getObject: (...args: Array<any>) => state.getObject(...args),
+        statObject: (...args: Array<any>) => state.statObject(...args),
+        putObject: (...args: Array<any>) => state.putObject(...args),
+        listBuckets: (...args: Array<any>) => state.listBuckets(...args),
+    };
+};
 
 describe('ObjectStoreConnection', () => {
     beforeEach(() => {
         state.getObject.mockReset().mockImplementation(() => Readable.from('ok'));
         state.statObject.mockReset().mockResolvedValue({ metaData: { 'content-type': 'image/webp' } });
         state.putObject.mockReset().mockResolvedValue(undefined);
-        state.ctorArgs.length = 0;
+        ctorArgs.length = 0;
     });
 
     it('throws when used before connect', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await expect(conn.getObjectStream('x')).rejects.toThrow(/not connected/);
         await expect(conn.getHeadObject('x')).rejects.toThrow(/not connected/);
@@ -47,21 +45,21 @@ describe('ObjectStoreConnection', () => {
     });
 
     it('throws on missing or incomplete configuration', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await expect(conn.connect()).rejects.toThrow(/missing configuration/);
 
-        const bad = { endpoint: 'host', accessKey: 'a', secretKey: '', bucketName: '' } as unknown as ObjectStoreConfig;
+        const bad: ObjectStoreConfig = { endpoint: 'host', accessKey: 'a', secretKey: '', bucketName: '' };
 
         await expect(conn.connect(bad)).rejects.toThrow(/incomplete configuration/);
     });
 
     it('connects, parses endpoint/port, and reuses or rebuilds client', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await conn.connect({ endpoint: 's3.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
-        expect(state.ctorArgs).toHaveLength(1);
-        expect(state.ctorArgs[0]).toMatchObject({
+        expect(ctorArgs).toHaveLength(1);
+        expect(ctorArgs[0]).toMatchObject({
             endPoint: 's3.local',
             port: 9000,
             useSSL: false,
@@ -71,7 +69,7 @@ describe('ObjectStoreConnection', () => {
 
         // Reuse when endpoint unchanged
         await conn.connect({ endpoint: 's3.local:9000', accessKey: 'ak', secretKey: 'sk', bucketName: 'other' });
-        expect(state.ctorArgs).toHaveLength(1);
+        expect(ctorArgs).toHaveLength(1);
 
         // Recreate when endpoint changes or explicit port provided
         await conn.connect({
@@ -81,19 +79,19 @@ describe('ObjectStoreConnection', () => {
             secretKey: 'sk',
             bucketName: 'bkt',
         });
-        expect(state.ctorArgs).toHaveLength(2);
-        expect(state.ctorArgs[1]).toMatchObject({ endPoint: 's3.other', port: 7001, useSSL: false });
+        expect(ctorArgs).toHaveLength(2);
+        expect(ctorArgs[1]).toMatchObject({ endPoint: 's3.other', port: 7001, useSSL: false });
     });
 
     it('connects with endpoint missing port and no explicit port', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await conn.connect({ endpoint: 's3.noport', accessKey: 'ak', secretKey: 'sk', bucketName: 'bkt' });
-        expect(state.ctorArgs.at(-1)).toMatchObject({ endPoint: 's3.noport', port: undefined, useSSL: false });
+        expect(ctorArgs.at(-1)).toMatchObject({ endPoint: 's3.noport', port: undefined, useSSL: false });
     });
 
     it('delegates getObjectStream/getHeadObject to client with bucketName', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await conn.connect({ endpoint: 'h:1', accessKey: 'ak', secretKey: 'sk', bucketName: 'bucket' });
 
@@ -109,7 +107,7 @@ describe('ObjectStoreConnection', () => {
     });
 
     it('uploads buffer with size and metadata headers', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await conn.connect({ endpoint: 'h:1', accessKey: 'ak', secretKey: 'sk', bucketName: 'bucket' });
 
@@ -127,7 +125,7 @@ describe('ObjectStoreConnection', () => {
     });
 
     it('uploads stream with unknown size and metadata headers', async () => {
-        const conn = new ObjectStoreConnection();
+        const conn = new ObjectStoreConnection(createClient);
 
         await conn.connect({ endpoint: 'h:1', accessKey: 'ak', secretKey: 'sk', bucketName: 'bucket' });
 

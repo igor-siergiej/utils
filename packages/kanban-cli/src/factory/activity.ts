@@ -1,4 +1,4 @@
-import { isRecord } from '../typeGuards';
+import { type JsonValue, jsonArray, jsonObject, jsonString, parseJsonObject } from '../json';
 
 /** What jott shows as a run's live activity: one line, never a tool result. */
 export const ACTIVITY_MAX = 200;
@@ -23,49 +23,48 @@ function oneLine(text: string): string | undefined {
  * The last text or tool call of an assistant message's content; thinking blocks are skipped.
  * `toolType`/`argsKey` name the harness's tool-call block (`toolCall`/`arguments`, `tool_use`/`input`).
  */
-function lastActivity(content: unknown, toolType: string, argsKey: string): string | undefined {
-    if (!Array.isArray(content)) return undefined;
+function lastActivity(content: JsonValue | undefined, toolType: string, argsKey: string): string | undefined {
+    const blocks = jsonArray(content);
 
-    for (const block of content.toReversed()) {
-        if (!isRecord(block)) continue;
+    if (!blocks) return undefined;
 
-        if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) return oneLine(block.text);
+    for (const entry of blocks.toReversed()) {
+        const block = jsonObject(entry);
 
-        if (block.type === toolType && typeof block.name === 'string') {
+        if (!block) continue;
+
+        const text = jsonString(block.text);
+
+        if (block.type === 'text' && text !== undefined && text.trim()) return oneLine(text);
+
+        const name = jsonString(block.name);
+
+        if (block.type === toolType && name !== undefined) {
             const args = JSON.stringify(block[argsKey] ?? {});
 
-            return oneLine(VAULT.test(args) ? block.name : `${block.name} ${args}`);
+            return oneLine(VAULT.test(args) ? name : `${name} ${args}`);
         }
     }
 
     return undefined;
 }
 
-function parseLine(line: string): Record<string, unknown> | undefined {
-    try {
-        const parsed: unknown = JSON.parse(line);
-
-        return isRecord(parsed) ? parsed : undefined;
-    } catch {
-        return undefined;
-    }
-}
-
 /** omp `--mode json`: assistant `message_update`/`message_end`/`turn_end`; `agent_end` transcripts are ignored. */
 export function ompActivity(line: string): string | undefined {
-    const event = parseLine(line);
-    const message = event?.message;
+    const event = parseJsonObject(line);
+    const message = jsonObject(event?.message);
 
-    if (event?.type === 'agent_end' || !isRecord(message) || message.role !== 'assistant') return undefined;
+    if (event?.type === 'agent_end' || !message || message.role !== 'assistant') return undefined;
 
     return lastActivity(message.content, 'toolCall', 'arguments');
 }
 
 /** claude `--output-format stream-json`: `type: assistant` events; `user` (tool results) are ignored. */
 export function claudeActivity(line: string): string | undefined {
-    const event = parseLine(line);
+    const event = parseJsonObject(line);
+    const message = jsonObject(event?.message);
 
-    if (event?.type !== 'assistant' || !isRecord(event.message)) return undefined;
+    if (event?.type !== 'assistant' || !message) return undefined;
 
-    return lastActivity(event.message.content, 'tool_use', 'input');
+    return lastActivity(message.content, 'tool_use', 'input');
 }

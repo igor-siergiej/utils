@@ -1,5 +1,7 @@
+import { z } from 'zod';
+
+import { type JsonValue, tryParseJson } from '../json';
 import { runArgv } from '../process/shell';
-import { isRecord } from '../typeGuards';
 
 /** A task of `jott task show --json`. */
 export interface JottTask {
@@ -9,13 +11,13 @@ export interface JottTask {
     project: string | null;
     status: string;
     tags: string[];
-    meta: Record<string, unknown>;
+    meta: Record<string, JsonValue>;
 }
 
 export interface CardPatch {
     /** jott CLI spelling: `in-progress`, `blocked`, … */
     status?: string;
-    meta?: Record<string, unknown>;
+    meta?: Record<string, JsonValue>;
     unmeta?: string[];
 }
 
@@ -26,30 +28,30 @@ export interface Board {
     set(n: number, patch: CardPatch): Promise<void>;
 }
 
-async function jott(args: string[]): Promise<Record<string, unknown>> {
+const envelopeSchema = z.looseObject({ ok: z.boolean().optional(), error: z.unknown(), task: z.unknown() });
+
+const jottTaskSchema = z.object({
+    id: z.string(),
+    number: z.number(),
+    title: z.string(),
+    project: z.string().nullable(),
+    status: z.string(),
+    tags: z.array(z.string()),
+    meta: z.record(z.string(), z.json()),
+});
+
+async function jott(args: string[]) {
     const result = await runArgv(['jott', ...args, '--json'], { cwd: process.cwd(), env: { JOTT_NO_BANNER: '1' } });
     const out = (result.stdout.trim() || result.stderr.trim()).split('\n').pop() ?? '';
-    let parsed: Record<string, unknown>;
+    const envelope = envelopeSchema.safeParse(tryParseJson(out));
 
-    try {
-        parsed = JSON.parse(out) as Record<string, unknown>;
-    } catch {
+    if (!envelope.success) {
         throw new Error(`jott ${args[0]} printed no JSON (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
 
-    if (parsed.ok === false) throw new Error(`jott ${args.join(' ')}: ${String(parsed.error)}`);
+    if (envelope.data.ok === false) throw new Error(`jott ${args.join(' ')}: ${String(envelope.data.error)}`);
 
-    return parsed;
-}
-
-function isJottTask(v: unknown): v is JottTask {
-    return (
-        isRecord(v) &&
-        typeof v.id === 'string' &&
-        typeof v.number === 'number' &&
-        typeof v.status === 'string' &&
-        isRecord(v.meta)
-    );
+    return envelope.data;
 }
 
 export const jottBoard: Board = {
@@ -57,11 +59,12 @@ export const jottBoard: Board = {
         await jott(['sync']);
     },
     async show(n) {
-        const task = (await jott(['task', 'show', String(n)])).task;
+        const { task } = await jott(['task', 'show', String(n)]);
+        const parsed = jottTaskSchema.safeParse(task);
 
-        if (!isJottTask(task)) throw new Error(`jott task show ${n} printed no task`);
+        if (!parsed.success) throw new Error(`jott task show ${n} printed no task`);
 
-        return task;
+        return parsed.data;
     },
     async set(n, patch) {
         const args = ['task', 'set', String(n)];

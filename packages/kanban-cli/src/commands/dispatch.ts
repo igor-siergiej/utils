@@ -8,9 +8,9 @@ import { jottBoard } from '../factory/board';
 import { harnessFor } from '../factory/harness';
 import { type CycleResult, cycle, HEARTBEAT_MS, type LoopDeps, type RunLogEntry } from '../factory/loop';
 import { notify } from '../factory/notify';
+import { readFallbackMinutes } from '../repoConfig/rawConfig';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { resolveRepoPath } from '../repoRegistry/resolveRepo';
-import { isRecord } from '../typeGuards';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
 
 const CLAIM_BACKOFF_FIRST_MS = 10_000;
@@ -31,10 +31,7 @@ function quotaFallbackMinutes(repo: string): number | undefined {
     if (!existsSync(path)) return undefined;
 
     try {
-        const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
-        const value = isRecord(raw) && isRecord(raw.factory) ? raw.factory.rateLimitFallbackMinutes : undefined;
-
-        return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+        return readFallbackMinutes(readFileSync(path, 'utf8'));
     } catch {
         return undefined;
     }

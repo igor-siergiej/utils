@@ -44,12 +44,12 @@ const lint = (files: Record<string, string>): Diagnostic[] => {
     return report.diagnostics;
 };
 
-const cases: Record<string, string> = {
+const cases = {
     'anti-slop(no-unknown-parameters)': 'export function f(x: unknown) { return x; }\n',
     'anti-slop(no-runtime-typeof)': "export function g(v: string | number) { return typeof v === 'string'; }\n",
     'anti-slop(no-module-mocking)': "import { vi } from 'vitest';\nvi.mock('./x');\n",
     'eslint(eqeqeq)': 'export const h = (a: number) => a == 1;\n',
-};
+} satisfies Record<string, string>;
 
 describe('oxc-config oxlint preset', () => {
     for (const [code, source] of Object.entries(cases)) {

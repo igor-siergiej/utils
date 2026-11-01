@@ -1,11 +1,13 @@
 import { type Collection, type Db, type Document, MongoClient } from 'mongodb';
 
-import type { MongoConfig } from './types';
+import type { MongoClientFactory, MongoClientLike, MongoConfig } from './types';
 
 export class MongoDbConnection<CMap extends Record<string, Document> = Record<string, Document>> {
-    private client?: MongoClient;
-    private databaseInstance?: Db;
+    private client?: MongoClientLike;
+    private databaseInstance?: Pick<Db, 'collection'>;
     private config?: MongoConfig;
+
+    constructor(private readonly createClient: MongoClientFactory = (uri) => new MongoClient(uri)) {}
 
     public async connect(configOverride?: MongoConfig): Promise<void> {
         const cfg = configOverride ?? this.config;
@@ -16,7 +18,7 @@ export class MongoDbConnection<CMap extends Record<string, Document> = Record<st
 
         if (!this.client || (configOverride && configOverride.connectionUri !== this.config?.connectionUri)) {
             this.config = cfg;
-            this.client = new MongoClient(cfg.connectionUri);
+            this.client = this.createClient(cfg.connectionUri);
         }
 
         await this.client.connect();
@@ -24,7 +26,7 @@ export class MongoDbConnection<CMap extends Record<string, Document> = Record<st
         try {
             this.databaseInstance = this.client.db(cfg.databaseName);
         } catch (e) {
-            throw new Error(`MongoDbConnection: failed to connect to database ${cfg.databaseName}`, e as Error);
+            throw new Error(`MongoDbConnection: failed to connect to database ${cfg.databaseName}`, { cause: e });
         }
     }
 

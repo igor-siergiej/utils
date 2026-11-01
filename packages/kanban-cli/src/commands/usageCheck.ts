@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import type { UsageCheckResult } from '../usage/evaluateUsage';
 import { evaluateUsage } from '../usage/evaluateUsage';
 import { defaultUsageStatePath, readUsageState } from '../usage/state';
 
@@ -36,7 +35,7 @@ function hintOnce(statePath: string): string | undefined {
     return unwiredHint(statePath);
 }
 
-export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result: UsageCheckResult } {
+export function usageCheck(options: UsageCheckOptions = {}) {
     const statePath = options.statePath ?? defaultUsageStatePath();
     const state = readUsageState(statePath);
 
@@ -49,8 +48,8 @@ export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result:
     if (result.status === 'unknown' && result.reason === 'no-state') {
         const hint = hintOnce(statePath);
 
-        if (hint) return { ok: true, result: { ...result, hint } };
+        if (hint) return { ok: true as const, result: { ...result, hint } };
     }
 
-    return { ok: true, result };
+    return { ok: true as const, result };
 }

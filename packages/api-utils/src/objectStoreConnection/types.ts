@@ -1,5 +1,12 @@
 import type { Readable } from 'node:stream';
 
+import type { Client, ClientOptions } from 'minio';
+
+/** The subset of the minio client that ObjectStoreConnection uses; the seam tests inject a fake through. */
+export type ObjectStoreClient = Pick<Client, 'getObject' | 'statObject' | 'putObject' | 'listBuckets'>;
+
+export type ObjectStoreClientFactory = (options: ClientOptions) => ObjectStoreClient;
+
 export interface ObjectStoreConfig {
     endpoint: string;
     port?: number;

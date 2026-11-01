@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import { fakeFetch } from '../testing/fakeFetch';
 import { pollHttpHealth } from './healthCheck';
 
 function fakeClock() {
@@ -18,10 +19,10 @@ describe('pollHttpHealth', () => {
         const clock = fakeClock();
         let calls = 0;
 
-        const fetchImpl = vi.fn(async () => {
+        const fetchImpl = fakeFetch(async () => {
             calls += 1;
 
-            return { ok: calls >= 2 } as Response;
+            return new Response(null, { status: calls >= 2 ? 200 : 503 });
         });
 
         const healthy = await pollHttpHealth('http://localhost:3000/health', {
@@ -38,7 +39,7 @@ describe('pollHttpHealth', () => {
 
     it('returns false when the timeout budget is exhausted', async () => {
         const clock = fakeClock();
-        const fetchImpl = vi.fn(async () => ({ ok: false }) as Response);
+        const fetchImpl = fakeFetch(async () => new Response(null, { status: 503 }));
 
         const healthy = await pollHttpHealth('http://localhost:3000/health', {
             timeoutMs: 4000,
@@ -55,12 +56,12 @@ describe('pollHttpHealth', () => {
         const clock = fakeClock();
         let calls = 0;
 
-        const fetchImpl = vi.fn(async () => {
+        const fetchImpl = fakeFetch(async () => {
             calls += 1;
 
             if (calls === 1) throw new Error('ECONNREFUSED');
 
-            return { ok: true } as Response;
+            return new Response(null, { status: 200 });
         });
 
         const healthy = await pollHttpHealth('http://localhost:3000/health', {

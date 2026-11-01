@@ -24,7 +24,7 @@ describe('Logger', () => {
 
         logger.info('hello', { a: 1 });
         expect(console.log).toHaveBeenCalledTimes(1);
-        const payload = (console.log as any).mock.calls[0][0] as string;
+        const payload = vi.mocked(console.log).mock.calls[0][0];
         const obj = JSON.parse(payload);
 
         expect(obj).toMatchObject({ level: 'info', message: 'hello' });

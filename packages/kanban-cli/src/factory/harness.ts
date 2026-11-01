@@ -30,11 +30,13 @@ export interface Harness {
     activity(line: string): string | undefined;
 }
 
-const HARNESSES: Record<string, Harness> = { claude: claudeHarness, omp: ompHarness };
+const HARNESSES = new Map<string, Harness>([
+    ['claude', claudeHarness],
+    ['omp', ompHarness],
+]);
 
 export function harnessFor(agent: string): Harness {
-    // Object.hasOwn, not a plain lookup: "toString" must not resolve to a prototype member.
-    const harness = Object.hasOwn(HARNESSES, agent) ? HARNESSES[agent] : undefined;
+    const harness = HARNESSES.get(agent);
 
     if (!harness) throw new Error(`Unknown agent '${agent}'`);
 

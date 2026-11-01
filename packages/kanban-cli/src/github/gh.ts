@@ -1,15 +1,24 @@
-import type { CommandResult } from '../process/shell';
+import { z } from 'zod';
+
+import { tryParseJson } from '../json';
+import type { CommandResult, RunArgv } from '../process/shell';
 import { runArgv } from '../process/shell';
 import { GhCommandError, GhNotFoundError } from './errors';
 
+export interface GhOptions {
+    cwd: string;
+    /** Spawns the process; tests pass a scripted one. */
+    run?: RunArgv;
+}
+
 /** The single place that shells out to `gh` — every other GitHub wrapper goes through this. */
-export async function runGh(args: string[], options: { cwd: string }): Promise<string> {
+export async function runGh(args: string[], { cwd, run = runArgv }: GhOptions): Promise<string> {
     let result: CommandResult;
 
     try {
-        result = await runArgv(['gh', ...args], options);
+        result = await run(['gh', ...args], { cwd });
     } catch (cause) {
-        if ((cause as NodeJS.ErrnoException)?.code === 'ENOENT') throw new GhNotFoundError();
+        if (cause instanceof Error && 'code' in cause && cause.code === 'ENOENT') throw new GhNotFoundError();
         throw cause;
     }
 
@@ -20,8 +29,14 @@ export async function runGh(args: string[], options: { cwd: string }): Promise<s
     return result.stdout;
 }
 
-export async function runGhJson<T>(args: string[], options: { cwd: string }): Promise<T> {
+/** Runs `gh` and parses its JSON stdout with `schema`; output of another shape is an error. */
+export async function runGhJson<T>(args: string[], options: GhOptions, schema: z.ZodType<T>): Promise<T> {
     const stdout = await runGh(args, options);
+    const parsed = schema.safeParse(tryParseJson(stdout));
 
-    return JSON.parse(stdout) as T;
+    if (!parsed.success) {
+        throw new Error(`gh ${args.join(' ')} printed unexpected JSON: ${stdout.slice(0, 200)}`);
+    }
+
+    return parsed.data;
 }

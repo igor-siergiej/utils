@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util';
 
+import { z } from 'zod';
+
 import { ciWait } from './commands/ciWait';
 import { cloneRepo } from './commands/cloneRepo';
 import { deployWait } from './commands/deployWait';
@@ -18,16 +20,18 @@ import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
 import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
+import { errorMessage } from './errorMessage';
 import { resolveRepoPath } from './repoRegistry/resolveRepo';
 import { ensureWorktree, removeWorktree } from './worktree/worktree';
 
-function printSuccess(data: unknown): void {
+const mergeMethodSchema = z.enum(['squash', 'merge', 'rebase']).default('squash');
+
+function printSuccess<T>(data: T): void {
     process.stdout.write(`${JSON.stringify(data)}\n`);
 }
 
-function printError(error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+function printError(cause: unknown): void {
+    process.stderr.write(`${JSON.stringify({ ok: false, error: errorMessage(cause) })}\n`);
 }
 
 const USAGE =
@@ -40,7 +44,7 @@ const USAGE =
     '          worktree <create|remove> <project> <n>, dispatch [--once]\n' +
     'Task state lives in jott: `jott task … --json`.';
 
-async function runE2e(rest: string[]): Promise<unknown> {
+async function runE2e(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'local') {
@@ -78,7 +82,7 @@ async function runE2e(rest: string[]): Promise<unknown> {
     throw new Error(`Unknown e2e subcommand '${sub}'. Expected local, live or bootstrap.`);
 }
 
-async function runPr(rest: string[]): Promise<unknown> {
+async function runPr(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'create') {
@@ -118,11 +122,11 @@ async function runPr(rest: string[]): Promise<unknown> {
             allowPositionals: true,
         });
 
-        return prMerge(
-            positionals[0],
-            Number(positionals[1]),
-            (values.method as 'squash' | 'merge' | 'rebase' | undefined) ?? 'squash'
-        );
+        const method = mergeMethodSchema.safeParse(values.method);
+
+        if (!method.success) throw new Error('--method must be squash, merge or rebase');
+
+        return prMerge(positionals[0], Number(positionals[1]), method.data);
     }
 
     if (sub === 'revert') {
@@ -154,7 +158,7 @@ async function runPr(rest: string[]): Promise<unknown> {
     throw new Error(`Unknown pr subcommand '${sub}'. Expected create, status, merge or revert.`);
 }
 
-async function runCi(rest: string[]): Promise<unknown> {
+async function runCi(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'wait') {
@@ -178,7 +182,7 @@ async function runCi(rest: string[]): Promise<unknown> {
     throw new Error(`Unknown ci subcommand '${sub}'. Expected wait.`);
 }
 
-async function runDeploy(rest: string[]): Promise<unknown> {
+async function runDeploy(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'wait') {
@@ -393,7 +397,7 @@ async function main(): Promise<void> {
     }
 }
 
-main().catch((error) => {
-    printError(error);
+main().catch((cause) => {
+    printError(cause);
     process.exit(1);
 });

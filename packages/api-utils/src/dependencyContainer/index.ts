@@ -1,17 +1,16 @@
 import type { ConstructorOfType } from './types';
 
-export class DependencyContainer<Deps extends Record<string, unknown> = Record<string, unknown>> {
-    private static instance: DependencyContainer<Record<string, unknown>>;
+export class DependencyContainer<Deps extends Record<string, unknown>> {
+    private static instance: DependencyContainer<Record<string, never>> | undefined;
 
-    private constructors: Partial<Record<keyof Deps & string, ConstructorOfType<unknown>>> = {};
-    private instances: Partial<Record<keyof Deps & string, unknown>> = {};
+    private constructors = new Map<string, ConstructorOfType<unknown>>();
+    private instances = new Map<string, unknown>();
 
     public static getInstance<Deps2 extends Record<string, unknown>>(): DependencyContainer<Deps2> {
-        if (!DependencyContainer.instance) {
-            DependencyContainer.instance = new DependencyContainer<Record<string, unknown>>();
-        }
+        DependencyContainer.instance ??= new DependencyContainer<Record<string, never>>();
 
-        return DependencyContainer.instance as unknown as DependencyContainer<Deps2>;
+        // SAFETY: the container is a process-wide singleton shared by every caller; Deps2 is the token map the caller declares for its own tokens, and the map holds nothing until tokens are registered.
+        return DependencyContainer.instance as DependencyContainer<Deps2>;
     }
 
     public registerSingleton<K extends keyof Deps & string>(token: K, ctor: ConstructorOfType<Deps[K]>): void {
@@ -19,30 +18,32 @@ export class DependencyContainer<Deps extends Record<string, unknown> = Record<s
             throw new Error('Dependency is already registered');
         }
 
-        this.constructors[token] = ctor as unknown as ConstructorOfType<unknown>;
+        this.constructors.set(token, ctor);
     }
 
     public resolve<K extends keyof Deps & string>(token: K, ...args: Array<unknown>): Deps[K] {
-        const existing = this.instances[token];
+        const existing = this.instances.get(token);
 
         if (existing !== undefined) {
+            // SAFETY: instances are only ever stored under the token whose constructor produced them, so the value for K is a Deps[K].
             return existing as Deps[K];
         }
 
-        const ctor = this.constructors[token] as (new (...a: Array<unknown>) => Deps[K]) | undefined;
+        const ctor = this.constructors.get(token);
 
         if (!ctor) {
             throw new Error(`Dependency '${String(token)}' not registered`);
         }
 
-        const instance = new ctor(...args);
+        // SAFETY: registerSingleton accepted a constructor for this token; the caller of resolve supplies the arguments that constructor expects.
+        const instance = new (ctor as new (...a: Array<unknown>) => Deps[K])(...args);
 
-        this.instances[token] = instance as unknown;
+        this.instances.set(token, instance);
 
-        return instance as Deps[K];
+        return instance;
     }
 
     private isTokenRegistered(token: keyof Deps & string): boolean {
-        return token in this.instances || token in this.constructors;
+        return this.instances.has(token) || this.constructors.has(token);
     }
 }

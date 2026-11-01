@@ -14,9 +14,9 @@ export const decodeJWT = (token: string): DecodedToken | null => {
 
         const decodedPayload = atob(paddedPayload);
 
-        const parsedPayload = JSON.parse(decodedPayload);
+        const parsedPayload: DecodedToken = JSON.parse(decodedPayload);
 
-        return parsedPayload as DecodedToken;
+        return parsedPayload;
     } catch (error) {
         console.error('Failed to decode JWT token:', error);
 

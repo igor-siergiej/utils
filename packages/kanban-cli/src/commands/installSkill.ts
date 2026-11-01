@@ -16,7 +16,7 @@ export type PackagedSkill = (typeof SKILLS)[number];
  * there threw `The "path" argument must be of type string`.
  */
 function moduleDirectory(): string {
-    if (typeof __dirname === 'string') return __dirname;
+    if (typeof __dirname !== 'undefined') return __dirname;
 
     return dirname(fileURLToPath(import.meta.url));
 }
@@ -42,7 +42,7 @@ export interface InstallSkillOptions {
 export function installSkill(target: string, options: InstallSkillOptions = {}) {
     const mode = options.mode ?? 'copy';
 
-    if (options.skill && !SKILLS.includes(options.skill as PackagedSkill)) {
+    if (options.skill && !SKILLS.some((name) => name === options.skill)) {
         throw new Error(`unknown skill '${options.skill}'; packaged skills are: ${SKILLS.join(', ')}`);
     }
 

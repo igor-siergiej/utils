@@ -28,6 +28,9 @@ function collect(child: ChildProcess, onStdout?: (chunk: string) => void): Promi
     return promise;
 }
 
+/** The seam commands take so tests can script processes instead of spawning them. */
+export type RunArgv = (argv: string[], options: RunOptions) => Promise<CommandResult>;
+
 export interface RunOptions {
     cwd: string;
     /** Merged over the parent environment; a key set to `undefined` is removed from the child's. */

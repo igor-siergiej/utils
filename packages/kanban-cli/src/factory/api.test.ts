@@ -1,15 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
+import type { JsonValue } from '../json';
+import { fakeFetch } from '../testing/fakeFetch';
 import { ApiError, configFromEnv, dispatcherApi } from './api';
 
-function server(status: number, body: unknown) {
+function server(status: number, body: JsonValue) {
     const calls: { url: string; init: RequestInit }[] = [];
 
-    const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-        calls.push({ url: String(url), init: init ?? {} });
+    const fetch = fakeFetch(async (url, init) => {
+        calls.push({ url, init });
 
         return new Response(JSON.stringify(body), { status });
-    }) as unknown as typeof globalThis.fetch;
+    });
 
     return { calls, fetch };
 }
@@ -29,7 +31,7 @@ describe('dispatcherApi', () => {
         const { fetch } = server(400, { error: 'run is not running' });
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
 
-        const error = await api.heartbeat('r1', 'editing').catch((e: unknown) => e);
+        const error = await api.heartbeat('r1', 'editing').catch((e: Error) => e);
         expect(error).toBeInstanceOf(ApiError);
         expect(error).toMatchObject({ status: 400, message: expect.stringContaining('run is not running') });
     });

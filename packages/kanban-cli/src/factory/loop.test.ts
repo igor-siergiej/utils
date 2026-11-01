@@ -4,16 +4,17 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { JsonValue } from '../json';
 import { ApiError, type Claim, type ClaimedRun, type DispatcherApi, type EndAnswer, type EndBody } from './api';
 import type { Board, CardPatch, JottTask } from './board';
 import type { Harness, HarnessOutcome, HarnessRun } from './harness';
 import { cycle, type LoopDeps, type RunLogEntry, STOPPED_REASON, workerPrompt } from './loop';
 import type { NotifyEvent } from './notify';
 
-const STATUS_FROM_CLI: Record<string, string> = { 'in-progress': 'in_progress' };
+const STATUS_FROM_CLI = new Map([['in-progress', 'in_progress']]);
 const CARD = { id: 'task-5', number: 5, project: 'tandra', title: 'card 5' };
 
-const task = (status = 'todo', meta: Record<string, unknown> = {}): JottTask => ({
+const task = (status = 'todo', meta: Record<string, JsonValue> = {}): JottTask => ({
     ...CARD,
     status,
     tags: [],
@@ -35,9 +36,11 @@ function fakeBoard(tasks: JottTask[], order: string[] = []) {
         set: async (n, patch) => {
             order.push(`set ${patch.status ?? Object.keys(patch.meta ?? {}).join(',')}`);
             sets.push({ n, patch });
-            const t = tasks.find((x) => x.number === n) as JottTask;
+            const t = tasks.find((x) => x.number === n);
 
-            if (patch.status) t.status = STATUS_FROM_CLI[patch.status] ?? patch.status;
+            if (!t) throw new Error(`no #${n}`);
+
+            if (patch.status) t.status = STATUS_FROM_CLI.get(patch.status) ?? patch.status;
             Object.assign(t.meta, patch.meta);
 
             for (const k of patch.unmeta ?? []) delete t.meta[k];
@@ -47,10 +50,15 @@ function fakeBoard(tasks: JottTask[], order: string[] = []) {
     return { board, sets };
 }
 
+interface HeartbeatControl {
+    stop: boolean;
+    heartbeatError?: Error;
+}
+
 function fakeApi(claim: Claim, answer: EndAnswer = { action: 'none' }) {
     const heartbeats: (string | undefined)[] = [];
     const ends: EndBody[] = [];
-    const control: { stop: boolean; heartbeatError?: Error } = { stop: false };
+    const control: HeartbeatControl = { stop: false };
 
     const api: DispatcherApi = {
         claim: async () => claim,

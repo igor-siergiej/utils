@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { runArgv } from '../process/shell';
+import { readRepoName } from '../repoConfig/rawConfig';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { RepoResolutionError } from '../repoRegistry/errors';
 import { repoRoots, resolveRepoPath } from '../repoRegistry/resolveRepo';
@@ -41,7 +42,7 @@ export async function cloneRepo(project: string, repoUrl: string | undefined, op
     let configCreated = false;
 
     if (existsSync(configPath)) {
-        const repoName = (JSON.parse(readFileSync(configPath, 'utf8')) as { repoName?: unknown }).repoName;
+        const repoName = readRepoName(readFileSync(configPath, 'utf8'));
 
         if (repoName !== project) {
             throw new RepoResolutionError(

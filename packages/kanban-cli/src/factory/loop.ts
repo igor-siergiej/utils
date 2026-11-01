@@ -1,5 +1,8 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { z } from 'zod';
+
+import { errorMessage } from '../errorMessage';
 import {
     ApiError,
     type ClaimCard,
@@ -64,7 +67,6 @@ export interface CycleResult {
 }
 
 const label = (card: ClaimCard) => `${card.project ?? ''}#${card.number}`;
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function workerPrompt(
     card: Pick<ClaimCard, 'project' | 'number'>,
@@ -93,7 +95,7 @@ async function blockCard(deps: LoopDeps, card: ClaimCard, reason: string, notify
         await setCard(deps.board, card, { status: 'blocked', meta: { blocked_reason: reason } });
         await deps.board.sync();
     } catch (error) {
-        deps.warn(`${label(card)} not blocked locally: ${message(error)}`);
+        deps.warn(`${label(card)} not blocked locally: ${errorMessage(error)}`);
 
         return false;
     }
@@ -123,7 +125,7 @@ async function endRun(deps: LoopDeps, id: string, body: EndBody): Promise<EndAns
                 return undefined;
             }
 
-            deps.warn(`run ${id}: end failed, retrying in ${wait / 1000} s: ${message(error)}`);
+            deps.warn(`run ${id}: end failed, retrying in ${wait / 1000} s: ${errorMessage(error)}`);
             await sleep(wait);
         }
     }
@@ -152,13 +154,13 @@ function startHeartbeat(deps: LoopDeps, id: string, live: Live): () => void {
                 ({ stop }) => {
                     if (stop) live.controller.abort();
                 },
-                (error: unknown) => {
-                    if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
+                (cause: unknown) => {
+                    if (cause instanceof ApiError && (cause.status === 400 || cause.status === 404)) {
                         live.lost = true;
                         live.controller.abort();
-                        deps.warn(`run ${id} lost: ${error.message}`);
+                        deps.warn(`run ${id} lost: ${cause.message}`);
                     } else {
-                        deps.warn(`run ${id}: heartbeat failed: ${message(error)}`);
+                        deps.warn(`run ${id}: heartbeat failed: ${errorMessage(cause)}`);
                     }
                 }
             )
@@ -195,11 +197,11 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         await setCard(deps.board, card, { meta: { branch: wt.branch } });
         worktree = wt;
     } catch (error) {
-        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
+        return { body: { outcome: 'error', summary: `Could not start: ${errorMessage(error)}` } };
     }
 
     const stopped = (sessionId?: string): Finish => ({
-        body: { outcome: 'stopped', ...(sessionId ? { session_id: sessionId } : {}) },
+        body: { outcome: 'stopped', session_id: sessionId || undefined },
         after: async () => {
             await blockCard(deps, card, STOPPED_REASON, false);
         },
@@ -225,7 +227,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
             signal: live.controller.signal,
         });
     } catch (error) {
-        return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
+        return { body: { outcome: 'error', summary: `Could not start: ${errorMessage(error)}` } };
     }
 
     if (live.lost) return 'lost';
@@ -238,7 +240,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
                 body: {
                     outcome: 'rate_limited',
                     resets_at: Date.parse(outcome.resetsAt),
-                    ...(outcome.sessionId ? { session_id: outcome.sessionId } : {}),
+                    session_id: outcome.sessionId || undefined,
                 },
             };
         case 'failed':
@@ -259,7 +261,9 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         await deps.board.sync();
         after = await localCard(deps.board, card);
     } catch (error) {
-        return { body: { outcome: 'failed', summary: `Could not read the card after the run: ${message(error)}` } };
+        return {
+            body: { outcome: 'failed', summary: `Could not read the card after the run: ${errorMessage(error)}` },
+        };
     }
 
     const event = { project, number: card.number, title: card.title };
@@ -268,8 +272,8 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         return {
             body: { outcome: 'done', session_id: outcome.sessionId },
             after: async () => {
-                await deps.removeWorktree(repo, project, card.number).catch((error: unknown) => {
-                    deps.warn(`${label(card)}: worktree not removed: ${message(error)}`);
+                await deps.removeWorktree(repo, project, card.number).catch((cause: unknown) => {
+                    deps.warn(`${label(card)}: worktree not removed: ${errorMessage(cause)}`);
                 });
                 await deps.notify({ kind: 'done', ...event });
             },
@@ -277,10 +281,10 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     }
 
     if (after.status === 'blocked') {
-        const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
+        const reason = z.string().safeParse(after.meta.blocked_reason).data;
 
         return {
-            body: { outcome: 'blocked', session_id: outcome.sessionId, ...(reason ? { summary: reason } : {}) },
+            body: { outcome: 'blocked', session_id: outcome.sessionId, summary: reason || undefined },
             after: () => deps.notify({ kind: 'blocked', ...event, reason }),
         };
     }
@@ -337,7 +341,7 @@ export async function cycle(deps: LoopDeps): Promise<CycleResult> {
     const blocked: string[] = [];
 
     if (claim.block.length > 0) {
-        await deps.board.sync().catch((error: unknown) => deps.warn(`jott sync failed: ${message(error)}`));
+        await deps.board.sync().catch((cause: unknown) => deps.warn(`jott sync failed: ${errorMessage(cause)}`));
 
         for (const { card, reason } of claim.block) {
             if (await blockCard(deps, card, reason, true)) blocked.push(label(card));

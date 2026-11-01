@@ -1,16 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { runArgv } from '../process/shell';
+import type { RunArgv } from '../process/shell';
 import { createFakeProcess, json } from '../testing/fakeProcess';
 import { waitForWorkflowRun } from './workflowPoller';
 
-vi.mock('../process/shell', () => ({ runArgv: vi.fn() }));
-
 let fake: ReturnType<typeof createFakeProcess>;
+
+const fakeRun: RunArgv = (argv) => fake.run(argv);
 
 beforeEach(() => {
     fake = createFakeProcess();
-    vi.mocked(runArgv).mockImplementation(fake.run);
 });
 
 const run = (headSha: string, status: string, conclusion: string | null) => ({
@@ -20,7 +19,8 @@ const run = (headSha: string, status: string, conclusion: string | null) => ({
     url: `https://github.com/o/r/actions/runs/${headSha}`,
 });
 
-const wait = (timeoutMs = 1000) => waitForWorkflowRun('/repo', 'Deploy', 'abc', { timeoutMs, intervalMs: 1 });
+const wait = (timeoutMs = 1000) =>
+    waitForWorkflowRun('/repo', 'Deploy', 'abc', { timeoutMs, intervalMs: 1, run: fakeRun });
 
 describe('waitForWorkflowRun', () => {
     it('queries the named workflow', async () => {

@@ -33,7 +33,7 @@ function releasedPackages(): Manifest[] {
 
     return git('ls-tree', '--name-only', 'origin/main', 'packages/')
         .split('\n')
-        .map((dir) => JSON.parse(git('show', `origin/main:${dir}/package.json`)) as Manifest)
+        .map((dir): Manifest => JSON.parse(git('show', `origin/main:${dir}/package.json`)))
         .filter((manifest) => manifest.private !== true);
 }
 

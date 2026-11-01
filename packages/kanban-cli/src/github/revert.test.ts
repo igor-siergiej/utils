@@ -1,18 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { runArgv } from '../process/shell';
+import type { RunArgv } from '../process/shell';
 import { createFakeProcess } from '../testing/fakeProcess';
 import { revertMergeCommit } from './revert';
-
-vi.mock('../process/shell', () => ({ runArgv: vi.fn() }));
 
 const SHA = '1234567890abcdef';
 
 let fake: ReturnType<typeof createFakeProcess>;
 
+const run: RunArgv = (argv) => fake.run(argv);
+
 beforeEach(() => {
     fake = createFakeProcess();
-    vi.mocked(runArgv).mockImplementation(fake.run);
     fake.on(['git', 'fetch'], {});
     fake.on(['git', 'checkout'], {});
     fake.on(['git', 'revert'], {});
@@ -21,13 +20,17 @@ beforeEach(() => {
 });
 
 const revert = () =>
-    revertMergeCommit('/repo', {
-        commitSha: SHA,
-        base: 'main',
-        originalTitle: 'feat: thing',
-        originalPrNumber: 50,
-        failureSummary: 'smoke: homepage loads failed',
-    });
+    revertMergeCommit(
+        '/repo',
+        {
+            commitSha: SHA,
+            base: 'main',
+            originalTitle: 'feat: thing',
+            originalPrNumber: 50,
+            failureSummary: 'smoke: homepage loads failed',
+        },
+        run
+    );
 
 describe('revertMergeCommit', () => {
     it('reverts a squash commit on a fresh branch and opens a PR', async () => {

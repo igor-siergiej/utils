@@ -1,3 +1,4 @@
+import type { JsonValue } from '../json';
 import type { CommandResult } from '../process/shell';
 
 type Response = Partial<CommandResult> | Error;
@@ -35,4 +36,4 @@ export function createFakeProcess() {
     return { on, run, calls };
 }
 
-export const json = (value: unknown): Partial<CommandResult> => ({ stdout: JSON.stringify(value) });
+export const json = (value: JsonValue | undefined): Partial<CommandResult> => ({ stdout: JSON.stringify(value) });

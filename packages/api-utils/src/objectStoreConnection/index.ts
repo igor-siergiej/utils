@@ -2,12 +2,14 @@ import type { Readable } from 'node:stream';
 
 import { Client } from 'minio';
 
-import type { IBucket, ObjectStoreConfig } from './types';
+import type { IBucket, ObjectStoreClient, ObjectStoreClientFactory, ObjectStoreConfig } from './types';
 
 export class ObjectStoreConnection implements IBucket {
-    private client?: Client;
+    private client?: ObjectStoreClient;
     private bucketName?: string;
     private lastEndpoint?: string;
+
+    constructor(private readonly createClient: ObjectStoreClientFactory = (options) => new Client(options)) {}
 
     public async connect(config?: ObjectStoreConfig): Promise<void> {
         if (!config) {
@@ -24,7 +26,7 @@ export class ObjectStoreConnection implements IBucket {
             const [hostname, portStr] = endpoint.split(':');
             const port = explicitPort ?? (portStr ? parseInt(portStr, 10) : undefined);
 
-            this.client = new Client({
+            this.client = this.createClient({
                 endPoint: hostname,
                 port,
                 useSSL: false,
@@ -37,7 +39,7 @@ export class ObjectStoreConnection implements IBucket {
         this.bucketName = bucketName;
     }
 
-    private requireConnection(): { client: Client; bucketName: string } {
+    private requireConnection() {
         if (!this.client || !this.bucketName) {
             throw new Error('ObjectStoreConnection: not connected');
         }

@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import { readRepoName } from '../repoConfig/rawConfig';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { RepoResolutionError } from './errors';
 
@@ -27,9 +28,7 @@ export function resolveRepoPath(project: string, roots: string[] = repoRoots()):
         if (!existsSync(configPath)) return;
 
         try {
-            const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { repoName?: unknown };
-
-            if (parsed.repoName === project) matches.push(dir);
+            if (readRepoName(readFileSync(configPath, 'utf8')) === project) matches.push(dir);
         } catch {
             // a malformed .kanban-cli.json elsewhere must not break resolution
         }

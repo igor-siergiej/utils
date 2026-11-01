@@ -43,7 +43,7 @@ describe('errorHandler', () => {
         expect(logger.warn).toHaveBeenCalledOnce();
         const message = logger.warn.mock.calls[0][0];
         expect(message).toBe('nope');
-        const meta = logger.warn.mock.calls[0][2] as Record<string, unknown>;
+        const meta = logger.warn.mock.calls[0][2];
         expect(meta).toMatchObject({
             method: 'GET',
             path: '/api-error',
@@ -59,7 +59,7 @@ describe('errorHandler', () => {
         expect(logger.error).toHaveBeenCalledOnce();
         const message = logger.error.mock.calls[0][0];
         expect(message).toBe('boom');
-        const meta = logger.error.mock.calls[0][2] as Record<string, unknown>;
+        const meta = logger.error.mock.calls[0][2];
         expect(meta).toMatchObject({
             method: 'GET',
             path: '/plain-error',
@@ -67,7 +67,7 @@ describe('errorHandler', () => {
             status: 500,
         });
         expect(meta.errorName).toBeUndefined();
-        expect(typeof meta.stack).toBe('string');
+        expect(meta.stack).toEqual(expect.any(String));
     });
 
     it('falls back to no-logger behaviour when logger omitted', async () => {

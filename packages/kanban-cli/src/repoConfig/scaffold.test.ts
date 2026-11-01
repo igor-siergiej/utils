@@ -4,6 +4,7 @@ import { basename, join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import type { JsonValue } from '../json';
 import { RepoConfigError } from './errors';
 import { loadRepoConfig } from './loader';
 import { scaffoldRepoConfig } from './scaffold';
@@ -19,11 +20,13 @@ afterEach(() => {
     rmSync(repoDir, { recursive: true, force: true });
 });
 
-const write = (path: string, contents: unknown) => {
+const write = (path: string, contents: string) => {
     const full = join(repoDir, path);
     mkdirSync(join(full, '..'), { recursive: true });
-    writeFileSync(full, typeof contents === 'string' ? contents : JSON.stringify(contents));
+    writeFileSync(full, contents);
 };
+
+const writeJson = (path: string, contents: JsonValue) => write(path, JSON.stringify(contents));
 
 const written = () => JSON.parse(readFileSync(join(repoDir, CONFIG_FILENAME), 'utf8'));
 
@@ -31,7 +34,7 @@ const CI_WORKFLOW = 'name: CI\non:\n  pull_request:\n  push:\n    branches: [mai
 const DEPLOY_WORKFLOW = 'name: CD\non:\n  push:\n    branches: [main]\njobs: {}\n';
 
 function fullRepo() {
-    write('package.json', {
+    writeJson('package.json', {
         name: '@imapps/shoppingo',
         packageManager: 'bun@1.3.0',
         scripts: { dev: 'vite', 'test:e2e': 'playwright test' },
@@ -67,7 +70,7 @@ describe('scaffoldRepoConfig', () => {
     });
 
     it('reports what it could not infer instead of writing placeholders', () => {
-        write('package.json', { name: 'lib' });
+        writeJson('package.json', { name: 'lib' });
 
         const result = scaffoldRepoConfig(repoDir);
 
@@ -84,7 +87,7 @@ describe('scaffoldRepoConfig', () => {
 
     it('keeps every value an existing partial config already has', () => {
         fullRepo();
-        write(CONFIG_FILENAME, { repoName: 'custom', dev: { healthCheckUrl: 'http://localhost:8080/health' } });
+        writeJson(CONFIG_FILENAME, { repoName: 'custom', dev: { healthCheckUrl: 'http://localhost:8080/health' } });
 
         const result = scaffoldRepoConfig(repoDir, { baseUrl: 'https://x.example.com' });
 
@@ -108,7 +111,7 @@ describe('scaffoldRepoConfig', () => {
 
     it('never merges a guessed environment into existing environments', () => {
         fullRepo();
-        write(CONFIG_FILENAME, { environments: { staging: { baseUrl: 'https://staging.example.com' } } });
+        writeJson(CONFIG_FILENAME, { environments: { staging: { baseUrl: 'https://staging.example.com' } } });
 
         scaffoldRepoConfig(repoDir, { baseUrl: 'https://prod.example.com' });
 
@@ -116,7 +119,7 @@ describe('scaffoldRepoConfig', () => {
     });
 
     it('uses --repo-name, --environment and the package.json homepage', () => {
-        write('package.json', { name: 'pkg', homepage: 'https://pkg.example.com' });
+        writeJson('package.json', { name: 'pkg', homepage: 'https://pkg.example.com' });
 
         scaffoldRepoConfig(repoDir, { repoName: 'override', environment: 'staging' });
 
@@ -138,7 +141,7 @@ describe('scaffoldRepoConfig', () => {
         ['yarn.lock', 'yarn run start', 'yarn playwright test'],
         ['bun.lockb', 'bun run start', 'bunx playwright test'],
     ])('detects the package manager from %s', (lockfile, startCommand, testCommand) => {
-        write('package.json', { scripts: { start: 'node server.js' } });
+        writeJson('package.json', { scripts: { start: 'node server.js' } });
         write(lockfile, '');
 
         scaffoldRepoConfig(repoDir);
