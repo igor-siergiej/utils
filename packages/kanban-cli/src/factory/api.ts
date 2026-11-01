@@ -10,12 +10,17 @@ export interface ClaimCard {
     title: string;
 }
 
+/** What the server asked for: a build (the kanban-worker skill) or a refine (the refining skill). */
+export type RunKind = 'build' | 'refine';
+
 export interface ClaimedRun {
     /** Server run id: heartbeat and end go to `/v1/dispatcher/runs/<id>`. */
     id: string;
     card: ClaimCard;
     harness: string;
     model: string;
+    /** The run's kind. Absent on a server that only knows builds; those runs are builds. */
+    kind?: RunKind;
     resume_session?: string;
     reply?: string;
     blocked_reason?: string;
@@ -98,6 +103,7 @@ const claimedRunSchema = z.object({
     card: cardSchema,
     harness: z.string(),
     model: z.string(),
+    kind: z.enum(['build', 'refine']).optional(),
     resume_session: z.string().optional(),
     reply: z.string().optional(),
     blocked_reason: z.string().optional(),

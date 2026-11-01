@@ -1,6 +1,6 @@
 {
   "name": "@imapps/oxc-config",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "Shared Oxlint and Oxfmt configuration (with vendored anti-slop rules) for IM Apps projects",
   "license": "AGPL-3.0 license",
   "type": "module",

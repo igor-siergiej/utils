@@ -11,7 +11,7 @@ import { type CycleResult, cycle, HEARTBEAT_MS, type LoopDeps, type RunLogEntry 
 import { notify } from '../factory/notify';
 import { readFallbackMinutes } from '../repoConfig/rawConfig';
 import { CONFIG_FILENAME } from '../repoConfig/types';
-import { resolveRepoPath } from '../repoRegistry/resolveRepo';
+import { repoRoots, resolveRepoPath } from '../repoRegistry/resolveRepo';
 import { ensureWorktree, prepareWorktree, removeWorktree } from '../worktree/worktree';
 
 const CLAIM_BACKOFF_FIRST_MS = 10_000;
@@ -48,6 +48,7 @@ export function realDeps(config: ApiConfig = configFromEnv(), logPath = defaultL
         api: dispatcherApi(config),
         board: jottBoard,
         resolveRepo: (project) => resolveRepoPath(project),
+        repoRoot: () => repoRoots()[0],
         quotaFallbackMinutes,
         harnessFor,
         ensureWorktree,

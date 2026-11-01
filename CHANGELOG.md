@@ -1,3 +1,10 @@
+# [6.1.0](https://github.com/igor-siergiej/utils/compare/v6.0.0...v6.1.0) (2026-10-26)
+
+
+### Features
+
+* **kanban-cli:** run refine passes from the factory dispatcher ([#37](https://github.com/igor-siergiej/utils/issues/37)) ([c8e295e](https://github.com/igor-siergiej/utils/commit/c8e295e09974ec8754672c0a634c7b8de45d0751)), closes [#194](https://github.com/igor-siergiej/utils/issues/194)
+
 # [6.0.0](https://github.com/igor-siergiej/utils/compare/v5.5.1...v6.0.0) (2026-10-25)
 
 
