@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { evaluateUsage } from './evaluateUsage';
 
 const BASE_OPTIONS = { thresholdPct: 90, maxStalenessMs: 120_000 };

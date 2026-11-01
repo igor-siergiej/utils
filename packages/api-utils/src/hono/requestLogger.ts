@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+
 import type { Context, Next } from 'hono';
+
 import type { ILogger } from '../logger/types';
 
 // A request id, generated per request (or read from the inbound `X-Request-Id`

@@ -1,4 +1,5 @@
 import type { Readable } from 'node:stream';
+
 import { Client } from 'minio';
 
 import type { IBucket, ObjectStoreConfig } from './types';

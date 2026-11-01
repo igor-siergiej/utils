@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+
 import type { ILogger } from '../logger/types';
 import type { RequestVariables } from './requestLogger';
 

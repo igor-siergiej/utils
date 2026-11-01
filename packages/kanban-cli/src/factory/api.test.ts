@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { ApiError, configFromEnv, dispatcherApi } from './api';
 
 function server(status: number, body: unknown) {

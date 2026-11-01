@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
+
 import { type RequestVariables, requestLogger } from './requestLogger';
 
 const makeLogger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() });

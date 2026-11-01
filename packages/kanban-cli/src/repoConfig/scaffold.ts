@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+
 import { parse as parseYaml } from 'yaml';
+
 import { isRecord } from '../typeGuards';
 import { RepoConfigError } from './errors';
 import { validateRepoConfig } from './loader';

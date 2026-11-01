@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { pollForCondition } from './pollForCondition';
 
 function fakeClock(intervalMs: number) {

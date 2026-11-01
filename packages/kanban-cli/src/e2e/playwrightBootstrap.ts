@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { PlaywrightAlreadyConfiguredError } from './errors';
 
 const PLAYWRIGHT_CONFIG_TEMPLATE = `import { defineConfig } from '@playwright/test';

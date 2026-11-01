@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { runArgv } from '../process/shell';
 import { createFakeProcess } from '../testing/fakeProcess';
 import { GhCommandError, GhNotFoundError } from './errors';

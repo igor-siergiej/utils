@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { isRecord } from '../typeGuards';
 import { RepoConfigError } from './errors';
 import {

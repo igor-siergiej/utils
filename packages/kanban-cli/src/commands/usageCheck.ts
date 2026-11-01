@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+
 import type { UsageCheckResult } from '../usage/evaluateUsage';
 import { evaluateUsage } from '../usage/evaluateUsage';
 import { defaultUsageStatePath, readUsageState } from '../usage/state';

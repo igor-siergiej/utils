@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
+
 import { APIError, errorHandler } from './errorHandler';
 import type { RequestVariables } from './requestLogger';
 

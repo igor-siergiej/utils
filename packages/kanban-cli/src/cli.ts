@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util';
+
 import { ciWait } from './commands/ciWait';
 import { cloneRepo } from './commands/cloneRepo';
 import { deployWait } from './commands/deployWait';

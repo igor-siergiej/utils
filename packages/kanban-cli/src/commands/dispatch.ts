@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+
 import { type ApiConfig, configFromEnv, dispatcherApi } from '../factory/api';
 import { jottBoard } from '../factory/board';
 import { harnessFor } from '../factory/harness';
