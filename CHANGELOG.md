@@ -1,3 +1,17 @@
+# [7.0.0](https://github.com/igor-siergiej/utils/compare/v6.1.0...v7.0.0) (2026-11-01)
+
+
+### Features
+
+* **oxc-config:** migrate to oxlint + oxfmt with anti-slop rules ([#38](https://github.com/igor-siergiej/utils/issues/38)) ([de8786b](https://github.com/igor-siergiej/utils/commit/de8786bbe857a2eb9523e9a8068f8192f549c8a0))
+
+
+### BREAKING CHANGES
+
+* **oxc-config:** api-utils: type BaseConfigShape renamed BaseConfig; DependencyContainer has no default type argument; getEnv<T>(key) and getEnv<T>(key, undefined, fallback) only compile for T extends string. kanban-cli: runGhJson(args, options, schema) requires a zod schema as its third argument; validateRepoConfig and parseFiveHourRateLimit take JsonValue instead of unknown; validateRepoConfig error text is now '<path>': <zod message>; zod is a new runtime dependency.
+
+* chore: remove migration spec and plan
+
 # [6.1.0](https://github.com/igor-siergiej/utils/compare/v6.0.0...v6.1.0) (2026-10-26)
 
 

@@ -2,7 +2,7 @@
   "name": "utils",
   "private": true,
   "type": "module",
-  "version": "6.1.0",
+  "version": "7.0.0",
   "description": "Monorepo for shared utilities across IM Apps projects",
   "repository": {
     "type": "git",
