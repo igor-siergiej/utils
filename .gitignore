@@ -12,3 +12,6 @@ build
 
 # runtime npm auth (CI publish)
 .npmrc
+
+# oxc-config test fixtures
+packages/oxc-config/.tmp-fixtures/

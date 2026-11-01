@@ -1,0 +1,54 @@
+{
+  "name": "@imapps/oxc-config",
+  "version": "6.0.0",
+  "description": "Shared Oxlint and Oxfmt configuration (with vendored anti-slop rules) for IM Apps projects",
+  "license": "AGPL-3.0 license",
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "exports": {
+    "./oxlint": {
+      "types": "./build/oxlint.d.ts",
+      "default": "./build/oxlint.js"
+    },
+    "./oxfmt": {
+      "types": "./build/oxfmt.d.ts",
+      "default": "./build/oxfmt.js"
+    },
+    "./anti-slop": {
+      "default": "./build/anti-slop.js"
+    }
+  },
+  "files": [
+    "build",
+    "anti-slop",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rimraf build",
+    "prepack": "bun run clean && bun run build",
+    "test": "tsup && vitest run"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.90.0",
+    "@types/node": "^24.3.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@oxlint/plugins": "1.90.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/igor-siergiej/utils.git"
+  }
+}
