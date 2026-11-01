@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { type JsonValue, tryParseJson } from '../json';
-import { runArgv } from '../process/shell';
+import { type RunArgv, runArgv } from '../process/shell';
 
 /** A task of `jott task show --json`. */
 export interface JottTask {
@@ -28,7 +28,11 @@ export interface Board {
     set(n: number, patch: CardPatch): Promise<void>;
 }
 
-const envelopeSchema = z.looseObject({ ok: z.boolean().optional(), error: z.unknown(), task: z.unknown() });
+const envelopeSchema = z.looseObject({
+    ok: z.boolean().optional(),
+    error: z.unknown().optional(),
+    task: z.unknown().optional(),
+});
 
 const jottTaskSchema = z.object({
     id: z.string(),
@@ -40,8 +44,8 @@ const jottTaskSchema = z.object({
     meta: z.record(z.string(), z.json()),
 });
 
-async function jott(args: string[]) {
-    const result = await runArgv(['jott', ...args, '--json'], { cwd: process.cwd(), env: { JOTT_NO_BANNER: '1' } });
+async function jott(run: RunArgv, args: string[]) {
+    const result = await run(['jott', ...args, '--json'], { cwd: process.cwd(), env: { JOTT_NO_BANNER: '1' } });
     const out = (result.stdout.trim() || result.stderr.trim()).split('\n').pop() ?? '';
     const envelope = envelopeSchema.safeParse(tryParseJson(out));
 
@@ -54,29 +58,34 @@ async function jott(args: string[]) {
     return envelope.data;
 }
 
-export const jottBoard: Board = {
-    async sync() {
-        await jott(['sync']);
-    },
-    async show(n) {
-        const { task } = await jott(['task', 'show', String(n)]);
-        const parsed = jottTaskSchema.safeParse(task);
+/** The real board: shells out to the `jott` CLI through `run`. */
+export function createJottBoard(run: RunArgv): Board {
+    return {
+        async sync() {
+            await jott(run, ['sync']);
+        },
+        async show(n) {
+            const { task } = await jott(run, ['task', 'show', String(n)]);
+            const parsed = jottTaskSchema.safeParse(task);
 
-        if (!parsed.success) throw new Error(`jott task show ${n} printed no task`);
+            if (!parsed.success) throw new Error(`jott task show ${n} printed no task`);
 
-        return parsed.data;
-    },
-    async set(n, patch) {
-        const args = ['task', 'set', String(n)];
+            return parsed.data;
+        },
+        async set(n, patch) {
+            const args = ['task', 'set', String(n)];
 
-        if (patch.status) args.push('--status', patch.status);
+            if (patch.status) args.push('--status', patch.status);
 
-        for (const [k, v] of Object.entries(patch.meta ?? {})) args.push('--meta', `${k}=${JSON.stringify(v)}`);
+            for (const [k, v] of Object.entries(patch.meta ?? {})) args.push('--meta', `${k}=${JSON.stringify(v)}`);
 
-        for (const k of patch.unmeta ?? []) args.push('--unmeta', k);
-        await jott(args);
-    },
-};
+            for (const k of patch.unmeta ?? []) args.push('--unmeta', k);
+            await jott(run, args);
+        },
+    };
+}
+
+export const jottBoard: Board = createJottBoard(runArgv);
 
 /**
  * The local task for a card the server named. Numbers can be renumbered on a sync

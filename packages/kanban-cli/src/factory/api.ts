@@ -116,7 +116,7 @@ const endAnswerSchema = z
 
 const heartbeatSchema = z.object({ stop: z.boolean() });
 
-const failureSchema = z.object({ error: z.unknown() });
+const failureSchema = z.object({ error: z.unknown().optional() });
 
 type RequestBody = EndBody | { activity?: string };
 
