@@ -20,6 +20,7 @@ export async function revertMergeCommit(
 
     const parents = await runArgv(['git', 'rev-list', '--parents', '-n', '1', options.commitSha], { cwd: repoPath });
     const parentCount = parents.stdout.trim().split(/\s+/).length - 1;
+
     const revertArgs =
         parentCount > 1
             ? ['revert', '--no-edit', '-m', '1', options.commitSha]

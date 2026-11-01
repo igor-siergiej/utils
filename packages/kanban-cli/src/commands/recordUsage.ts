@@ -9,6 +9,7 @@ export interface RecordUsageOptions {
 export function recordUsage(stdinText: string, options: RecordUsageOptions = {}): { ok: true } {
     try {
         const rateLimit = parseFiveHourRateLimit(JSON.parse(stdinText));
+
         if (rateLimit) {
             const now = options.now ?? (() => new Date());
             writeUsageState(options.statePath ?? defaultUsageStatePath(), {

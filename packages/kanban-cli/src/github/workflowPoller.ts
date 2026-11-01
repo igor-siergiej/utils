@@ -25,6 +25,7 @@ export async function waitForWorkflowRun(
             );
 
             const run = raw.find((r) => r.headSha === commitSha);
+
             if (!run || run.status !== 'completed') return null;
 
             return { status: run.conclusion === 'success' ? 'success' : 'failure', runUrl: run.url };

@@ -4,10 +4,13 @@ import { ApiError, configFromEnv, dispatcherApi } from './api';
 
 function server(status: number, body: unknown) {
     const calls: { url: string; init: RequestInit }[] = [];
+
     const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         calls.push({ url: String(url), init: init ?? {} });
+
         return new Response(JSON.stringify(body), { status });
     }) as unknown as typeof globalThis.fetch;
+
     return { calls, fetch };
 }
 

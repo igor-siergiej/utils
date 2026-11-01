@@ -4,6 +4,7 @@ import { pollHttpHealth } from './healthCheck';
 
 function fakeClock() {
     let time = 0;
+
     return {
         now: () => time,
         sleep: async (ms: number) => {
@@ -16,8 +17,10 @@ describe('pollHttpHealth', () => {
     it('returns true once the endpoint responds ok', async () => {
         const clock = fakeClock();
         let calls = 0;
+
         const fetchImpl = vi.fn(async () => {
             calls += 1;
+
             return { ok: calls >= 2 } as Response;
         });
 
@@ -51,9 +54,12 @@ describe('pollHttpHealth', () => {
     it('treats a rejected fetch (connection refused) as not-yet-healthy rather than throwing', async () => {
         const clock = fakeClock();
         let calls = 0;
+
         const fetchImpl = vi.fn(async () => {
             calls += 1;
+
             if (calls === 1) throw new Error('ECONNREFUSED');
+
             return { ok: true } as Response;
         });
 

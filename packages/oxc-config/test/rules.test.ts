@@ -38,6 +38,7 @@ const lint = (files: Record<string, string>): Diagnostic[] => {
         cwd: dir,
         encoding: 'utf8',
     });
+
     const report: { diagnostics: Diagnostic[] } = JSON.parse(result.stdout);
 
     return report.diagnostics;

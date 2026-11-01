@@ -27,6 +27,7 @@ export async function pollForCondition<T>(
 
     for (;;) {
         const result = await check();
+
         if (result !== null) return { status: 'success', value: result };
 
         if (now() >= deadline) return { status: 'timeout' };

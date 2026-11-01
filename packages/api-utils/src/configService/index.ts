@@ -55,6 +55,7 @@ export interface SchemaEntry<T> {
     optional?: boolean;
     from?: string;
 }
+
 export type ConfigSchema = Record<string, SchemaEntry<unknown>>;
 
 type InferConfig<S extends ConfigSchema> = {

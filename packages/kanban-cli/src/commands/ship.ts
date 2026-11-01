@@ -37,9 +37,11 @@ export interface ShipResult {
 
 async function git(repoPath: string, args: string[]): Promise<string> {
     const result = await runArgv(['git', ...args], { cwd: repoPath });
+
     if (result.exitCode !== 0) {
         throw new Error(`git ${args.join(' ')} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
+
     return result.stdout.trim();
 }
 
@@ -48,11 +50,13 @@ async function openPrFor(repoPath: string, head: string, base: string, options: 
         ['pr', 'list', '--head', head, '--state', 'open', '--json', 'number,url'],
         { cwd: repoPath }
     );
+
     if (existing[0]) return existing[0];
 
     if (!options.title || !options.body) {
         throw new Error(`no open PR for '${head}', so --title and --body are required to create one`);
     }
+
     return createPullRequest(repoPath, { title: options.title, body: options.body, base, head });
 }
 
@@ -61,15 +65,18 @@ async function mergeAndDeploy(repoPath: string, config: RepoConfig, prNumber: nu
         timeoutMs: ciTimeoutMs,
         requiredNames: config.ci.checkNamesRequired,
     });
+
     if (checks.status !== 'success') return { stage: 'ci' as const, status: checks.status, checks: checks.checks };
 
     const merge = await mergePullRequest(repoPath, prNumber, config.github.mergeMethod);
+
     if (!merge.merged || !merge.mergeCommitSha) throw new Error(`PR #${prNumber} did not merge`);
 
     const deploy = await waitForWorkflowRun(repoPath, config.deploy.workflowName, merge.mergeCommitSha, {
         timeoutMs: config.deploy.timeoutMs,
         intervalMs: config.deploy.pollIntervalMs,
     });
+
     return {
         stage: 'deploy' as const,
         status: deploy.status,
@@ -85,6 +92,7 @@ async function mergeAndDeploy(repoPath: string, config: RepoConfig, prNumber: nu
  */
 export async function ship(repoPath: string, options: ShipOptions = {}): Promise<{ ok: true; result: ShipResult }> {
     const loaded = loadRepoConfig(repoPath);
+
     if (!loaded.configFound) throw new RepoConfigError(`No .kanban-cli.json found at ${repoPath}`);
     const { config } = loaded;
     const base = config.github.defaultBranch;
@@ -93,20 +101,25 @@ export async function ship(repoPath: string, options: ShipOptions = {}): Promise
     if (await git(repoPath, ['status', '--porcelain'])) {
         throw new Error('working tree has uncommitted changes; commit (or stash) them before shipping');
     }
+
     const head = options.head ?? (await git(repoPath, ['rev-parse', '--abbrev-ref', 'HEAD']));
+
     if (head === base) throw new Error(`refusing to ship from the base branch '${base}'; commit on a feature branch`);
 
     await git(repoPath, ['push', '-u', 'origin', head]);
     const pr = await openPrFor(repoPath, head, base, options);
 
     const shipped = await mergeAndDeploy(repoPath, config, pr.number, ciTimeoutMs);
+
     if (shipped.stage === 'ci') {
         return { ok: true, result: { stage: 'ci', status: shipped.status, pr, failedChecks: shipped.checks } };
     }
+
     if (shipped.status !== 'success') return { ok: true, result: { ...shipped, pr } };
 
     const baseUrl = config.environments[config.targetEnvironment].baseUrl;
     const live = await runLiveSmoke(repoPath, config, baseUrl);
+
     if (live.passed) return { ok: true, result: { ...shipped, stage: 'done', pr } };
 
     const revertPr = await revertMergeCommit(repoPath, {
@@ -116,6 +129,7 @@ export async function ship(repoPath: string, options: ShipOptions = {}): Promise
         originalPrNumber: pr.number,
         failureSummary: `Failed smoke tests: ${live.failedTests.join(', ') || 'see the e2e report'}`,
     });
+
     const reverted = await mergeAndDeploy(repoPath, config, revertPr.number, ciTimeoutMs);
     const restored = reverted.status === 'success' && (await runLiveSmoke(repoPath, config, baseUrl)).passed;
 

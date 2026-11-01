@@ -6,6 +6,7 @@ import type { RepoConfig } from '../repoConfig/types';
 import { runLocalE2e } from './localRunner';
 
 vi.mock('../process/shell', () => ({ runShell: vi.fn(), startShellInBackground: vi.fn() }));
+
 vi.mock('../process/healthCheck', () => ({ pollHttpHealth: vi.fn() }));
 
 const config = (dev: Partial<RepoConfig['dev']> = {}) =>

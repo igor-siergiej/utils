@@ -28,13 +28,16 @@ export const errorHandler =
             const path = c.req.path;
             const userId = c.get('userId');
             const message = err.message ?? 'Internal Server Error';
+
             const meta: Record<string, unknown> = {
                 method,
                 path,
                 requestId,
                 status: statusCode,
             };
+
             if (userId) meta.userId = userId;
+
             if (err instanceof APIError) {
                 meta.errorName = err.name;
             } else {

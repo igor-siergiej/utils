@@ -22,5 +22,6 @@ export async function runGh(args: string[], options: { cwd: string }): Promise<s
 
 export async function runGhJson<T>(args: string[], options: { cwd: string }): Promise<T> {
     const stdout = await runGh(args, options);
+
     return JSON.parse(stdout) as T;
 }

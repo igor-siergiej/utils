@@ -26,6 +26,7 @@ export const QUOTA_MESSAGE =
 export const DEFAULT_QUOTA_PAUSE_MINUTES = 30;
 
 const CODE_FIELDS = ['code', 'type', 'status', 'errorStatus', 'error_status'];
+
 const MESSAGE_FIELDS = [
     'message',
     'errorMessage',
@@ -36,56 +37,74 @@ const MESSAGE_FIELDS = [
     'summary',
     'detail',
 ];
+
 const RESET_FIELDS = ['resets_at', 'resetsAt', 'reset_at', 'resetAt'];
 
 /** "Provider requested 1596488ms wait" — how long the provider asked us to hold off. */
 const WAIT_MS = /(\d+)\s*ms wait/i;
+
 /** "retry-after-ms=1596000" — the raw header value appended to the error. */
 const RETRY_AFTER_MS = /retry-after-ms=(\d+)/i;
 
 /** True when the payload describes a quota wall rather than a bad request. */
 export function isQuotaError(payload: unknown): boolean {
     if (!isRecord(payload)) return false;
+
     for (const field of CODE_FIELDS) {
         const value = payload[field];
+
         if (value === 429 || value === '429') return true;
+
         if (typeof value === 'string' && QUOTA_CODES[value.toLowerCase()] === true) return true;
     }
+
     for (const field of MESSAGE_FIELDS) {
         const value = payload[field];
+
         if (typeof value === 'string' && QUOTA_MESSAGE.test(value)) return true;
     }
+
     return payload.error !== undefined && isQuotaError(payload.error);
 }
 
 /** The absolute time the provider says the limit lifts, in epoch millis. */
 export function quotaEpochReset(payload: unknown): number | undefined {
     if (!isRecord(payload)) return undefined;
+
     for (const field of RESET_FIELDS) {
         const value = payload[field];
+
         if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
             // Epoch seconds, unless the value is plainly already in millis.
             return value > 1e11 ? value : value * 1000;
         }
+
         if (typeof value === 'string') {
             const parsed = Date.parse(value);
+
             if (Number.isFinite(parsed)) return parsed;
         }
     }
+
     return undefined;
 }
 
 /** How long the provider asked us to hold off, in millis. */
 export function quotaWaitMs(payload: unknown): number | undefined {
     if (!isRecord(payload)) return undefined;
+
     for (const field of MESSAGE_FIELDS) {
         const text = payload[field];
+
         if (typeof text !== 'string') continue;
         const wait = WAIT_MS.exec(text) ?? RETRY_AFTER_MS.exec(text);
+
         if (wait?.[1]) {
             const ms = Number(wait[1]);
+
             if (Number.isFinite(ms) && ms > 0) return ms;
         }
     }
+
     return undefined;
 }

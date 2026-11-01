@@ -14,14 +14,18 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
  */
 export function parseFiveHourRateLimit(raw: unknown): FiveHourRateLimit | undefined {
     const fiveHour = asRecord(asRecord(asRecord(raw)?.rate_limits)?.five_hour);
+
     if (!fiveHour) return undefined;
 
     const { used_percentage, resets_at } = fiveHour;
+
     if (typeof used_percentage !== 'number') return undefined;
 
     let resetsAt: string | undefined;
+
     if (typeof resets_at === 'string') resetsAt = resets_at;
     else if (typeof resets_at === 'number') resetsAt = new Date(resets_at * 1000).toISOString();
+
     if (!resetsAt) return undefined;
 
     return { usedPct: used_percentage, resetsAt };

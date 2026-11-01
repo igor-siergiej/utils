@@ -23,6 +23,7 @@ const unwiredHint = (statePath: string) =>
 /** Returns the hint the first time only, leaving a marker beside the state file. */
 function hintOnce(statePath: string): string | undefined {
     const marker = `${statePath}.hint-shown`;
+
     if (existsSync(marker)) return undefined;
 
     try {
@@ -31,12 +32,14 @@ function hintOnce(statePath: string): string | undefined {
     } catch {
         // An unwritable marker only means the hint repeats; never fail the gate over it.
     }
+
     return unwiredHint(statePath);
 }
 
 export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result: UsageCheckResult } {
     const statePath = options.statePath ?? defaultUsageStatePath();
     const state = readUsageState(statePath);
+
     const result = evaluateUsage(state, {
         thresholdPct: options.thresholdPct ?? DEFAULT_THRESHOLD_PCT,
         maxStalenessMs: options.maxStalenessMs ?? DEFAULT_MAX_STALENESS_MS,
@@ -45,6 +48,7 @@ export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result:
 
     if (result.status === 'unknown' && result.reason === 'no-state') {
         const hint = hintOnce(statePath);
+
         if (hint) return { ok: true, result: { ...result, hint } };
     }
 

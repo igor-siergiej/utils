@@ -10,6 +10,7 @@ const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 1
 const isAlive = (pid: number): boolean => {
     try {
         process.kill(pid, 0);
+
         return true;
     } catch {
         return false;
@@ -18,6 +19,7 @@ const isAlive = (pid: number): boolean => {
 
 const childPids = async (pid: number): Promise<number[]> => {
     const { stdout } = await runShell(`pgrep -P ${pid} || true`, { cwd: process.cwd() });
+
     return stdout
         .split('\n')
         .map((line) => Number.parseInt(line.trim(), 10))
@@ -26,8 +28,10 @@ const childPids = async (pid: number): Promise<number[]> => {
 
 const waitForChildren = async (pid: number, timeoutMs = 10000): Promise<number[]> => {
     const deadline = Date.now() + timeoutMs;
+
     for (;;) {
         const children = await childPids(pid);
+
         if (children.length > 0 || Date.now() > deadline) return children;
         await tick();
     }
@@ -39,6 +43,7 @@ describe('runShell env', () => {
 
         try {
             const inherited = await runShell('echo "[${KANBAN_CLI_SHELL_TEST}]"', { cwd: process.cwd() });
+
             const stripped = await runShell('echo "[${KANBAN_CLI_SHELL_TEST}]"', {
                 cwd: process.cwd(),
                 env: { KANBAN_CLI_SHELL_TEST: undefined },
@@ -84,6 +89,7 @@ describe('runArgvStreaming', () => {
     it('delivers lines before exit and kills the tree on abort', async () => {
         const lines: string[] = [];
         const controller = new AbortController();
+
         const running = runArgvStreaming(['bash', '-c', 'echo a; echo $$; (sleep 120 & wait)'], {
             cwd: process.cwd(),
             onLine: (line) => lines.push(line),
@@ -91,6 +97,7 @@ describe('runArgvStreaming', () => {
         });
 
         const deadline = Date.now() + 10000;
+
         while (lines.length < 2 && Date.now() < deadline) await tick();
         expect(lines).toEqual(['a', expect.stringMatching(/^\d+$/)]);
         const root = Number(lines[1]);
@@ -103,6 +110,7 @@ describe('runArgvStreaming', () => {
 
         expect(result.killed).toBe(true);
         expect(result.stdout).toBe(`a\n${root}\n`);
+
         for (const pid of [root, ...children, ...grandchildren]) {
             expect(isAlive(pid)).toBe(false);
         }

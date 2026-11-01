@@ -7,14 +7,19 @@ import type { RequestVariables } from './requestLogger';
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 const app = new Hono<RequestVariables>();
+
 app.use('*', (c, next) => {
     c.set('requestId', 'test-req');
+
     return next();
 });
+
 app.onError(errorHandler(logger));
+
 app.get('/api-error', () => {
     throw new APIError('nope', 404);
 });
+
 app.get('/plain-error', () => {
     throw new Error('boom');
 });

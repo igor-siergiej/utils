@@ -12,6 +12,7 @@ import type { MongoConfig } from './types';
 interface TestDoc extends mongodb.Document {
     name: string;
 }
+
 type Map = Record<'test', TestDoc>;
 
 const ctorUris: Array<string> = [];
@@ -21,16 +22,20 @@ const collection = vi.fn(() => ({ findOne: vi.fn() }));
 
 vi.mock('mongodb', async (importOriginal) => {
     const actual = await importOriginal<typeof mongodb>();
+
     const MongoClient = vi.fn().mockImplementation((uri: string) => {
         ctorUris.push(uri);
+
         return {
             connect,
             db: (_dbName: string) => {
                 if (dbShouldThrow) throw new Error('fail create db');
+
                 return { collection };
             },
         };
     });
+
     return { ...actual, MongoClient };
 });
 

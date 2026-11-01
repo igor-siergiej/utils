@@ -17,6 +17,7 @@ export interface RequestVariables {
 }
 
 const REQUEST_ID_HEADER = 'x-request-id';
+
 // Gatus polls /api/health every minute and Prometheus scrapes /api/metrics
 // every 15s; logging them as real requests drowns out actual traffic. Skip
 // them on success — failures are still logged so outages stay visible.
@@ -51,7 +52,9 @@ export const requestLogger = (logger: ILogger) => async (c: Context<RequestVaria
         durationMs,
         requestId,
     };
+
     const userId = c.get('userId');
+
     if (userId) meta.userId = userId;
 
     const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';

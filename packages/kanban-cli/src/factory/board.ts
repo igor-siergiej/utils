@@ -30,12 +30,15 @@ async function jott(args: string[]): Promise<Record<string, unknown>> {
     const result = await runArgv(['jott', ...args, '--json'], { cwd: process.cwd(), env: { JOTT_NO_BANNER: '1' } });
     const out = (result.stdout.trim() || result.stderr.trim()).split('\n').pop() ?? '';
     let parsed: Record<string, unknown>;
+
     try {
         parsed = JSON.parse(out) as Record<string, unknown>;
     } catch {
         throw new Error(`jott ${args[0]} printed no JSON (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
+
     if (parsed.ok === false) throw new Error(`jott ${args.join(' ')}: ${String(parsed.error)}`);
+
     return parsed;
 }
 
@@ -55,13 +58,18 @@ export const jottBoard: Board = {
     },
     async show(n) {
         const task = (await jott(['task', 'show', String(n)])).task;
+
         if (!isJottTask(task)) throw new Error(`jott task show ${n} printed no task`);
+
         return task;
     },
     async set(n, patch) {
         const args = ['task', 'set', String(n)];
+
         if (patch.status) args.push('--status', patch.status);
+
         for (const [k, v] of Object.entries(patch.meta ?? {})) args.push('--meta', `${k}=${JSON.stringify(v)}`);
+
         for (const k of patch.unmeta ?? []) args.push('--unmeta', k);
         await jott(args);
     },
@@ -73,7 +81,9 @@ export const jottBoard: Board = {
  */
 export async function localCard(board: Board, card: { id: string; number: number }): Promise<JottTask> {
     const task = await board.show(card.number);
+
     if (task.id !== card.id) throw new Error(`local #${card.number} is a different card`);
+
     return task;
 }
 

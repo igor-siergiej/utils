@@ -54,6 +54,7 @@ describe('loadRepoConfig', () => {
         const result = loadRepoConfig(repoDir);
 
         expect(result.configFound).toBe(true);
+
         if (!result.configFound) throw new Error('expected configFound');
 
         expect(result.config.repoName).toBe('shoppingo');
@@ -74,6 +75,7 @@ describe('loadRepoConfig', () => {
             github: { mergeMethod: 'rebase' },
         });
         const result = loadRepoConfig(repoDir);
+
         if (!result.configFound) throw new Error('expected configFound');
 
         expect(result.config.retryPolicy).toEqual({ implement: 3, e2e_local: 3, ci: 5, deploy: 2, e2e_live: 1 });

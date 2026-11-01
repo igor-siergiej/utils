@@ -22,22 +22,28 @@ const task = (status = 'todo', meta: Record<string, unknown> = {}): JottTask => 
 
 function fakeBoard(tasks: JottTask[], order: string[] = []) {
     const sets: { n: number; patch: CardPatch }[] = [];
+
     const board: Board = {
         sync: vi.fn(async () => {}),
         show: async (n) => {
             const t = tasks.find((x) => x.number === n);
+
             if (!t) throw new Error(`no #${n}`);
+
             return structuredClone(t);
         },
         set: async (n, patch) => {
             order.push(`set ${patch.status ?? Object.keys(patch.meta ?? {}).join(',')}`);
             sets.push({ n, patch });
             const t = tasks.find((x) => x.number === n) as JottTask;
+
             if (patch.status) t.status = STATUS_FROM_CLI[patch.status] ?? patch.status;
             Object.assign(t.meta, patch.meta);
+
             for (const k of patch.unmeta ?? []) delete t.meta[k];
         },
     };
+
     return { board, sets };
 }
 
@@ -45,18 +51,23 @@ function fakeApi(claim: Claim, answer: EndAnswer = { action: 'none' }) {
     const heartbeats: (string | undefined)[] = [];
     const ends: EndBody[] = [];
     const control: { stop: boolean; heartbeatError?: Error } = { stop: false };
+
     const api: DispatcherApi = {
         claim: async () => claim,
         heartbeat: async (_id, activity) => {
             heartbeats.push(activity);
+
             if (control.heartbeatError) throw control.heartbeatError;
+
             return { stop: control.stop };
         },
         end: async (_id, body) => {
             ends.push(body);
+
             return answer;
         },
     };
+
     return { api, heartbeats, ends, control };
 }
 
@@ -77,17 +88,21 @@ function setup(opts: {
     const { board, sets } = fakeBoard(tasks, order);
     const { api, heartbeats, ends, control } = fakeApi(opts.claim, opts.answer);
     const runs: HarnessRun[] = [];
+
     const harness: Harness = {
         run: vi.fn(async (run: HarnessRun): Promise<HarnessOutcome> => {
             order.push('harness');
             runs.push(run);
+
             return opts.run ? opts.run(run, tasks) : { kind: 'done', sessionId: 's-1' };
         }),
         activity: (line) => line || undefined,
     };
+
     const logs: RunLogEntry[] = [];
     const notified: NotifyEvent[] = [];
     const warnings: string[] = [];
+
     const deps: LoopDeps = {
         api,
         board,
@@ -96,6 +111,7 @@ function setup(opts: {
         harnessFor: vi.fn(() => harness),
         ensureWorktree: vi.fn(async (_r, p, n) => {
             order.push('worktree');
+
             return { path: `/repo/.worktrees/${p}-${n}`, branch: `factory/${p}-${n}`, created: true };
         }),
         prepareWorktree: vi.fn(async () => {}),
@@ -109,6 +125,7 @@ function setup(opts: {
         heartbeatMs: 5000,
         ...opts.overrides,
     };
+
     return { deps, tasks, sets, order, heartbeats, ends, control, runs, harness, logs, notified, warnings };
 }
 
@@ -134,6 +151,7 @@ describe('cycle', () => {
             claim: claimed({ resume_session: 'sess-0', reply: 'use the v2 API', blocked_reason: 'which API?' }),
             run: async (_r, tasks) => {
                 tasks[0].status = 'done';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });
@@ -160,6 +178,7 @@ describe('cycle', () => {
         vi.useFakeTimers();
         let finish: (o: HarnessOutcome) => void = () => {};
         let run: HarnessRun | undefined;
+
         const s = setup({
             claim: claimed(),
             run: (r, tasks) => {
@@ -167,6 +186,7 @@ describe('cycle', () => {
                 tasks[0].status = 'done';
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 finish = resolve;
+
                 return promise;
             },
         });
@@ -201,11 +221,13 @@ describe('cycle', () => {
 
     it('stops the harness on a stop request and blocks the card, keeping the session', async () => {
         vi.useFakeTimers();
+
         const s = setup({
             claim: claimed(),
             run: ({ signal }) => {
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 signal.addEventListener('abort', () => resolve({ kind: 'stopped', sessionId: 's-7' }));
+
                 return promise;
             },
         });
@@ -273,11 +295,13 @@ describe('cycle', () => {
         const home = mkdtempSync(join(tmpdir(), 'kanban-loop-home-'));
         const realHome = process.env.HOME;
         process.env.HOME = home;
+
         try {
             const s = setup({
                 claim: claimed(),
                 run: async (_r, tasks) => {
                     tasks[0].status = 'done';
+
                     return { kind: 'done', sessionId: 's-1' };
                 },
             });
@@ -303,6 +327,7 @@ describe('cycle', () => {
             run: async (_r, tasks) => {
                 tasks[0].status = 'blocked';
                 tasks[0].meta.blocked_reason = 'CI red: lint';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });
@@ -367,11 +392,13 @@ describe('cycle', () => {
 
     it('treats a run the server already ended as lost: aborts, no end, no card writes', async () => {
         vi.useFakeTimers();
+
         const s = setup({
             claim: claimed(),
             run: ({ signal }) => {
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 signal.addEventListener('abort', () => resolve({ kind: 'stopped', sessionId: 's-7' }));
+
                 return promise;
             },
         });

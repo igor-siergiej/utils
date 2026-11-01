@@ -16,6 +16,7 @@ const activities = (lines: string[], extract: (line: string) => string | undefin
 
 const ompAssistant = (content: unknown[]) =>
     JSON.stringify({ type: 'message_end', message: { role: 'assistant', content } });
+
 const claudeAssistant = (content: unknown[]) =>
     JSON.stringify({ type: 'assistant', message: { role: 'assistant', content } });
 
@@ -59,6 +60,7 @@ describe('claudeActivity', () => {
             { type: 'text', text: 'Running the tests' },
             { type: 'tool_use', name: 'Bash', input: { command: 'bun run test' } },
         ]);
+
         expect(claudeActivity(line)).toBe('Bash {"command":"bun run test"}');
     });
 });

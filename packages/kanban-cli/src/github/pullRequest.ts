@@ -4,6 +4,7 @@ import type { PrInfo, PrStatus } from './types';
 export function parseCreatedPrOutput(stdout: string): PrInfo {
     const url = stdout.trim().split('\n').pop() ?? '';
     const match = url.match(/\/pull\/(\d+)/);
+
     return { number: match ? Number(match[1]) : Number.NaN, url };
 }
 
@@ -41,8 +42,11 @@ interface RawPrView {
 
 function summarizeChecks(rollup: Array<{ conclusion: string | null }>): PrStatus['checksStatus'] {
     if (rollup.length === 0) return 'NONE';
+
     if (rollup.some((c) => c.conclusion === 'FAILURE')) return 'FAILURE';
+
     if (rollup.every((c) => c.conclusion === 'SUCCESS')) return 'SUCCESS';
+
     return 'PENDING';
 }
 
@@ -76,5 +80,6 @@ export async function mergePullRequest(
     await runGh(['pr', 'merge', String(prNumber), `--${method}`], { cwd: repoPath });
 
     const status = await getPullRequestStatus(repoPath, prNumber);
+
     return { merged: status.state === 'MERGED', mergeCommitSha: status.mergeCommitSha };
 }

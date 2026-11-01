@@ -9,7 +9,9 @@ export const REPO_ROOTS_ENV = 'KANBAN_CLI_REPO_ROOTS';
 
 export function repoRoots(env: NodeJS.ProcessEnv = process.env): string[] {
     const raw = env[REPO_ROOTS_ENV];
+
     if (!raw || raw.trim() === '') return [homedir()];
+
     return raw
         .split(':')
         .map((r) => r.trim())
@@ -21,9 +23,12 @@ export function resolveRepoPath(project: string, roots: string[] = repoRoots()):
 
     const checkDir = (dir: string) => {
         const configPath = join(dir, CONFIG_FILENAME);
+
         if (!existsSync(configPath)) return;
+
         try {
             const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { repoName?: unknown };
+
             if (parsed.repoName === project) matches.push(dir);
         } catch {
             // a malformed .kanban-cli.json elsewhere must not break resolution
@@ -45,6 +50,7 @@ export function resolveRepoPath(project: string, roots: string[] = repoRoots()):
     for (const root of roots) {
         for (const child of childDirs(root)) {
             checkDir(child);
+
             for (const grandchild of childDirs(child)) {
                 checkDir(grandchild);
             }
@@ -56,8 +62,10 @@ export function resolveRepoPath(project: string, roots: string[] = repoRoots()):
             `No repo with repoName '${project}' found under ${roots.join(', ')} (scanned up to two levels deep); set ${REPO_ROOTS_ENV} to the directory that contains your checkouts`
         );
     }
+
     if (matches.length > 1) {
         throw new RepoResolutionError(`Found more than one repo with repoName '${project}': ${matches.join(', ')}`);
     }
+
     return matches[0];
 }

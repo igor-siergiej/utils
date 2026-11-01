@@ -17,6 +17,7 @@ export class Logger implements ILogger {
         if (meta.length > 0) {
             logObject.meta = meta;
             const first = meta[0];
+
             if (first && typeof first === 'object') {
                 for (const [key, value] of Object.entries(first as Record<string, unknown>)) {
                     if (key === 'ts' || key === 'level' || key === 'message' || key === 'meta') continue;

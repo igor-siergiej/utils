@@ -22,10 +22,13 @@ export function createFakeProcess() {
     const run = async (argv: string[]): Promise<CommandResult> => {
         calls.push(argv);
         const route = routes.find((r) => r.prefix.every((part, i) => argv[i] === part));
+
         if (!route) throw new Error(`fakeProcess: no route for ${argv.join(' ')}`);
 
         const response = route.responses.length > 1 ? route.responses.shift() : route.responses[0];
+
         if (response instanceof Error) throw response;
+
         return { exitCode: 0, stdout: '', stderr: '', ...response };
     };
 

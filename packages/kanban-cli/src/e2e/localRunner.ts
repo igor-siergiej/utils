@@ -18,9 +18,12 @@ async function teardown(repoPath: string, config: RepoConfig, tracked: TrackedPr
     try {
         if (config.dev.teardownCommand) {
             const result = await runShell(config.dev.teardownCommand, { cwd: repoPath, env: LOCAL_RUN_ENV });
+
             return result.exitCode === 0;
         }
+
         await tracked.kill();
+
         return true;
     } catch {
         return false;
@@ -54,6 +57,7 @@ export async function runLocalE2e(
         const testCommand = options.grep
             ? `${config.e2e.testCommand} --grep "${options.grep}"`
             : config.e2e.testCommand;
+
         const result = await runShell(testCommand, { cwd: repoPath, env: LOCAL_RUN_ENV });
 
         return {

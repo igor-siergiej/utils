@@ -27,6 +27,7 @@ export function loadRepoConfig(repoPath: string): LoadRepoConfigResult {
     }
 
     let raw: unknown;
+
     try {
         raw = JSON.parse(readFileSync(configPath, 'utf8'));
     } catch (cause) {
@@ -38,6 +39,7 @@ export function loadRepoConfig(repoPath: string): LoadRepoConfigResult {
 
 function requireObject(value: unknown, field: string): Record<string, unknown> {
     if (!isRecord(value)) throw new RepoConfigError(`'${field}' is required and must be an object`);
+
     return value;
 }
 
@@ -45,19 +47,23 @@ function requireString(value: unknown, field: string): string {
     if (typeof value !== 'string' || value.trim() === '') {
         throw new RepoConfigError(`'${field}' is required and must be a non-empty string`);
     }
+
     return value;
 }
 
 function optionalString(value: unknown, field: string): string | undefined {
     if (value === undefined) return undefined;
+
     return requireString(value, field);
 }
 
 function optionalNumber(value: unknown, field: string, fallback: number): number {
     if (value === undefined) return fallback;
+
     if (typeof value !== 'number' || Number.isNaN(value)) {
         throw new RepoConfigError(`'${field}' must be a number`);
     }
+
     return value;
 }
 
@@ -65,11 +71,13 @@ function requireStringArray(value: unknown, field: string): string[] {
     if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) {
         throw new RepoConfigError(`'${field}' must be an array of strings`);
     }
+
     return value;
 }
 
 function validateDev(raw: unknown): DevConfig {
     const obj = requireObject(raw, 'dev');
+
     return {
         startCommand: requireString(obj.startCommand, 'dev.startCommand'),
         healthCheckUrl: requireString(obj.healthCheckUrl, 'dev.healthCheckUrl'),
@@ -81,6 +89,7 @@ function validateDev(raw: unknown): DevConfig {
 
 function validateE2e(raw: unknown): E2eConfig {
     const obj = requireObject(raw, 'e2e');
+
     return {
         framework: 'playwright',
         testCommand: requireString(obj.testCommand, 'e2e.testCommand'),
@@ -92,6 +101,7 @@ function validateE2e(raw: unknown): E2eConfig {
 
 function validateCi(raw: unknown): CiConfig {
     const obj = requireObject(raw, 'ci');
+
     return {
         workflowNames: requireStringArray(obj.workflowNames, 'ci.workflowNames'),
         checkNamesRequired:
@@ -103,6 +113,7 @@ function validateCi(raw: unknown): CiConfig {
 
 function validateDeploy(raw: unknown): DeployConfig {
     const obj = requireObject(raw, 'deploy');
+
     return {
         workflowName: requireString(obj.workflowName, 'deploy.workflowName'),
         timeoutMs: optionalNumber(obj.timeoutMs, 'deploy.timeoutMs', 900000),
@@ -161,6 +172,7 @@ function validateFactory(raw: unknown): FactoryConfig | undefined {
     if (raw === undefined) return undefined;
 
     const obj = requireObject(raw, 'factory');
+
     if (obj.rateLimitFallbackMinutes === undefined) return undefined;
 
     return {

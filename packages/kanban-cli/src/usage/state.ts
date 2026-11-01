@@ -11,6 +11,7 @@ export function defaultUsageStatePath(): string {
 function isUsageState(value: unknown): value is UsageState {
     if (typeof value !== 'object' || value === null) return false;
     const obj = value as Record<string, unknown>;
+
     return typeof obj.usedPct === 'number' && typeof obj.resetsAt === 'string' && typeof obj.recordedAt === 'string';
 }
 
@@ -19,6 +20,7 @@ export function readUsageState(path: string): UsageState | undefined {
 
     try {
         const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
+
         return isUsageState(raw) ? raw : undefined;
     } catch {
         return undefined;

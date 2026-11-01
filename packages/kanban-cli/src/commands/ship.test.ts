@@ -12,12 +12,19 @@ import type { RepoConfig } from '../repoConfig/types';
 import { ship } from './ship';
 
 vi.mock('../e2e/liveRunner', () => ({ runLiveSmoke: vi.fn() }));
+
 vi.mock('../github/checks', () => ({ waitForChecks: vi.fn() }));
+
 vi.mock('../github/gh', () => ({ runGhJson: vi.fn() }));
+
 vi.mock('../github/pullRequest', () => ({ createPullRequest: vi.fn(), mergePullRequest: vi.fn() }));
+
 vi.mock('../github/revert', () => ({ revertMergeCommit: vi.fn() }));
+
 vi.mock('../github/workflowPoller', () => ({ waitForWorkflowRun: vi.fn() }));
+
 vi.mock('../process/shell', () => ({ runArgv: vi.fn() }));
+
 vi.mock('../repoConfig/loader', () => ({ loadRepoConfig: vi.fn() }));
 
 const config = {
@@ -30,6 +37,7 @@ const config = {
 
 const PR = { number: 12, url: 'https://github.com/o/r/pull/12' };
 const REVERT_PR = { number: 13, url: 'https://github.com/o/r/pull/13' };
+
 const smoke = (passed: boolean, failedTests: string[] = []) => ({
     passed,
     failedTests,
@@ -48,6 +56,7 @@ beforeEach(() => {
     vi.mocked(loadRepoConfig).mockReturnValue({ configFound: true, config });
     vi.mocked(runArgv).mockImplementation(async (argv) => {
         const stdout = argv[1] === 'status' ? gitStatus : argv[1] === 'rev-parse' ? branch : '';
+
         return { exitCode: 0, stdout, stderr: '' };
     });
     vi.mocked(runGhJson).mockResolvedValue([]);

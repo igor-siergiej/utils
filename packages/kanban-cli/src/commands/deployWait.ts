@@ -12,5 +12,6 @@ export async function deployWait(repoPath: string, options: DeployWaitOptions) {
         timeoutMs: options.timeoutMs ?? 900_000,
         intervalMs: options.intervalMs,
     });
+
     return { ok: true as const, result };
 }

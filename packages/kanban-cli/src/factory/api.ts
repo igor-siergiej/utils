@@ -76,9 +76,11 @@ const REQUEST_TIMEOUT_MS = 10_000;
 export function configFromEnv(env: Record<string, string | undefined> = process.env): ApiConfig {
     const url = env.JOTT_URL;
     const token = env.JOTT_DISPATCHER_TOKEN;
+
     if (!url || !token) {
         throw new Error('JOTT_URL and JOTT_DISPATCHER_TOKEN must be set (~/.config/kanban-factory.env)');
     }
+
     return { url, token };
 }
 
@@ -110,20 +112,26 @@ function isClaimedRun(v: unknown): v is ClaimedRun {
 function parseClaim(v: unknown): Claim | undefined {
     if (!isRecord(v) || !Array.isArray(v.block)) return undefined;
     const run = v.run === null ? null : isClaimedRun(v.run) ? v.run : undefined;
+
     if (run === undefined) return undefined;
     const block: ClaimBlock[] = [];
+
     for (const b of v.block) {
         if (!isRecord(b) || !isCard(b.card) || typeof b.reason !== 'string') return undefined;
         block.push({ card: b.card, reason: b.reason });
     }
+
     return { run, block };
 }
 
 function parseEndAnswer(v: unknown): EndAnswer | undefined {
     if (!isRecord(v)) return undefined;
     const action = v.then;
+
     if (action === 'none' || action === 'retry') return { action };
+
     if (action === 'block' && typeof v.reason === 'string') return { action, reason: v.reason };
+
     return undefined;
 }
 
@@ -146,26 +154,34 @@ export function dispatcherApi(opts: ApiConfig & { fetch?: typeof fetch }): Dispa
             body: body === undefined ? undefined : JSON.stringify(body),
             signal: AbortSignal.timeout(timeoutMs),
         });
+
         const text = await response.text();
         let parsed: unknown;
+
         try {
             parsed = text ? JSON.parse(text) : undefined;
         } catch {
             parsed = undefined;
         }
+
         if (!response.ok) {
             const error =
                 isRecord(parsed) && parsed.error !== undefined
                     ? String(parsed.error)
                     : text.slice(0, 200) || response.statusText;
+
             throw new ApiError(response.status, `POST ${path} failed (${response.status}): ${error}`);
         }
+
         const value = parse(parsed);
+
         if (value === undefined) throw new Error(`POST ${path}: unexpected response ${text.slice(0, 200)}`);
+
         return value;
     }
 
     const runs = '/v1/dispatcher/runs/';
+
     return {
         claim: () => post('/v1/dispatcher/claim', undefined, CLAIM_TIMEOUT_MS, parseClaim),
         heartbeat: (id, activity) =>

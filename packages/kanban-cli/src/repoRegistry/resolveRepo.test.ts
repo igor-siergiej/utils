@@ -21,6 +21,7 @@ function makeRepo(dir: string, repoName: string) {
     const path = join(root, dir);
     mkdirSync(path, { recursive: true });
     writeFileSync(join(path, '.kanban-cli.json'), JSON.stringify({ repoName }));
+
     return path;
 }
 

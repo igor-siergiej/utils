@@ -32,6 +32,7 @@ export function ompArgv(opts: { prompt: string; resume?: string; config?: string
     const resume = opts.resume ? ['--resume', opts.resume] : [];
     const config = opts.config ? ['--config', opts.config] : [];
     const model = opts.model ? ['--model', opts.model] : [];
+
     return ['omp', '-p', opts.prompt, '--mode', 'json', '--auto-approve', ...model, ...config, ...resume];
 }
 
@@ -39,9 +40,12 @@ function events(stdout: string): OmpEvent[] {
     return stdout.split('\n').flatMap((line) => {
         try {
             const parsed: unknown = JSON.parse(line);
+
             if (!isRecord(parsed)) return [];
+
             // omp repeats the whole transcript in agent_end; nothing reads it.
             if (parsed.type === 'agent_end') delete parsed.messages;
+
             return [parsed as OmpEvent];
         } catch {
             return [];
@@ -56,13 +60,17 @@ function events(stdout: string): OmpEvent[] {
 function quotaResumeAt(payloads: unknown[], now: number, fallbackMinutes: number): number {
     let epochReset: number | undefined;
     let waitMs: number | undefined;
+
     for (const payload of payloads) {
         epochReset ??= quotaEpochReset(payload);
         const candidate = quotaWaitMs(payload);
+
         if (candidate !== undefined && (waitMs === undefined || candidate > waitMs)) waitMs = candidate;
     }
+
     const fallback = now + fallbackMinutes * 60_000;
     const candidates = [epochReset, waitMs === undefined ? undefined : now + waitMs, fallback];
+
     return candidates.find((at) => at !== undefined && at > now) ?? fallback;
 }
 
@@ -70,14 +78,17 @@ function failureSummary(failing: OmpEvent[], stderr: string): string {
     for (const event of failing) {
         const message = event.message;
         const error = isRecord(event.error) ? event.error : undefined;
+
         const text =
             event.errorMessage ??
             event.finalError ??
             (typeof error?.message === 'string' ? error.message : undefined) ??
             (isRecord(message) && typeof message.errorMessage === 'string' ? message.errorMessage : undefined) ??
             (typeof message === 'string' ? message : undefined);
+
         if (text) return text.slice(0, 500);
     }
+
     return stderr.slice(-500);
 }
 
@@ -114,10 +125,12 @@ export function parseOmpRun(
 
     const errorEvent =
         assistantEvents.length === 0 ? all.find((e) => e.type === 'error') : tail.find((e) => e.type === 'error');
+
     const failure = assistantFailed ? lastAssistant : errorEvent;
 
     if (failure) {
         const attempt = assistantFailed ? [...failingTurn, lastMessage, ...tail] : [failure, ...tail];
+
         if (attempt.some((payload) => isQuotaError(payload))) {
             return {
                 kind: 'rate_limited',
@@ -125,6 +138,7 @@ export function parseOmpRun(
                 ...(sessionId ? { sessionId } : {}),
             };
         }
+
         return {
             kind: 'failed',
             exitCode: run.exitCode,
@@ -137,6 +151,7 @@ export function parseOmpRun(
     }
 
     const end = all.findLast((e) => e.type === 'agent_end');
+
     if (end?.isTerminal === false) {
         return {
             kind: 'failed',
@@ -144,9 +159,11 @@ export function parseOmpRun(
             summary: 'the agent yielded with work still queued',
         };
     }
+
     if (sessionId && end) {
         return { kind: 'done', sessionId };
     }
+
     return { kind: 'failed', exitCode: run.exitCode, summary: 'the run ended without a session id' };
 }
 
@@ -155,6 +172,7 @@ export const ompHarness: Harness = {
         const dir = mkdtempSync(join(tmpdir(), 'kanban-omp-'));
         const config = join(dir, 'omp.yml');
         writeFileSync(config, UNATTENDED_OVERLAY);
+
         try {
             const result = await runArgvStreaming(ompArgv({ prompt, resume, config, model }), {
                 cwd,
@@ -162,12 +180,14 @@ export const ompHarness: Harness = {
                 onLine,
                 signal,
             });
+
             if (result.killed) {
                 return {
                     kind: 'stopped',
                     sessionId: events(result.stdout).find((e) => e.type === 'session' && typeof e.id === 'string')?.id,
                 };
             }
+
             return parseOmpRun(result, Date.now(), quotaFallbackMinutes);
         } finally {
             rmSync(dir, { recursive: true, force: true });

@@ -9,6 +9,7 @@ describe('parseFiveHourRateLimit', () => {
                 five_hour: { used_percentage: 62.4, resets_at: '2026-07-20T18:00:00.000Z' },
             },
         };
+
         expect(parseFiveHourRateLimit(payload)).toEqual({ usedPct: 62.4, resetsAt: '2026-07-20T18:00:00.000Z' });
     });
 

@@ -4,10 +4,13 @@ import { notify } from './notify';
 
 function recorder() {
     const calls: { url: string; init: RequestInit }[] = [];
+
     const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         calls.push({ url: String(url), init: init as RequestInit });
+
         return new Response('{}');
     }) as unknown as typeof globalThis.fetch;
+
     return { calls, fetch };
 }
 
@@ -53,6 +56,7 @@ describe('notify', () => {
 
     it('resolves and logs when ntfy is down', async () => {
         const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
         const fetch = vi.fn(async () => {
             throw new Error('ECONNREFUSED');
         }) as unknown as typeof globalThis.fetch;

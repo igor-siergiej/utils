@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SKILLS = ['kanban-worker', 'refining-kanban-captures', 'triaging-blocked-cards'] as const;
+
 export type PackagedSkill = (typeof SKILLS)[number];
 
 /**
@@ -16,6 +17,7 @@ export type PackagedSkill = (typeof SKILLS)[number];
  */
 function moduleDirectory(): string {
     if (typeof __dirname === 'string') return __dirname;
+
     return dirname(fileURLToPath(import.meta.url));
 }
 
@@ -24,6 +26,7 @@ function packagedSkillPath(skill: string): string {
 
     for (let depth = 0; depth < 5; depth += 1) {
         const candidate = join(dir, 'skill', skill, 'SKILL.md');
+
         if (existsSync(candidate)) return candidate;
         dir = dirname(dir);
     }

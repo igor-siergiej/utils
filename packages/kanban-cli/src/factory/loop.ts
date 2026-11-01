@@ -75,10 +75,12 @@ export function workerPrompt(
         `Use the kanban-worker skill in single-card mode for ${card.project} #${card.number}.`,
         `Work in the current directory (a git worktree on branch ${branch}); do not touch any other checkout.`,
     ];
+
     if (answer.reply) {
         if (answer.blocked_reason) lines.push(`It was blocked: ${answer.blocked_reason}`);
         lines.push(`Igor answered your block: ${answer.reply}`);
     }
+
     return lines.join('\n');
 }
 
@@ -92,8 +94,10 @@ async function blockCard(deps: LoopDeps, card: ClaimCard, reason: string, notify
         await deps.board.sync();
     } catch (error) {
         deps.warn(`${label(card)} not blocked locally: ${message(error)}`);
+
         return false;
     }
+
     if (notify) {
         await deps.notify({
             kind: 'blocked',
@@ -103,6 +107,7 @@ async function blockCard(deps: LoopDeps, card: ClaimCard, reason: string, notify
             reason,
         });
     }
+
     return true;
 }
 
@@ -114,8 +119,10 @@ async function endRun(deps: LoopDeps, id: string, body: EndBody): Promise<EndAns
         } catch (error) {
             if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
                 deps.warn(`run ${id}: end dropped: ${error.message}`);
+
                 return undefined;
             }
+
             deps.warn(`run ${id}: end failed, retrying in ${wait / 1000} s: ${message(error)}`);
             await sleep(wait);
         }
@@ -135,6 +142,7 @@ interface Live {
  */
 function startHeartbeat(deps: LoopDeps, id: string, live: Live): () => void {
     let inFlight = false;
+
     const timer = setInterval(() => {
         if (inFlight || live.controller.signal.aborted) return;
         inFlight = true;
@@ -158,6 +166,7 @@ function startHeartbeat(deps: LoopDeps, id: string, live: Live): () => void {
                 inFlight = false;
             });
     }, deps.heartbeatMs);
+
     return () => clearInterval(timer);
 }
 
@@ -173,6 +182,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     let repo: string;
     let harness: Harness;
     let worktree: { path: string; branch: string };
+
     try {
         await deps.board.sync();
         await setCard(deps.board, card, { status: 'in-progress', unmeta: ['blocked_reason'] });
@@ -180,6 +190,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
         repo = deps.resolveRepo(project);
         harness = deps.harnessFor(run.harness);
         const wt = await deps.ensureWorktree(repo, project, card.number);
+
         if (wt.created) await deps.prepareWorktree(repo, wt.path);
         await setCard(deps.board, card, { meta: { branch: wt.branch } });
         worktree = wt;
@@ -193,11 +204,14 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
             await blockCard(deps, card, STOPPED_REASON, false);
         },
     });
+
     // Stop (or loss) while the worktree was being prepared: the harness never starts.
     if (live.lost) return 'lost';
+
     if (live.controller.signal.aborted) return stopped();
 
     let outcome: HarnessOutcome;
+
     try {
         outcome = await harness.run({
             cwd: worktree.path,
@@ -213,6 +227,7 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     } catch (error) {
         return { body: { outcome: 'error', summary: `Could not start: ${message(error)}` } };
     }
+
     if (live.lost) return 'lost';
 
     switch (outcome.kind) {
@@ -239,13 +254,16 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
     }
 
     let after: JottTask;
+
     try {
         await deps.board.sync();
         after = await localCard(deps.board, card);
     } catch (error) {
         return { body: { outcome: 'failed', summary: `Could not read the card after the run: ${message(error)}` } };
     }
+
     const event = { project, number: card.number, title: card.title };
+
     if (after.status === 'done') {
         return {
             body: { outcome: 'done', session_id: outcome.sessionId },
@@ -257,13 +275,16 @@ async function work(deps: LoopDeps, run: ClaimedRun, live: Live): Promise<Finish
             },
         };
     }
+
     if (after.status === 'blocked') {
         const reason = typeof after.meta.blocked_reason === 'string' ? after.meta.blocked_reason : undefined;
+
         return {
             body: { outcome: 'blocked', session_id: outcome.sessionId, ...(reason ? { summary: reason } : {}) },
             after: () => deps.notify({ kind: 'blocked', ...event, reason }),
         };
     }
+
     return {
         body: {
             outcome: 'failed',
@@ -279,8 +300,10 @@ async function runClaimed(deps: LoopDeps, run: ClaimedRun): Promise<{ ran: strin
     const stopHeartbeat = startHeartbeat(deps, run.id, live);
     let outcome: RunOutcome = 'lost';
     let exitCode: number | undefined;
+
     try {
         const finish = await work(deps, run, live);
+
         if (finish !== 'lost') {
             outcome = finish.body.outcome;
             exitCode = finish.body.exit_code;
@@ -288,6 +311,7 @@ async function runClaimed(deps: LoopDeps, run: ClaimedRun): Promise<{ ran: strin
             stopHeartbeat();
             const answer = await endRun(deps, run.id, finish.body);
             await finish.after?.();
+
             if (answer?.action === 'block') await blockCard(deps, run.card, answer.reason, true);
         }
     } finally {
@@ -303,6 +327,7 @@ async function runClaimed(deps: LoopDeps, run: ClaimedRun): Promise<{ ran: strin
             exitCode,
         });
     }
+
     return { ran: label(run.card), outcome };
 }
 
@@ -310,12 +335,16 @@ async function runClaimed(deps: LoopDeps, run: ClaimedRun): Promise<{ ran: strin
 export async function cycle(deps: LoopDeps): Promise<CycleResult> {
     const claim = await deps.api.claim();
     const blocked: string[] = [];
+
     if (claim.block.length > 0) {
         await deps.board.sync().catch((error: unknown) => deps.warn(`jott sync failed: ${message(error)}`));
+
         for (const { card, reason } of claim.block) {
             if (await blockCard(deps, card, reason, true)) blocked.push(label(card));
         }
     }
+
     if (!claim.run) return { blocked };
+
     return { ...(await runClaimed(deps, claim.run)), blocked };
 }

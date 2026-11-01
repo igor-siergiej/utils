@@ -21,6 +21,7 @@ const git = (cwd: string, ...args: string[]) =>
 function makeUpstream(files: Record<string, string>) {
     mkdirSync(upstream);
     git(upstream, 'init', '-q', '-b', 'main');
+
     for (const [name, contents] of Object.entries(files)) writeFileSync(join(upstream, name), contents);
     git(upstream, 'add', '.');
     git(upstream, 'commit', '-q', '-m', 'init');
