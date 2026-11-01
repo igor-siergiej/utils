@@ -24,7 +24,7 @@ im-apps-utils/
 │   │   │   └── objectStoreConnection/ # S3-compatible object storage utilities
 │   │   └── package.json
 │   ├── biome-config/        # Deprecated shared Biome configuration (kept published)
-│   │   └── biome.json
+│   │   └── configs/base.json
 │   ├── oxc-config/          # Shared Oxlint + Oxfmt configuration with vendored anti-slop rules
 │   │   ├── src/            # oxlint/oxfmt presets (built to build/)
 │   │   └── anti-slop/      # Vendored upstream plugin; never edit, lint or format it

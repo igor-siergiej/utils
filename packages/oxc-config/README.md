@@ -6,6 +6,11 @@ configuration for IM Apps projects, including the vendored [anti-slop](https://g
 JS plugins in Oxlint are alpha and not semver-stable, so `oxlint`, `@oxlint/plugins` and `oxfmt` are exact-pinned peer dependencies.
 Install the same versions in the consuming repo.
 
+## Requirements
+
+- Node `>=22.18`: Oxlint and Oxfmt load `oxlint.config.ts` / `oxfmt.config.ts` through Node's built-in TypeScript type stripping, which is only on by default from 22.18.
+- `oxlint`, `@oxlint/plugins` and `oxfmt` must be installed at the **exact** versions pinned in this package's `peerDependencies` (`1.90.0`, `1.90.0`, `0.75.0` at the time of writing). The JS plugin API is alpha, so any other version is unsupported; npm rejects a mismatch and bun only warns.
+
 ## Usage
 
 ```bash

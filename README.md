@@ -10,8 +10,8 @@ Architecture: [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture
 | --- | --- | --- |
 | [`@imapps/api-utils`](packages/api-utils/README.md) | Config, logger, DI container, Mongo + S3 object store connections; `./hono` app factory, CORS, request logging, error handler | `packages/api` of shoppingo, mixtape, jewellery-catalogue, imapps-template; kivo |
 | [`@imapps/web-utils`](packages/web-utils/README.md) | React JWT auth: providers, `ProtectedRoute`, token hooks/utils | `packages/web` of shoppingo, mixtape, jewellery-catalogue |
-| [`@imapps/oxc-config`](packages/oxc-config/README.md) | Shared Oxlint + Oxfmt config with vendored anti-slop rules | this repo (kivo migrating) |
-| [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config (deprecated, use `@imapps/oxc-config`) | kivo (until migrated), shoppingo |
+| [`@imapps/oxc-config`](packages/oxc-config/README.md) | Shared Oxlint + Oxfmt config with vendored anti-slop rules | this repo, kivo |
+| [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config (**deprecated**, use `@imapps/oxc-config`) | shoppingo, tandra (not yet migrated) |
 | [`@imapps/dev-scripts`](packages/dev-scripts/README.md) | `fallow-audit` bin (dead-code/complexity audit, same as CI) | most app and site repos |
 | [`@imapps/kanban-cli`](packages/kanban-cli/README.md) | CLI + `kanban-worker` Claude Code skill for markdown kanban boards | installed globally (`bun add -g`) |
 
