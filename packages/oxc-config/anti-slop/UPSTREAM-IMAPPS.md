@@ -7,3 +7,5 @@ Changes from upstream: the `effect/` rule group was removed (no IM Apps repo use
 
 This directory is the source of truth for the plugin; `tsup` bundles `anti-slop/index.ts` into `build/anti-slop.js`,
 which is what the `@imapps/oxc-config/anti-slop` specifier resolves to (Node refuses to type-strip `.ts` under `node_modules`).
+
+The upstream MIT `LICENSE` is included unmodified as `anti-slop/LICENSE`.

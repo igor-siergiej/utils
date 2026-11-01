@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), '..');
-const fixturesRoot = join(packageDir, '.tmp-fixtures');
+const fixturesRoot = join(packageDir, '.tmp-fixtures', 'rules');
 const oxlintBin = join(packageDir, 'node_modules', '.bin', 'oxlint');
 
 // Fixtures live inside the package so that the self-referencing specifiers
