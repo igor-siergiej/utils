@@ -10,7 +10,8 @@ Architecture: [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture
 | --- | --- | --- |
 | [`@imapps/api-utils`](packages/api-utils/README.md) | Config, logger, DI container, Mongo + S3 object store connections; `./hono` app factory, CORS, request logging, error handler | `packages/api` of shoppingo, mixtape, jewellery-catalogue, imapps-template; kivo |
 | [`@imapps/web-utils`](packages/web-utils/README.md) | React JWT auth: providers, `ProtectedRoute`, token hooks/utils | `packages/web` of shoppingo, mixtape, jewellery-catalogue |
-| [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config | kivo, shoppingo, this repo |
+| [`@imapps/oxc-config`](packages/oxc-config/README.md) | Shared Oxlint + Oxfmt config with vendored anti-slop rules | this repo (kivo migrating) |
+| [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config (deprecated, use `@imapps/oxc-config`) | kivo (until migrated), shoppingo |
 | [`@imapps/dev-scripts`](packages/dev-scripts/README.md) | `fallow-audit` bin (dead-code/complexity audit, same as CI) | most app and site repos |
 | [`@imapps/kanban-cli`](packages/kanban-cli/README.md) | CLI + `kanban-worker` Claude Code skill for markdown kanban boards | installed globally (`bun add -g`) |
 
@@ -39,11 +40,11 @@ Per-package versioning (multi-semantic-release) is **not implemented**: there is
 bun install
 bun run build      # turbo run build
 bun run test       # turbo run test
-bun run lint       # biome check .
+bun run lint       # build oxc-config, then oxlint && oxfmt --check
 bun run release:dry
 ```
 
-Husky + lint-staged run `biome check --fix` on commit.
+Husky + lint-staged run `oxlint --fix` and `oxfmt` on staged files on commit (the hook builds `@imapps/oxc-config` first).
 
 `docker/docker-compose.yml` provides shared dev backing services, bound to `127.0.0.1`: MongoDB 7 (`27017`), RustFS S3-compatible object store (`9000`, console `9001`, creds `rustfsadmin`/`rustfsadmin`) with buckets created for jewellery-catalogue and shoppingo, and Navidrome (`4533`) reading `../../mixtape/music`. Credentials are dev-only placeholders in the compose file.
 

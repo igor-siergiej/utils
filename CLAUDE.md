@@ -8,7 +8,7 @@ im-apps-utils is a shared utilities monorepo containing common code and infrastr
 - **Publishing**: Automated GitHub Actions publishing to npmjs.org
 - **Build System**: TypeScript + tsup for dual CommonJS/ESM builds
 - **Testing**: Vitest with coverage reporting
-- **Linting**: Biome for code formatting and linting
+- **Linting**: Oxlint (lint, with the vendored anti-slop rules) + Oxfmt (formatting), shared via `@imapps/oxc-config`
 - **Registry**: npmjs.org (`https://registry.npmjs.org/`)
 
 ## Project Structure
@@ -23,8 +23,11 @@ im-apps-utils/
 │   │   │   ├── mongoDbConnection/  # MongoDB connection helpers
 │   │   │   └── objectStoreConnection/ # S3-compatible object storage utilities
 │   │   └── package.json
-│   ├── biome-config/        # Shared Biome configuration
+│   ├── biome-config/        # Deprecated shared Biome configuration (kept published)
 │   │   └── biome.json
+│   ├── oxc-config/          # Shared Oxlint + Oxfmt configuration with vendored anti-slop rules
+│   │   ├── src/            # oxlint/oxfmt presets (built to build/)
+│   │   └── anti-slop/      # Vendored upstream plugin; never edit, lint or format it
 │   └── web-utils/           # Frontend utilities for React apps
 │       ├── src/
 │       │   └── index.ts    # Class name utilities, browser detection, math helpers
@@ -78,17 +81,23 @@ const inBrowser = isBrowser();
 const clampedValue = clamp(value, 0, 100);
 ```
 
-### @imapps/biome-config
-Shared Biome configuration package for consistent linting and formatting across projects.
+### @imapps/oxc-config
+Shared Oxlint and Oxfmt configuration, with the [anti-slop](https://github.com/dmmulroy/anti-slop) rules vendored in `anti-slop/`. Exports `./oxlint` (spread into `defineConfig` in `oxlint.config.ts`), `./oxfmt` (re-exported from `oxfmt.config.ts`) and `./anti-slop` (the plugin). It ships built JS, so `bun run build:config` (run automatically by `lint`, `lint:fix`, `format` and the pre-commit hook) must build it before Oxlint can load the plugin.
+
+### @imapps/biome-config (deprecated)
+Shared Biome configuration. Superseded by `@imapps/oxc-config`; still published for repos that have not migrated.
 
 ## Development Workflow
 
 ### Key Scripts (run from root)
 - `bun run build` - Build all packages
 - `bun run clean` - Clean all build outputs
-- `bun run lint` - Check code with Biome
-- `bun run lint:fix` - Auto-fix code with Biome
-- `bun run format` - Format code with Biome
+- `bun run lint` - Build `@imapps/oxc-config`, then `oxlint && oxfmt --check`
+- `bun run lint:fix` - Auto-fix with `oxlint --fix`, format with `oxfmt`, then re-lint
+- `bun run format` - Format code with Oxfmt (code and JSON only; Markdown/YAML are not formatted)
+- `bun run build:config` - Build only `@imapps/oxc-config` (the Oxlint plugin and presets)
+
+Run `bun run lint:fix` before finishing; fix anti-slop violations, never suppress them.
 
 ### Package-specific Scripts
 - `bun run --filter '@imapps/api-utils' test` - Run tests with coverage
