@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+import { errorMessage } from '../errorMessage';
 import { type ApiConfig, configFromEnv, dispatcherApi } from '../factory/api';
 import { jottBoard } from '../factory/board';
 import { harnessFor } from '../factory/harness';
@@ -77,9 +78,8 @@ export async function dispatch(options: { once?: boolean; deps?: LoopDeps } = {}
             backoff = CLAIM_BACKOFF_FIRST_MS;
 
             if (result.ran) process.stdout.write(`${JSON.stringify({ ok: true, ran: result.ran })}\n`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+        } catch (cause) {
+            process.stderr.write(`${JSON.stringify({ ok: false, error: errorMessage(cause) })}\n`);
             await sleep(backoff);
             backoff = Math.min(backoff * 2, CLAIM_BACKOFF_MAX_MS);
         }

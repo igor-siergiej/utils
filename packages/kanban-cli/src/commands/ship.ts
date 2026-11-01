@@ -35,18 +35,21 @@ export interface ShipDeps {
 
 const openPrsSchema = z.array(z.object({ number: z.number(), url: z.string() }));
 
+/** The open PR for `head` according to `gh pr list`, if the branch already has one. */
+export async function findOpenPr(repoPath: string, head: string, run: RunArgv = runArgv): Promise<PrInfo | undefined> {
+    const open = await runGhJson(
+        ['pr', 'list', '--head', head, '--state', 'open', '--json', 'number,url'],
+        { cwd: repoPath, run },
+        openPrsSchema
+    );
+
+    return open[0];
+}
+
 export const realShipDeps: ShipDeps = {
     loadRepoConfig,
     runArgv,
-    findOpenPr: async (repoPath, head) => {
-        const open = await runGhJson(
-            ['pr', 'list', '--head', head, '--state', 'open', '--json', 'number,url'],
-            { cwd: repoPath },
-            openPrsSchema
-        );
-
-        return open[0];
-    },
+    findOpenPr: (repoPath, head) => findOpenPr(repoPath, head),
     createPullRequest,
     waitForChecks,
     mergePullRequest,

@@ -6,7 +6,7 @@ import { waitForWorkflowRun } from './workflowPoller';
 
 let fake: ReturnType<typeof createFakeProcess>;
 
-const fakeRun: RunArgv = (argv) => fake.run(argv);
+const fakeRun: RunArgv = (argv, options) => fake.run(argv, options);
 
 beforeEach(() => {
     fake = createFakeProcess();
@@ -39,6 +39,7 @@ describe('waitForWorkflowRun', () => {
             '--limit',
             '20',
         ]);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 
     it('keeps polling until the run for the commit completes, ignoring other commits', async () => {

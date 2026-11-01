@@ -8,7 +8,7 @@ import { runGh, runGhJson } from './gh';
 
 let fake: ReturnType<typeof createFakeProcess>;
 
-const run: RunArgv = (argv) => fake.run(argv);
+const run: RunArgv = (argv, options) => fake.run(argv, options);
 
 beforeEach(() => {
     fake = createFakeProcess();
@@ -20,6 +20,7 @@ describe('runGh', () => {
 
         await expect(runGh(['pr', 'list'], { cwd: '/repo', run })).resolves.toBe('out');
         expect(fake.calls).toEqual([['gh', 'pr', 'list']]);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 
     it('throws GhNotFoundError when gh is not on PATH', async () => {

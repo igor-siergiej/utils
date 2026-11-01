@@ -8,7 +8,7 @@ const SHA = '1234567890abcdef';
 
 let fake: ReturnType<typeof createFakeProcess>;
 
-const run: RunArgv = (argv) => fake.run(argv);
+const run: RunArgv = (argv, options) => fake.run(argv, options);
 
 beforeEach(() => {
     fake = createFakeProcess();
@@ -39,6 +39,7 @@ describe('revertMergeCommit', () => {
         const pr = await revert();
 
         expect(pr).toEqual({ number: 77, url: 'https://github.com/o/r/pull/77' });
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
         expect(fake.calls.map((argv) => argv.slice(0, 3).join(' '))).toEqual([
             'git fetch origin',
             'git checkout -B',

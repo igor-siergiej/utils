@@ -90,7 +90,7 @@ describe('summarizeChecks', () => {
 
 describe('waitForChecks', () => {
     let fake: ReturnType<typeof createFakeProcess>;
-    const run: RunArgv = (argv) => fake.run(argv);
+    const run: RunArgv = (argv, options) => fake.run(argv, options);
 
     beforeEach(() => {
         fake = createFakeProcess();
@@ -104,6 +104,7 @@ describe('waitForChecks', () => {
         await waitForChecks('/repo', 5, { timeoutMs: 1000, intervalMs: 1, run });
 
         expect(fake.calls[0]).toEqual(['gh', 'pr', 'view', '5', '--json', 'statusCheckRollup']);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 
     it('polls through pending snapshots until a terminal verdict', async () => {

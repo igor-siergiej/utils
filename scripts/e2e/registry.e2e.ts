@@ -27,13 +27,20 @@ function git(...args: string[]): string {
     return result.stdout.toString().trim();
 }
 
+function readManifest(dir: string): Manifest {
+    const text = git('show', `origin/main:${dir}/package.json`);
+
+    // SAFETY: every directory under packages/ on main holds a package.json with the name and version semantic-release stamps; this e2e script has no schema library to parse it with.
+    return JSON.parse(text) as Manifest;
+}
+
 /** The public packages as released: main carries semantic-release's version commit. */
 function releasedPackages(): Manifest[] {
     git('fetch', '-q', 'origin', 'main');
 
     return git('ls-tree', '--name-only', 'origin/main', 'packages/')
         .split('\n')
-        .map((dir): Manifest => JSON.parse(git('show', `origin/main:${dir}/package.json`)))
+        .map(readManifest)
         .filter((manifest) => manifest.private !== true);
 }
 

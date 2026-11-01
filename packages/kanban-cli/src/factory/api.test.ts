@@ -36,6 +36,13 @@ describe('dispatcherApi', () => {
         expect(error).toMatchObject({ status: 400, message: expect.stringContaining('run is not running') });
     });
 
+    it('falls back to the response text when a non-2xx answer has no error field', async () => {
+        const { fetch } = server(502, { detail: 'bad gateway' });
+        const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
+
+        await expect(api.heartbeat('r1')).rejects.toThrow(/failed \(502\): \{"detail":"bad gateway"\}/);
+    });
+
     it('rejects a claim whose run lacks a card', async () => {
         const { fetch } = server(200, { run: { id: 'r1', harness: 'omp', model: 'm' }, block: [] });
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });

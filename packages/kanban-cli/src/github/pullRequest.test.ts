@@ -7,7 +7,7 @@ import { createPullRequest, getPullRequestStatus, mergePullRequest, parseCreated
 
 let fake: ReturnType<typeof createFakeProcess>;
 
-const run: RunArgv = (argv) => fake.run(argv);
+const run: RunArgv = (argv, options) => fake.run(argv, options);
 
 beforeEach(() => {
     fake = createFakeProcess();
@@ -66,6 +66,7 @@ describe('createPullRequest', () => {
             '--head',
             'feat/x',
         ]);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 });
 
@@ -103,6 +104,7 @@ describe('mergePullRequest', () => {
 
         expect(result).toEqual({ merged: true, mergeCommitSha: 'deadbeef' });
         expect(fake.calls[0]).toEqual(['gh', 'pr', 'merge', '12', '--rebase']);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 
     it('defaults to squash and reports merged:false while the PR is still open', async () => {

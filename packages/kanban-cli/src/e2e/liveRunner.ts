@@ -3,16 +3,16 @@ import type { RepoConfig } from '../repoConfig/types';
 import { extractFailedTests } from './parseTestOutput';
 import type { E2eResult } from './types';
 
-/**
- * Never starts/tears down the app (it's already running at `baseUrl`) and always
- * scopes to the repo's smoke-test grep unless explicitly overridden — a live check
- * against production must never accidentally run the full suite.
- */
 /** What the runner reaches outside the process through; tests pass a fake. */
 export interface LiveE2eDeps {
     runShell: typeof runShell;
 }
 
+/**
+ * Never starts/tears down the app (it's already running at `baseUrl`) and always
+ * scopes to the repo's smoke-test grep unless explicitly overridden — a live check
+ * against production must never accidentally run the full suite.
+ */
 export async function runLiveSmoke(
     repoPath: string,
     config: RepoConfig,

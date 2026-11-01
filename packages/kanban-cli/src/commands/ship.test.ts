@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RepoConfig } from '../repoConfig/types';
-import { ship, type ShipDeps } from './ship';
+import { createFakeProcess, json } from '../testing/fakeProcess';
+import { findOpenPr, ship, type ShipDeps } from './ship';
 
 const config: RepoConfig = {
     repoName: 'app',
@@ -180,5 +181,40 @@ describe('ship', () => {
 
         expect(result.revert).toEqual({ pr: REVERT_PR, status: 'failure', restored: false });
         expect(deps.mergePullRequest).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('findOpenPr', () => {
+    const fake = () => createFakeProcess();
+
+    it('lists open PRs for the head branch in the repo and returns the first', async () => {
+        const process = fake();
+
+        process.on(['gh', 'pr', 'list'], json([{ number: 12, url: 'https://github.com/o/r/pull/12', title: 'x' }]));
+
+        await expect(findOpenPr('/repo', 'feat/thing', process.run)).resolves.toEqual({
+            number: 12,
+            url: 'https://github.com/o/r/pull/12',
+        });
+        expect(process.calls).toEqual([
+            ['gh', 'pr', 'list', '--head', 'feat/thing', '--state', 'open', '--json', 'number,url'],
+        ]);
+        expect(process.cwds).toEqual(['/repo']);
+    });
+
+    it('answers undefined when the branch has no open PR', async () => {
+        const process = fake();
+
+        process.on(['gh', 'pr', 'list'], json([]));
+
+        await expect(findOpenPr('/repo', 'feat/thing', process.run)).resolves.toBeUndefined();
+    });
+
+    it('rejects gh output that is not a PR list', async () => {
+        const process = fake();
+
+        process.on(['gh', 'pr', 'list'], json([{ number: 'twelve' }]));
+
+        await expect(findOpenPr('/repo', 'feat/thing', process.run)).rejects.toThrow(/unexpected JSON/);
     });
 });
