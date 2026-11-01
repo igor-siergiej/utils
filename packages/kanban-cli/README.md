@@ -139,7 +139,7 @@ listed in the result's `missing` array:
 ```json
 {"ok":true,"path":"…/.kanban-cli.json","written":true,"inferred":["repoName","dev","e2e","ci"],
  "missing":["deploy.workflowName","environments","targetEnvironment"],"valid":false,
- "validationError":"'targetEnvironment' is required and must be a non-empty string"}
+ "validationError":"'deploy': Invalid input: expected object, received undefined"}
 ```
 
 ## Pausing on the 5-hour usage limit

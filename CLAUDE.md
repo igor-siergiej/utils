@@ -144,7 +144,7 @@ bun add @imapps/api-utils @imapps/web-utils
 
 ## Development Standards
 - **TypeScript**: Strict configuration with full type safety
-- **Biome**: Shared configuration for linting, formatting, and import sorting
+- **Oxlint + Oxfmt**: Shared configuration (`@imapps/oxc-config`) for linting (incl. anti-slop rules), formatting, and import sorting
 - **Build**: Dual CommonJS/ESM output via tsup
 - **Testing**: Vitest with coverage reporting for api-utils
 - **Package Manager**: Bun for fast, reliable dependency management
