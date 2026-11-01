@@ -29,5 +29,6 @@ export default defineConfig({
     bracketSameLine: false,
     bracketSpacing: true,
     sortImports: {},
+    sortPackageJson: false,
     overrides: [{ files: ['**/*.json'], options: { tabWidth: 2 } }],
 });

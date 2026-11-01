@@ -45,7 +45,7 @@ Scripts:
   `eqeqeq` (warn), `typescript/no-explicit-any` (warn, off in `*.test.*`/`*.spec.*`), `oxc/no-accumulating-spread`,
   and the 18 generic anti-slop rules at `error`. Agent directories (`.claude`, `.omp`, `.pi`, ...), `.worktrees` and the vendored plugin are ignored.
 - Format: 4-space indent, width 120, single quotes, semicolons, `es5` trailing commas, `always` arrow parens,
-  2-space JSON, `sortImports` on.
+  2-space JSON, `sortImports` on, `sortPackageJson` off (key order is meaningful, e.g. `exports` conditions).
 
 ## Layout
 
