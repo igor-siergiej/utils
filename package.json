@@ -11,10 +11,10 @@
   "packageManager": "bun@1.3.13",
   "lint-staged": {
     "*.{ts,tsx,mts,cts,js,jsx}": [
-      "oxlint --fix",
-      "oxfmt"
+      "oxlint --fix --no-error-on-unmatched-pattern",
+      "oxfmt --no-error-on-unmatched-pattern"
     ],
-    "*.json": "oxfmt"
+    "*.json": "oxfmt --no-error-on-unmatched-pattern"
   },
   "workspaces": [
     "packages/*"
