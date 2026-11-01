@@ -16,6 +16,7 @@ export function evaluateUsage(state: UsageState | undefined, options: EvaluateUs
     if (!state) return { status: 'unknown', reason: 'no-state' };
 
     const ageMs = options.now() - Date.parse(state.recordedAt);
+
     if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > options.maxStalenessMs) {
         return { status: 'unknown', reason: 'stale' };
     }

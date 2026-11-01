@@ -6,9 +6,10 @@ export interface RecordUsageOptions {
     now?: () => Date;
 }
 
-export function recordUsage(stdinText: string, options: RecordUsageOptions = {}): { ok: true } {
+export function recordUsage(stdinText: string, options: RecordUsageOptions = {}) {
     try {
         const rateLimit = parseFiveHourRateLimit(JSON.parse(stdinText));
+
         if (rateLimit) {
             const now = options.now ?? (() => new Date());
             writeUsageState(options.statePath ?? defaultUsageStatePath(), {
@@ -22,5 +23,5 @@ export function recordUsage(stdinText: string, options: RecordUsageOptions = {})
         // statusline render path and must never surface an error there.
     }
 
-    return { ok: true };
+    return { ok: true as const };
 }

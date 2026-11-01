@@ -12,14 +12,14 @@ interface Deps extends Record<string, unknown> {
 
 describe('DependencyContainer', () => {
     beforeEach(() => {
-        // reset the singleton by reaching into private via any
-        (DependencyContainer as any).instance = undefined;
+        // reset the private singleton between tests
+        DependencyContainer['instance'] = undefined;
     });
 
     it('registers and resolves singletons', () => {
         const di = DependencyContainer.getInstance<Deps>();
 
-        di.registerSingleton('foo', Foo as any);
+        di.registerSingleton('foo', Foo);
 
         const foo1 = di.resolve('foo', 1);
         const foo2 = di.resolve('foo', 2);
@@ -27,6 +27,21 @@ describe('DependencyContainer', () => {
         expect(foo1).toBeInstanceOf(Foo);
         expect(foo1.n).toBe(1);
         expect(foo2).toBe(foo1);
+    });
+
+    it('keeps constructors and instances as plain objects keyed by token (consumers reset them in tests)', () => {
+        const di = DependencyContainer.getInstance<Deps>();
+
+        di.registerSingleton('foo', Foo);
+        di.resolve('foo', 1);
+
+        expect(Object.keys(di['constructors'])).toEqual(['foo']);
+        expect('foo' in di['instances']).toBe(true);
+
+        di['instances'] = {};
+        di['constructors'] = {};
+
+        expect(() => di.resolve('foo')).toThrow(/not registered/);
     });
 
     it('throws when resolving unregistered token', () => {
@@ -38,7 +53,7 @@ describe('DependencyContainer', () => {
     it('prevents double registration', () => {
         const di = DependencyContainer.getInstance<Deps>();
 
-        di.registerSingleton('foo', Foo as any);
-        expect(() => di.registerSingleton('foo', Foo as any)).toThrow(/already registered/);
+        di.registerSingleton('foo', Foo);
+        expect(() => di.registerSingleton('foo', Foo)).toThrow(/already registered/);
     });
 });

@@ -1,18 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { runArgv } from '../process/shell';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import type { JsonValue } from '../json';
+import type { RunArgv } from '../process/shell';
 import { createFakeProcess, json } from '../testing/fakeProcess';
 import { createPullRequest, getPullRequestStatus, mergePullRequest, parseCreatedPrOutput } from './pullRequest';
 
-vi.mock('../process/shell', () => ({ runArgv: vi.fn() }));
-
 let fake: ReturnType<typeof createFakeProcess>;
+
+const run: RunArgv = (argv, options) => fake.run(argv, options);
 
 beforeEach(() => {
     fake = createFakeProcess();
-    vi.mocked(runArgv).mockImplementation(fake.run);
 });
 
-const prView = (overrides: Record<string, unknown> = {}) =>
+const prView = (overrides: Record<string, JsonValue | undefined> = {}) =>
     json({
         number: 12,
         state: 'OPEN',
@@ -40,12 +41,16 @@ describe('createPullRequest', () => {
     it('passes title, body, base and head as separate argv entries', async () => {
         fake.on(['gh', 'pr', 'create'], { stdout: 'https://github.com/o/r/pull/9\n' });
 
-        const pr = await createPullRequest('/repo', {
-            title: 'feat: x',
-            body: 'body with "quotes" and $vars',
-            base: 'main',
-            head: 'feat/x',
-        });
+        const pr = await createPullRequest(
+            '/repo',
+            {
+                title: 'feat: x',
+                body: 'body with "quotes" and $vars',
+                base: 'main',
+                head: 'feat/x',
+            },
+            run
+        );
 
         expect(pr.number).toBe(9);
         expect(fake.calls[0]).toEqual([
@@ -61,6 +66,7 @@ describe('createPullRequest', () => {
             '--head',
             'feat/x',
         ]);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 });
 
@@ -73,7 +79,7 @@ describe('getPullRequestStatus', () => {
     ])('maps rollup %j to checksStatus %s', async (rollup, expected) => {
         fake.on(['gh', 'pr', 'view'], prView({ statusCheckRollup: rollup }));
 
-        const status = await getPullRequestStatus('/repo', 12);
+        const status = await getPullRequestStatus('/repo', 12, run);
         expect(status.checksStatus).toBe(expected);
     });
 
@@ -83,7 +89,7 @@ describe('getPullRequestStatus', () => {
             prView({ statusCheckRollup: undefined, state: 'MERGED', mergeCommit: { oid: 'abc' } })
         );
 
-        const status = await getPullRequestStatus('/repo', 12);
+        const status = await getPullRequestStatus('/repo', 12, run);
         expect(status).toMatchObject({ checksStatus: 'NONE', state: 'MERGED', mergeCommitSha: 'abc' });
         expect(fake.calls[0].slice(0, 4)).toEqual(['gh', 'pr', 'view', '12']);
     });
@@ -94,17 +100,18 @@ describe('mergePullRequest', () => {
         fake.on(['gh', 'pr', 'merge'], {});
         fake.on(['gh', 'pr', 'view'], prView({ state: 'MERGED', mergeCommit: { oid: 'deadbeef' } }));
 
-        const result = await mergePullRequest('/repo', 12, 'rebase');
+        const result = await mergePullRequest('/repo', 12, 'rebase', run);
 
         expect(result).toEqual({ merged: true, mergeCommitSha: 'deadbeef' });
         expect(fake.calls[0]).toEqual(['gh', 'pr', 'merge', '12', '--rebase']);
+        expect(fake.cwds).toEqual(fake.calls.map(() => '/repo'));
     });
 
     it('defaults to squash and reports merged:false while the PR is still open', async () => {
         fake.on(['gh', 'pr', 'merge'], {});
         fake.on(['gh', 'pr', 'view'], prView());
 
-        const result = await mergePullRequest('/repo', 12);
+        const result = await mergePullRequest('/repo', 12, 'squash', run);
 
         expect(result).toEqual({ merged: false, mergeCommitSha: undefined });
         expect(fake.calls[0]).toEqual(['gh', 'pr', 'merge', '12', '--squash']);

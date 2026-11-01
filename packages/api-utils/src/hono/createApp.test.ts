@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { createApp } from './createApp';
 import { APIError } from './errorHandler';
 

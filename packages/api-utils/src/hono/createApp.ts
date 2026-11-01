@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+
 import type { ILogger } from '../logger/types';
 import { errorHandler } from './errorHandler';
 import { type RequestVariables, requestLogger } from './requestLogger';

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+
 import { pollForCondition } from './pollForCondition';
 
 function fakeClock(intervalMs: number) {
     let time = 0;
+
     return {
         now: () => time,
         sleep: async (ms: number) => {
@@ -20,6 +22,7 @@ describe('pollForCondition', () => {
         const outcome = await pollForCondition(
             async () => {
                 calls += 1;
+
                 return 'done';
             },
             { timeoutMs: 10000, intervalMs: clock.intervalMs, sleep: clock.sleep, now: clock.now }
@@ -36,6 +39,7 @@ describe('pollForCondition', () => {
         const outcome = await pollForCondition(
             async () => {
                 calls += 1;
+
                 return calls >= 3 ? 'ready' : null;
             },
             { timeoutMs: 10000, intervalMs: clock.intervalMs, sleep: clock.sleep, now: clock.now }
@@ -52,6 +56,7 @@ describe('pollForCondition', () => {
         const outcome = await pollForCondition(
             async () => {
                 calls += 1;
+
                 return null;
             },
             { timeoutMs: 3000, intervalMs: clock.intervalMs, sleep: clock.sleep, now: clock.now }
@@ -67,6 +72,7 @@ describe('pollForCondition', () => {
         const outcome = await pollForCondition(
             async () => {
                 calls += 1;
+
                 return null;
             },
             { timeoutMs: 0, intervalMs: 1000, sleep: async () => {}, now: () => 0 }

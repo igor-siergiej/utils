@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util';
+
+import { z } from 'zod';
+
 import { ciWait } from './commands/ciWait';
 import { cloneRepo } from './commands/cloneRepo';
 import { deployWait } from './commands/deployWait';
@@ -17,16 +20,18 @@ import { recordUsage } from './commands/recordUsage';
 import { repoCheck } from './commands/repoCheck';
 import { ship } from './commands/ship';
 import { usageCheck } from './commands/usageCheck';
+import { errorMessage } from './errorMessage';
 import { resolveRepoPath } from './repoRegistry/resolveRepo';
 import { ensureWorktree, removeWorktree } from './worktree/worktree';
 
-function printSuccess(data: unknown): void {
+const mergeMethodSchema = z.enum(['squash', 'merge', 'rebase']).default('squash');
+
+function printSuccess<T>(data: T): void {
     process.stdout.write(`${JSON.stringify(data)}\n`);
 }
 
-function printError(error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+function printError(cause: unknown): void {
+    process.stderr.write(`${JSON.stringify({ ok: false, error: errorMessage(cause) })}\n`);
 }
 
 const USAGE =
@@ -39,7 +44,7 @@ const USAGE =
     '          worktree <create|remove> <project> <n> [--kind build|refine], dispatch [--once]\n' +
     'Task state lives in jott: `jott task … --json`.';
 
-async function runE2e(rest: string[]): Promise<unknown> {
+async function runE2e(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'local') {
@@ -48,6 +53,7 @@ async function runE2e(rest: string[]): Promise<unknown> {
             options: { grep: { type: 'string' } },
             allowPositionals: true,
         });
+
         return e2eLocalRun(positionals[0], { grep: values.grep });
     }
 
@@ -57,7 +63,9 @@ async function runE2e(rest: string[]): Promise<unknown> {
             options: { url: { type: 'string' }, grep: { type: 'string' } },
             allowPositionals: true,
         });
+
         if (!values.url) throw new Error('--url is required');
+
         return e2eLiveRun(positionals[0], values.url, { grep: values.grep });
     }
 
@@ -67,13 +75,14 @@ async function runE2e(rest: string[]): Promise<unknown> {
             options: { force: { type: 'boolean' } },
             allowPositionals: true,
         });
+
         return e2eBootstrap(positionals[0], { force: values.force });
     }
 
     throw new Error(`Unknown e2e subcommand '${sub}'. Expected local, live or bootstrap.`);
 }
 
-async function runPr(rest: string[]): Promise<unknown> {
+async function runPr(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'create') {
@@ -87,9 +96,11 @@ async function runPr(rest: string[]): Promise<unknown> {
             },
             allowPositionals: true,
         });
+
         if (!values.title || !values.body || !values.base || !values.head) {
             throw new Error('--title, --body, --base and --head are required');
         }
+
         return prCreate(positionals[0], {
             title: values.title,
             body: values.body,
@@ -100,6 +111,7 @@ async function runPr(rest: string[]): Promise<unknown> {
 
     if (sub === 'status') {
         const { positionals } = parseArgs({ args: subRest, options: {}, allowPositionals: true });
+
         return prStatus(positionals[0], Number(positionals[1]));
     }
 
@@ -109,11 +121,12 @@ async function runPr(rest: string[]): Promise<unknown> {
             options: { method: { type: 'string' } },
             allowPositionals: true,
         });
-        return prMerge(
-            positionals[0],
-            Number(positionals[1]),
-            (values.method as 'squash' | 'merge' | 'rebase' | undefined) ?? 'squash'
-        );
+
+        const method = mergeMethodSchema.safeParse(values.method);
+
+        if (!method.success) throw new Error('--method must be squash, merge or rebase');
+
+        return prMerge(positionals[0], Number(positionals[1]), method.data);
     }
 
     if (sub === 'revert') {
@@ -128,9 +141,11 @@ async function runPr(rest: string[]): Promise<unknown> {
             },
             allowPositionals: true,
         });
+
         if (!values.commit || !values.base || !values.title || !values.summary) {
             throw new Error('--commit, --base, --title and --summary are required');
         }
+
         return prRevert(positionals[0], {
             commitSha: values.commit,
             base: values.base,
@@ -143,7 +158,7 @@ async function runPr(rest: string[]): Promise<unknown> {
     throw new Error(`Unknown pr subcommand '${sub}'. Expected create, status, merge or revert.`);
 }
 
-async function runCi(rest: string[]): Promise<unknown> {
+async function runCi(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'wait') {
@@ -156,6 +171,7 @@ async function runCi(rest: string[]): Promise<unknown> {
             },
             allowPositionals: true,
         });
+
         return ciWait(positionals[0], Number(positionals[1]), {
             timeoutMs: values.timeout ? Number(values.timeout) : undefined,
             intervalMs: values.interval ? Number(values.interval) : undefined,
@@ -166,7 +182,7 @@ async function runCi(rest: string[]): Promise<unknown> {
     throw new Error(`Unknown ci subcommand '${sub}'. Expected wait.`);
 }
 
-async function runDeploy(rest: string[]): Promise<unknown> {
+async function runDeploy(rest: string[]) {
     const [sub, ...subRest] = rest;
 
     if (sub === 'wait') {
@@ -180,7 +196,9 @@ async function runDeploy(rest: string[]): Promise<unknown> {
             },
             allowPositionals: true,
         });
+
         if (!values.workflow || !values.commit) throw new Error('--workflow and --commit are required');
+
         return deployWait(positionals[0], {
             workflow: values.workflow,
             commit: values.commit,
@@ -198,25 +216,33 @@ async function main(): Promise<void> {
     switch (command) {
         case 'resolve-repo': {
             const { positionals } = parseArgs({ args: rest, options: {}, allowPositionals: true });
+
             if (!positionals[0]) throw new Error('Usage: kanban-cli resolve-repo <project>');
             printSuccess({ ok: true, repo: resolveRepoPath(positionals[0]) });
+
             return;
         }
+
         case 'clone': {
             const { values, positionals } = parseArgs({
                 args: rest,
                 options: { url: { type: 'string' }, root: { type: 'string' } },
                 allowPositionals: true,
             });
+
             if (!positionals[0]) throw new Error('Usage: kanban-cli clone <project> [--url <repoUrl>] [--root <dir>]');
             printSuccess(await cloneRepo(positionals[0], values.url, { root: values.root }));
+
             return;
         }
+
         case 'repo-check': {
             const { positionals } = parseArgs({ args: rest, options: {}, allowPositionals: true });
             printSuccess(repoCheck(positionals[0]));
+
             return;
         }
+
         case 'init-config': {
             const { values, positionals } = parseArgs({
                 args: rest,
@@ -227,11 +253,13 @@ async function main(): Promise<void> {
                 },
                 allowPositionals: true,
             });
+
             if (!positionals[0]) {
                 throw new Error(
                     'Usage: kanban-cli init-config <repoPath> [--repo-name <n>] [--base-url <url>] [--environment <name>]'
                 );
             }
+
             printSuccess(
                 initConfig(positionals[0], {
                     repoName: values['repo-name'],
@@ -239,8 +267,10 @@ async function main(): Promise<void> {
                     environment: values.environment,
                 })
             );
+
             return;
         }
+
         case 'install-skill': {
             const { values } = parseArgs({
                 args: rest,
@@ -251,6 +281,7 @@ async function main(): Promise<void> {
                     force: { type: 'boolean' },
                 },
             });
+
             if (!values.target) throw new Error('--target is required');
             printSuccess(
                 installSkill(values.target, {
@@ -259,19 +290,25 @@ async function main(): Promise<void> {
                     force: values.force,
                 })
             );
+
             return;
         }
+
         case 'e2e':
             printSuccess(await runE2e(rest));
+
             return;
         case 'pr':
             printSuccess(await runPr(rest));
+
             return;
         case 'ci':
             printSuccess(await runCi(rest));
+
             return;
         case 'deploy':
             printSuccess(await runDeploy(rest));
+
             return;
         case 'ship': {
             const { values, positionals } = parseArgs({
@@ -284,9 +321,11 @@ async function main(): Promise<void> {
                 },
                 allowPositionals: true,
             });
+
             if (!positionals[0]) {
                 throw new Error('Usage: kanban-cli ship <repoPath> [--title <t> --body <b>] [--head <branch>]');
             }
+
             printSuccess(
                 await ship(positionals[0], {
                     title: values.title,
@@ -295,63 +334,79 @@ async function main(): Promise<void> {
                     ciTimeoutMs: values['ci-timeout'] ? Number(values['ci-timeout']) : undefined,
                 })
             );
+
             return;
         }
+
         case 'record-usage': {
             const stdinText = await Bun.stdin.text();
             printSuccess(recordUsage(stdinText));
+
             return;
         }
+
         case 'usage-check': {
             const { values } = parseArgs({
                 args: rest,
                 options: { threshold: { type: 'string' }, 'max-staleness-ms': { type: 'string' } },
             });
+
             printSuccess(
                 usageCheck({
                     thresholdPct: values.threshold ? Number(values.threshold) : undefined,
                     maxStalenessMs: values['max-staleness-ms'] ? Number(values['max-staleness-ms']) : undefined,
                 })
             );
+
             return;
         }
+
         case 'worktree': {
             const { values, positionals } = parseArgs({
                 args: rest,
                 options: { kind: { type: 'string' } },
                 allowPositionals: true,
             });
+
             const [sub, project, n] = positionals;
+
             if ((sub !== 'create' && sub !== 'remove') || !project || !Number.isInteger(Number(n))) {
                 throw new Error('Usage: kanban-cli worktree <create|remove> <project> <n> [--kind build|refine]');
             }
+
             const kind = values.kind === 'refine' ? 'refine' : 'build';
             const repo = resolveRepoPath(project);
+
             if (sub === 'create') {
                 printSuccess({ ok: true, worktree: await ensureWorktree(repo, project, Number(n), kind) });
             } else {
                 await removeWorktree(repo, project, Number(n), kind);
                 printSuccess({ ok: true });
             }
+
             return;
         }
+
         case 'dispatch': {
             const { values } = parseArgs({ args: rest, options: { once: { type: 'boolean' } } });
             const result = await dispatch({ once: values.once });
             printSuccess({ ok: true, result });
+
             return;
         }
+
         case undefined:
         case '--help':
         case '-h':
             process.stdout.write(`${USAGE}\n`);
+
             return;
         default:
             throw new Error(`Unknown command '${command}'.\n${USAGE}`);
     }
 }
 
-main().catch((error) => {
-    printError(error);
+main().catch((cause) => {
+    printError(cause);
     process.exit(1);
 });

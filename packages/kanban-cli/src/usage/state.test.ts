@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { defaultUsageStatePath, readUsageState, writeUsageState } from './state';
 
 let dir: string;
@@ -46,6 +48,7 @@ describe('defaultUsageStatePath', () => {
         const original = process.env.KANBAN_CLI_USAGE_STATE_PATH;
         process.env.KANBAN_CLI_USAGE_STATE_PATH = '/tmp/custom-usage-state.json';
         expect(defaultUsageStatePath()).toBe('/tmp/custom-usage-state.json');
+
         if (original === undefined) delete process.env.KANBAN_CLI_USAGE_STATE_PATH;
         else process.env.KANBAN_CLI_USAGE_STATE_PATH = original;
     });
@@ -54,6 +57,7 @@ describe('defaultUsageStatePath', () => {
         const original = process.env.KANBAN_CLI_USAGE_STATE_PATH;
         delete process.env.KANBAN_CLI_USAGE_STATE_PATH;
         expect(defaultUsageStatePath()).toMatch(/\.claude\/kanban-cli\/usage-state\.json$/);
+
         if (original !== undefined) process.env.KANBAN_CLI_USAGE_STATE_PATH = original;
     });
 });

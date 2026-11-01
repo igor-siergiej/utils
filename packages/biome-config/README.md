@@ -2,6 +2,8 @@
 
 Shared Biome configuration for IM Apps projects.
 
+> **Deprecated.** Superseded by [`@imapps/oxc-config`](../oxc-config/README.md) (Oxlint + Oxfmt with anti-slop rules). This package stays published for repositories that have not migrated yet and receives no new features.
+
 ## Installation
 
 ```bash

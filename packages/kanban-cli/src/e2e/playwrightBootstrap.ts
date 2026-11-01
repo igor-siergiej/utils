@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { PlaywrightAlreadyConfiguredError } from './errors';
 
 const PLAYWRIGHT_CONFIG_TEMPLATE = `import { defineConfig } from '@playwright/test';
@@ -44,9 +45,11 @@ export function scaffoldPlaywrightConfig(
     const filesWritten = [configPath, specPath];
 
     const pkgPath = join(repoPath, 'package.json');
+
     if (existsSync(pkgPath)) {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
         pkg.scripts ??= {};
+
         if (!pkg.scripts['test:e2e']) {
             pkg.scripts['test:e2e'] = 'playwright test';
             writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);

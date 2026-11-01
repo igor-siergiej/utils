@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
+
 import { type RequestVariables, requestLogger } from './requestLogger';
 
 const makeLogger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() });
@@ -16,20 +17,20 @@ describe('requestLogger', () => {
         expect(res.status).toBe(200);
         expect(res.headers.get('X-Request-Id')).toBeTruthy();
         expect(logger.info).toHaveBeenCalledOnce();
-        const message = logger.info.mock.calls[0][0] as string;
+        const message = logger.info.mock.calls[0][0];
         expect(message).toMatch(/^GET \/x - 200 \d+ms$/);
 
-        const firstMeta = logger.info.mock.calls[0][1] as Record<string, unknown>;
-        expect(typeof firstMeta.requestId).toBe('string');
-        expect((firstMeta.requestId as string).length).toBeGreaterThan(0);
+        const firstMeta = logger.info.mock.calls[0][1];
+        expect(firstMeta.requestId).toEqual(expect.any(String));
+        expect(firstMeta.requestId.length).toBeGreaterThan(0);
 
-        const secondMeta = logger.info.mock.calls[0][2] as Record<string, unknown>;
+        const secondMeta = logger.info.mock.calls[0][2];
         expect(secondMeta).toMatchObject({
             method: 'GET',
             path: '/x',
             status: 200,
         });
-        expect(typeof secondMeta.durationMs).toBe('number');
+        expect(secondMeta.durationMs).toEqual(expect.any(Number));
         expect(secondMeta.requestId).toBe(firstMeta.requestId);
     });
 
@@ -42,7 +43,7 @@ describe('requestLogger', () => {
         const res = await app.request('/x', { headers: { 'X-Request-Id': 'incoming-123' } });
 
         expect(res.headers.get('X-Request-Id')).toBe('incoming-123');
-        const meta = logger.info.mock.calls[0][2] as Record<string, unknown>;
+        const meta = logger.info.mock.calls[0][2];
         expect(meta.requestId).toBe('incoming-123');
     });
 
@@ -57,11 +58,11 @@ describe('requestLogger', () => {
         await app.request('/boom');
 
         expect(logger.warn).toHaveBeenCalledOnce();
-        const warnMeta = logger.warn.mock.calls[0][2] as Record<string, unknown>;
+        const warnMeta = logger.warn.mock.calls[0][2];
         expect(warnMeta.status).toBe(400);
 
         expect(logger.error).toHaveBeenCalledOnce();
-        const errorMeta = logger.error.mock.calls[0][2] as Record<string, unknown>;
+        const errorMeta = logger.error.mock.calls[0][2];
         expect(errorMeta.status).toBe(500);
     });
 

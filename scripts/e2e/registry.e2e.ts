@@ -21,24 +21,36 @@ interface Manifest {
 
 function git(...args: string[]): string {
     const result = Bun.spawnSync(['git', ...args], { stderr: 'pipe' });
+
     if (result.exitCode !== 0) throw new Error(`git ${args.join(' ')} failed: ${result.stderr.toString()}`);
+
     return result.stdout.toString().trim();
+}
+
+function readManifest(dir: string): Manifest {
+    const text = git('show', `origin/main:${dir}/package.json`);
+
+    // SAFETY: every directory under packages/ on main holds a package.json with the name and version semantic-release stamps; this e2e script has no schema library to parse it with.
+    return JSON.parse(text) as Manifest;
 }
 
 /** The public packages as released: main carries semantic-release's version commit. */
 function releasedPackages(): Manifest[] {
     git('fetch', '-q', 'origin', 'main');
+
     return git('ls-tree', '--name-only', 'origin/main', 'packages/')
         .split('\n')
-        .map((dir) => JSON.parse(git('show', `origin/main:${dir}/package.json`)) as Manifest)
+        .map(readManifest)
         .filter((manifest) => manifest.private !== true);
 }
 
 /** Retries `attempt` until it returns true or the publish wait runs out; the registry lags a publish briefly. */
 async function eventually(attempt: () => Promise<boolean>): Promise<boolean> {
     const deadline = Date.now() + waitMs;
+
     while (true) {
         if (await attempt()) return true;
+
         if (Date.now() + pollMs > deadline) return false;
         await Bun.sleep(pollMs);
     }
@@ -49,9 +61,11 @@ const packages = releasedPackages();
 describe('released packages', () => {
     test('@smoke every public package on main is published at its version', async () => {
         const missing: string[] = [];
+
         for (const { name, version } of packages) {
             const url = `${registry}/${name.replace('/', '%2f')}/${version}`;
             const found = await eventually(async () => (await fetch(url)).ok);
+
             if (!found) missing.push(`${name}@${version}`);
         }
 
@@ -66,10 +80,13 @@ describe('released packages', () => {
 
         try {
             await Bun.write(join(dir, 'package.json'), '{"name":"utils-e2e-live","private":true}');
+
             const installed = await eventually(async () => {
                 const add = Bun.spawnSync(['bun', 'add', '--no-cache', `--registry=${registry}`, spec], { cwd: dir });
+
                 return add.exitCode === 0;
             });
+
             expect(installed).toBe(true);
 
             const run = Bun.spawnSync([join(dir, 'node_modules', '.bin', 'kanban-cli'), '--help'], { cwd: dir });

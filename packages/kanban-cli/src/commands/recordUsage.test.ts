@@ -1,7 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { recordUsage } from './recordUsage';
 
 let dir: string;
@@ -21,6 +23,7 @@ describe('recordUsage', () => {
         const payload = JSON.stringify({
             rate_limits: { five_hour: { used_percentage: 71, resets_at: '2026-07-20T18:00:00.000Z' } },
         });
+
         const now = () => new Date('2026-07-20T15:00:00.000Z');
 
         const result = recordUsage(payload, { statePath, now });

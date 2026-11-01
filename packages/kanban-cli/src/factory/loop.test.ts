@@ -1,7 +1,10 @@
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import type { JsonValue } from '../json';
 import {
     ApiError,
     type Claim,
@@ -16,10 +19,10 @@ import type { Harness, HarnessOutcome, HarnessRun } from './harness';
 import { cycle, type LoopDeps, type RunLogEntry, refinePrompt, STOPPED_REASON, workerPrompt } from './loop';
 import type { NotifyEvent } from './notify';
 
-const STATUS_FROM_CLI: Record<string, string> = { 'in-progress': 'in_progress' };
+const STATUS_FROM_CLI = new Map([['in-progress', 'in_progress']]);
 const CARD = { id: 'task-5', number: 5, project: 'tandra', title: 'card 5' };
 
-const task = (status = 'todo', meta: Record<string, unknown> = {}): JottTask => ({
+const task = (status = 'todo', meta: Record<string, JsonValue> = {}): JottTask => ({
     ...CARD,
     status,
     tags: [],
@@ -28,42 +31,60 @@ const task = (status = 'todo', meta: Record<string, unknown> = {}): JottTask => 
 
 function fakeBoard(tasks: JottTask[], order: string[] = []) {
     const sets: { n: number; patch: CardPatch }[] = [];
+
     const board: Board = {
         sync: vi.fn(async () => {}),
         show: async (n) => {
             const t = tasks.find((x) => x.number === n);
+
             if (!t) throw new Error(`no #${n}`);
+
             return structuredClone(t);
         },
         set: async (n, patch) => {
             const what = patch.status ?? (Object.keys(patch.meta ?? {}).join(',') || (patch.unmeta ?? []).join(','));
             order.push(`set ${what}`);
             sets.push({ n, patch });
-            const t = tasks.find((x) => x.number === n) as JottTask;
-            if (patch.status) t.status = STATUS_FROM_CLI[patch.status] ?? patch.status;
+            const t = tasks.find((x) => x.number === n);
+
+            if (!t) throw new Error(`no #${n}`);
+
+            if (patch.status) t.status = STATUS_FROM_CLI.get(patch.status) ?? patch.status;
             Object.assign(t.meta, patch.meta);
+
             for (const k of patch.unmeta ?? []) delete t.meta[k];
         },
     };
+
     return { board, sets };
+}
+
+interface HeartbeatControl {
+    stop: boolean;
+    heartbeatError?: Error;
 }
 
 function fakeApi(claim: Claim, answer: EndAnswer = { action: 'none' }) {
     const heartbeats: (string | undefined)[] = [];
     const ends: EndBody[] = [];
-    const control: { stop: boolean; heartbeatError?: Error } = { stop: false };
+    const control: HeartbeatControl = { stop: false };
+
     const api: DispatcherApi = {
         claim: async () => claim,
         heartbeat: async (_id, activity) => {
             heartbeats.push(activity);
+
             if (control.heartbeatError) throw control.heartbeatError;
+
             return { stop: control.stop };
         },
         end: async (_id, body) => {
             ends.push(body);
+
             return answer;
         },
     };
+
     return { api, heartbeats, ends, control };
 }
 
@@ -84,17 +105,21 @@ function setup(opts: {
     const { board, sets } = fakeBoard(tasks, order);
     const { api, heartbeats, ends, control } = fakeApi(opts.claim, opts.answer);
     const runs: HarnessRun[] = [];
+
     const harness: Harness = {
         run: vi.fn(async (run: HarnessRun): Promise<HarnessOutcome> => {
             order.push('harness');
             runs.push(run);
+
             return opts.run ? opts.run(run, tasks) : { kind: 'done', sessionId: 's-1' };
         }),
         activity: (line) => line || undefined,
     };
+
     const logs: RunLogEntry[] = [];
     const notified: NotifyEvent[] = [];
     const warnings: string[] = [];
+
     const deps: LoopDeps = {
         api,
         board,
@@ -104,7 +129,9 @@ function setup(opts: {
         harnessFor: vi.fn(() => harness),
         ensureWorktree: vi.fn(async (_r, p, n, kind) => {
             order.push('worktree');
+
             const suffix = kind === 'refine' ? '-refine' : '';
+
             return { path: `/repo/.worktrees/${p}-${n}${suffix}`, branch: `factory/${p}-${n}${suffix}`, created: true };
         }),
         prepareWorktree: vi.fn(async () => {}),
@@ -120,6 +147,7 @@ function setup(opts: {
         heartbeatMs: 5000,
         ...opts.overrides,
     };
+
     return { deps, tasks, sets, order, heartbeats, ends, control, runs, harness, logs, notified, warnings };
 }
 
@@ -145,6 +173,7 @@ describe('cycle', () => {
             claim: claimed({ resume_session: 'sess-0', reply: 'use the v2 API', blocked_reason: 'which API?' }),
             run: async (_r, tasks) => {
                 tasks[0].status = 'done';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });
@@ -171,6 +200,7 @@ describe('cycle', () => {
         vi.useFakeTimers();
         let finish: (o: HarnessOutcome) => void = () => {};
         let run: HarnessRun | undefined;
+
         const s = setup({
             claim: claimed(),
             run: (r, tasks) => {
@@ -178,6 +208,7 @@ describe('cycle', () => {
                 tasks[0].status = 'done';
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 finish = resolve;
+
                 return promise;
             },
         });
@@ -212,11 +243,13 @@ describe('cycle', () => {
 
     it('stops the harness on a stop request and blocks the card, keeping the session', async () => {
         vi.useFakeTimers();
+
         const s = setup({
             claim: claimed(),
             run: ({ signal }) => {
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 signal.addEventListener('abort', () => resolve({ kind: 'stopped', sessionId: 's-7' }));
+
                 return promise;
             },
         });
@@ -284,11 +317,13 @@ describe('cycle', () => {
         const home = mkdtempSync(join(tmpdir(), 'kanban-loop-home-'));
         const realHome = process.env.HOME;
         process.env.HOME = home;
+
         try {
             const s = setup({
                 claim: claimed(),
                 run: async (_r, tasks) => {
                     tasks[0].status = 'done';
+
                     return { kind: 'done', sessionId: 's-1' };
                 },
             });
@@ -314,6 +349,7 @@ describe('cycle', () => {
             run: async (_r, tasks) => {
                 tasks[0].status = 'blocked';
                 tasks[0].meta.blocked_reason = 'CI red: lint';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });
@@ -378,11 +414,13 @@ describe('cycle', () => {
 
     it('treats a run the server already ended as lost: aborts, no end, no card writes', async () => {
         vi.useFakeTimers();
+
         const s = setup({
             claim: claimed(),
             run: ({ signal }) => {
                 const { promise, resolve } = Promise.withResolvers<HarnessOutcome>();
                 signal.addEventListener('abort', () => resolve({ kind: 'stopped', sessionId: 's-7' }));
+
                 return promise;
             },
         });
@@ -404,6 +442,7 @@ describe('cycle', () => {
             claim: claimed(),
             run: async (_r, tasks) => {
                 tasks[0].status = 'done';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });
@@ -417,9 +456,10 @@ describe('cycle', () => {
 });
 
 describe('refine runs', () => {
-    const refined = (tasks: JottTask[]) => {
+    const refined = (tasks: JottTask[]): HarnessOutcome => {
         tasks[0].meta.refined_at = '2026-10-25T10:00:00.000Z';
-        return { kind: 'done', sessionId: 's-1' } as HarnessOutcome;
+
+        return { kind: 'done', sessionId: 's-1' };
     };
 
     it('works the card in a worktree, without moving it out of its column', async () => {
@@ -428,6 +468,7 @@ describe('refine runs', () => {
             tasks: [task('backlog')],
             run: async (_r, tasks) => {
                 tasks[0].title = 'Refined card';
+
                 return refined(tasks);
             },
         });
@@ -477,6 +518,7 @@ describe('refine runs', () => {
 
     it('works a project-less card in the repo root, without a worktree', async () => {
         const card: ClaimCard = { ...CARD, project: null };
+
         const s = setup({
             claim: { run: { id: 'run-1', card, harness: 'omp', model: 'm', kind: 'refine' }, block: [] },
             tasks: [{ ...card, status: 'inbox', tags: [], meta: {} }],
@@ -501,6 +543,7 @@ describe('refine runs', () => {
             run: async (_r, tasks) => {
                 tasks[0].status = 'blocked';
                 tasks[0].meta.blocked_reason = 'Which project is this about?';
+
                 return { kind: 'done', sessionId: 's-1' };
             },
         });

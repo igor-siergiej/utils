@@ -12,5 +12,6 @@ export async function ciWait(repoPath: string, prNumber: number, options: CiWait
         intervalMs: options.intervalMs,
         requiredNames: options.requiredNames,
     });
+
     return { ok: true as const, result };
 }

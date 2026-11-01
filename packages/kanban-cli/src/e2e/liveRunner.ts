@@ -3,6 +3,11 @@ import type { RepoConfig } from '../repoConfig/types';
 import { extractFailedTests } from './parseTestOutput';
 import type { E2eResult } from './types';
 
+/** What the runner reaches outside the process through; tests pass a fake. */
+export interface LiveE2eDeps {
+    runShell: typeof runShell;
+}
+
 /**
  * Never starts/tears down the app (it's already running at `baseUrl`) and always
  * scopes to the repo's smoke-test grep unless explicitly overridden — a live check
@@ -12,7 +17,8 @@ export async function runLiveSmoke(
     repoPath: string,
     config: RepoConfig,
     baseUrl: string,
-    options: { grep?: string } = {}
+    options: { grep?: string } = {},
+    deps: LiveE2eDeps = { runShell }
 ): Promise<E2eResult> {
     const startedAt = Date.now();
     const grep = options.grep ?? config.e2e.smokeGrep;
@@ -21,7 +27,7 @@ export async function runLiveSmoke(
     // `CI` is stripped for the same reason as in the local runner: with it set,
     // Playwright's webServer boots a whole local stack for a run that is aimed at a
     // deployed URL.
-    const result = await runShell(testCommand, {
+    const result = await deps.runShell(testCommand, {
         cwd: repoPath,
         env: { E2E_BASE_URL: baseUrl, CI: undefined },
     });

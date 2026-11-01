@@ -24,6 +24,7 @@ stamp('package.json');
 
 for (const dir of readdirSync('packages')) {
     const manifest = join('packages', dir, 'package.json');
+
     if (existsSync(manifest)) {
         stamp(manifest);
     }

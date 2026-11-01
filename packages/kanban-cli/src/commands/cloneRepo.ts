@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
 import { runArgv } from '../process/shell';
+import { readRepoName } from '../repoConfig/rawConfig';
 import { CONFIG_FILENAME } from '../repoConfig/types';
 import { RepoResolutionError } from '../repoRegistry/errors';
 import { repoRoots, resolveRepoPath } from '../repoRegistry/resolveRepo';
@@ -23,6 +25,7 @@ export async function cloneRepo(project: string, repoUrl: string | undefined, op
     }
 
     const target = resolve(options.root ?? repoRoots()[0], project);
+
     if (existsSync(target)) {
         throw new RepoResolutionError(
             `${target} already exists but is not a checkout with repoName '${project}'; fix its ${CONFIG_FILENAME} or move it aside`
@@ -30,14 +33,17 @@ export async function cloneRepo(project: string, repoUrl: string | undefined, op
     }
 
     const result = await runArgv(['git', 'clone', repoUrl, target], { cwd: process.cwd() });
+
     if (result.exitCode !== 0) {
         throw new Error(`git clone ${repoUrl} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
 
     const configPath = join(target, CONFIG_FILENAME);
     let configCreated = false;
+
     if (existsSync(configPath)) {
-        const repoName = (JSON.parse(readFileSync(configPath, 'utf8')) as { repoName?: unknown }).repoName;
+        const repoName = readRepoName(readFileSync(configPath, 'utf8'));
+
         if (repoName !== project) {
             throw new RepoResolutionError(
                 `Cloned ${repoUrl} to ${target}, but its ${CONFIG_FILENAME} has repoName '${String(repoName)}', not '${project}'`

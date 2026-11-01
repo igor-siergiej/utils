@@ -10,5 +10,6 @@ export interface PrRevertOptions {
 
 export async function prRevert(repoPath: string, options: PrRevertOptions) {
     const pr = await revertMergeCommit(repoPath, options);
+
     return { ok: true as const, pr };
 }

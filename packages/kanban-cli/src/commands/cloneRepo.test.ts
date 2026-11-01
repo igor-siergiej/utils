@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { RepoResolutionError } from '../repoRegistry/errors';
 import { REPO_ROOTS_ENV } from '../repoRegistry/resolveRepo';
 import { cloneRepo } from './cloneRepo';
@@ -19,6 +21,7 @@ const git = (cwd: string, ...args: string[]) =>
 function makeUpstream(files: Record<string, string>) {
     mkdirSync(upstream);
     git(upstream, 'init', '-q', '-b', 'main');
+
     for (const [name, contents] of Object.entries(files)) writeFileSync(join(upstream, name), contents);
     git(upstream, 'add', '.');
     git(upstream, 'commit', '-q', '-m', 'init');

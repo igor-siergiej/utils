@@ -27,6 +27,7 @@ export const useTokenRefresh = () => {
     const performTokenRefresh = useCallback(async (): Promise<string> => {
         try {
             const refreshEndpoint = config.endpoints?.refresh || '/refresh';
+
             const response = await fetch(`${config.authUrl}${refreshEndpoint}`, {
                 method: 'POST',
                 credentials: 'include',

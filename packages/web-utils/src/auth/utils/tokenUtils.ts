@@ -3,6 +3,7 @@ import type { AuthConfig, RefreshTokenResponse } from '../types';
 export const tryRefreshToken = async (config: AuthConfig): Promise<string | null> => {
     try {
         const refreshEndpoint = config.endpoints?.refresh || '/refresh';
+
         const response = await fetch(`${config.authUrl}${refreshEndpoint}`, {
             method: 'POST',
             credentials: 'include',
@@ -27,6 +28,7 @@ export const clearRefreshTokenCookie = (cookieName = 'refreshToken'): void => {
 export const refreshAccessToken = async (config: AuthConfig): Promise<string> => {
     try {
         const refreshEndpoint = config.endpoints?.refresh || '/refresh';
+
         const response = await fetch(`${config.authUrl}${refreshEndpoint}`, {
             method: 'POST',
             credentials: 'include',

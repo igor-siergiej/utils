@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 import { pollForCondition } from '../process/pollForCondition';
+import type { RunArgv } from '../process/shell';
 import { runGhJson } from './gh';
 import type { CheckRunSummary, ChecksResult } from './types';
 
@@ -14,31 +17,34 @@ import type { CheckRunSummary, ChecksResult } from './types';
  * `conclusion`) and commit statuses posted by external services (`StatusContext`,
  * with `context` + `state`).
  */
-interface RollupEntry {
-    __typename?: string;
-    name?: string;
-    context?: string;
-    status?: string;
-    state?: string;
-    conclusion?: string | null;
-}
+const rollupEntrySchema = z.object({
+    __typename: z.string().optional(),
+    name: z.string().optional(),
+    context: z.string().optional(),
+    status: z.string().optional(),
+    state: z.string().optional(),
+    conclusion: z.string().nullish(),
+});
 
-interface RollupResponse {
-    statusCheckRollup: RollupEntry[] | null;
-}
+type RollupEntry = z.infer<typeof rollupEntrySchema>;
+
+const rollupResponseSchema = z.object({ statusCheckRollup: z.array(rollupEntrySchema).nullish() });
 
 type Bucket = 'pass' | 'fail' | 'pending';
-const PASSING_CONCLUSIONS: Record<string, true> = { SUCCESS: true, NEUTRAL: true, SKIPPED: true };
-const PENDING_STATES: Record<string, true> = { PENDING: true, EXPECTED: true };
+
+const PASSING_CONCLUSIONS = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED']);
+const PENDING_STATES = new Set(['PENDING', 'EXPECTED']);
 
 function bucketOf(entry: RollupEntry): Bucket {
     if (entry.state !== undefined) {
-        if (PENDING_STATES[entry.state] === true) return 'pending';
+        if (PENDING_STATES.has(entry.state)) return 'pending';
+
         return entry.state === 'SUCCESS' ? 'pass' : 'fail';
     }
 
     if (entry.status !== 'COMPLETED') return 'pending';
-    return PASSING_CONCLUSIONS[entry.conclusion ?? ''] === true ? 'pass' : 'fail';
+
+    return PASSING_CONCLUSIONS.has(entry.conclusion ?? '') ? 'pass' : 'fail';
 }
 
 export interface ChecksSnapshot {
@@ -58,32 +64,37 @@ export function summarizeChecks(entries: RollupEntry[], requiredNames?: string[]
     }));
 
     const buckets = relevant.map(({ entry }) => bucketOf(entry));
+
     if (buckets.includes('fail')) return { status: 'failure', checks };
 
     // A required check that GitHub has not reported yet is pending, not absent: a job
     // queued seconds after its siblings must not let the gate pass before it runs.
     const unreported = requiredNames?.filter((name) => !relevant.some((check) => check.name === name)) ?? [];
+
     if (unreported.length > 0) return { status: 'pending', checks };
 
     if (buckets.length > 0 && buckets.every((bucket) => bucket === 'pass')) return { status: 'success', checks };
+
     return { status: 'pending', checks };
 }
 
 export async function waitForChecks(
     repoPath: string,
     prNumber: number,
-    options: { timeoutMs: number; intervalMs?: number; requiredNames?: string[] }
+    options: { timeoutMs: number; intervalMs?: number; requiredNames?: string[]; run?: RunArgv }
 ): Promise<ChecksResult> {
     const intervalMs = options.intervalMs ?? 15000;
 
     const outcome = await pollForCondition<ChecksResult>(
         async () => {
-            const raw = await runGhJson<RollupResponse>(
+            const raw = await runGhJson(
                 ['pr', 'view', String(prNumber), '--json', 'statusCheckRollup'],
-                { cwd: repoPath }
+                { cwd: repoPath, run: options.run },
+                rollupResponseSchema
             );
 
             const snapshot = summarizeChecks(raw.statusCheckRollup ?? [], options.requiredNames);
+
             return snapshot.status === 'pending' ? null : { status: snapshot.status, checks: snapshot.checks };
         },
         { timeoutMs: options.timeoutMs, intervalMs }

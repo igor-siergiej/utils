@@ -1,4 +1,5 @@
 import type { Context } from 'hono';
+
 import type { ILogger } from '../logger/types';
 import type { RequestVariables } from './requestLogger';
 
@@ -18,7 +19,9 @@ export class APIError extends Error {
 export const errorHandler =
     (logger?: ILogger) =>
     (err: Error, c: Context<RequestVariables>): Response => {
-        const e = err as { status?: number; message?: string };
+        const e: Error & { status?: number } = err;
+
+        // SAFETY: c.json accepts any numeric status at runtime; the union only satisfies Hono's ContentfulStatusCode typing for statuses callers attach to errors.
         const statusCode = (e.status ?? 500) as 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500 | 502 | 503;
 
         if (logger) {
@@ -27,18 +30,12 @@ export const errorHandler =
             const path = c.req.path;
             const userId = c.get('userId');
             const message = err.message ?? 'Internal Server Error';
-            const meta: Record<string, unknown> = {
-                method,
-                path,
-                requestId,
-                status: statusCode,
-            };
-            if (userId) meta.userId = userId;
-            if (err instanceof APIError) {
-                meta.errorName = err.name;
-            } else {
-                meta.stack = err.stack;
-            }
+
+            const core = { method, path, requestId, status: statusCode };
+            const withUser = userId ? { ...core, userId } : core;
+
+            const meta =
+                err instanceof APIError ? { ...withUser, errorName: err.name } : { ...withUser, stack: err.stack };
 
             if (statusCode >= 500) {
                 logger.error(message, { requestId }, meta);

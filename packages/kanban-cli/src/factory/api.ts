@@ -1,4 +1,6 @@
-import { isRecord } from '../typeGuards';
+import { z } from 'zod';
+
+import { tryParseJson } from '../json';
 
 /** A card as the jott server knows it; `id` is stable, `number` can change on a sync collision. */
 export interface ClaimCard {
@@ -81,61 +83,48 @@ const REQUEST_TIMEOUT_MS = 10_000;
 export function configFromEnv(env: Record<string, string | undefined> = process.env): ApiConfig {
     const url = env.JOTT_URL;
     const token = env.JOTT_DISPATCHER_TOKEN;
+
     if (!url || !token) {
         throw new Error('JOTT_URL and JOTT_DISPATCHER_TOKEN must be set (~/.config/kanban-factory.env)');
     }
+
     return { url, token };
 }
 
-function isCard(v: unknown): v is ClaimCard {
-    return (
-        isRecord(v) &&
-        typeof v.id === 'string' &&
-        typeof v.number === 'number' &&
-        (v.project === null || typeof v.project === 'string') &&
-        typeof v.title === 'string'
+const cardSchema = z.object({
+    id: z.string(),
+    number: z.number(),
+    project: z.string().nullable(),
+    title: z.string(),
+});
+
+const claimedRunSchema = z.object({
+    id: z.string(),
+    card: cardSchema,
+    harness: z.string(),
+    model: z.string(),
+    kind: z.enum(['build', 'refine']).optional(),
+    resume_session: z.string().optional(),
+    reply: z.string().optional(),
+    blocked_reason: z.string().optional(),
+});
+
+const claimSchema = z.object({
+    run: claimedRunSchema.nullable(),
+    block: z.array(z.object({ card: cardSchema, reason: z.string() })),
+});
+
+const endAnswerSchema = z
+    .union([z.object({ then: z.enum(['none', 'retry']) }), z.object({ then: z.literal('block'), reason: z.string() })])
+    .transform((answer): EndAnswer =>
+        answer.then === 'block' ? { action: 'block', reason: answer.reason } : { action: answer.then }
     );
-}
 
-const optionalString = (v: unknown) => v === undefined || typeof v === 'string';
+const heartbeatSchema = z.object({ stop: z.boolean() });
 
-function isRunKind(v: unknown): v is RunKind {
-    return v === 'build' || v === 'refine';
-}
+const failureSchema = z.object({ error: z.unknown().optional() });
 
-function isClaimedRun(v: unknown): v is ClaimedRun {
-    return (
-        isRecord(v) &&
-        typeof v.id === 'string' &&
-        isCard(v.card) &&
-        typeof v.harness === 'string' &&
-        typeof v.model === 'string' &&
-        (v.kind === undefined || isRunKind(v.kind)) &&
-        optionalString(v.resume_session) &&
-        optionalString(v.reply) &&
-        optionalString(v.blocked_reason)
-    );
-}
-
-function parseClaim(v: unknown): Claim | undefined {
-    if (!isRecord(v) || !Array.isArray(v.block)) return undefined;
-    const run = v.run === null ? null : isClaimedRun(v.run) ? v.run : undefined;
-    if (run === undefined) return undefined;
-    const block: ClaimBlock[] = [];
-    for (const b of v.block) {
-        if (!isRecord(b) || !isCard(b.card) || typeof b.reason !== 'string') return undefined;
-        block.push({ card: b.card, reason: b.reason });
-    }
-    return { run, block };
-}
-
-function parseEndAnswer(v: unknown): EndAnswer | undefined {
-    if (!isRecord(v)) return undefined;
-    const action = v.then;
-    if (action === 'none' || action === 'retry') return { action };
-    if (action === 'block' && typeof v.reason === 'string') return { action, reason: v.reason };
-    return undefined;
-}
+type RequestBody = EndBody | { activity?: string };
 
 export function dispatcherApi(opts: ApiConfig & { fetch?: typeof fetch }): DispatcherApi {
     const base = opts.url.replace(/\/+$/, '');
@@ -143,48 +132,53 @@ export function dispatcherApi(opts: ApiConfig & { fetch?: typeof fetch }): Dispa
 
     async function post<T>(
         path: string,
-        body: unknown,
+        body: RequestBody | undefined,
         timeoutMs: number,
-        parse: (v: unknown) => T | undefined
+        schema: z.ZodType<T>
     ): Promise<T> {
+        const headers = new Headers({ Authorization: `Bearer ${opts.token}` });
+
+        if (body !== undefined) headers.set('Content-Type', 'application/json');
+
         const response = await doFetch(`${base}${path}`, {
             method: 'POST',
-            headers: {
-                Authorization: `Bearer ${opts.token}`,
-                ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-            },
+            headers,
             body: body === undefined ? undefined : JSON.stringify(body),
             signal: AbortSignal.timeout(timeoutMs),
         });
+
         const text = await response.text();
-        let parsed: unknown;
-        try {
-            parsed = text ? JSON.parse(text) : undefined;
-        } catch {
-            parsed = undefined;
-        }
+        const parsed = tryParseJson(text);
+
         if (!response.ok) {
+            const failure = failureSchema.safeParse(parsed);
+
             const error =
-                isRecord(parsed) && parsed.error !== undefined
-                    ? String(parsed.error)
+                failure.success && failure.data.error !== undefined
+                    ? String(failure.data.error)
                     : text.slice(0, 200) || response.statusText;
+
             throw new ApiError(response.status, `POST ${path} failed (${response.status}): ${error}`);
         }
-        const value = parse(parsed);
-        if (value === undefined) throw new Error(`POST ${path}: unexpected response ${text.slice(0, 200)}`);
-        return value;
+
+        const result = schema.safeParse(parsed);
+
+        if (!result.success) throw new Error(`POST ${path}: unexpected response ${text.slice(0, 200)}`);
+
+        return result.data;
     }
 
     const runs = '/v1/dispatcher/runs/';
+
     return {
-        claim: () => post('/v1/dispatcher/claim', undefined, CLAIM_TIMEOUT_MS, parseClaim),
+        claim: () => post('/v1/dispatcher/claim', undefined, CLAIM_TIMEOUT_MS, claimSchema),
         heartbeat: (id, activity) =>
             post(
                 `${runs}${encodeURIComponent(id)}/heartbeat`,
                 activity === undefined ? {} : { activity },
                 REQUEST_TIMEOUT_MS,
-                (v) => (isRecord(v) && typeof v.stop === 'boolean' ? { stop: v.stop } : undefined)
+                heartbeatSchema
             ),
-        end: (id, body) => post(`${runs}${encodeURIComponent(id)}/end`, body, REQUEST_TIMEOUT_MS, parseEndAnswer),
+        end: (id, body) => post(`${runs}${encodeURIComponent(id)}/end`, body, REQUEST_TIMEOUT_MS, endAnswerSchema),
     };
 }

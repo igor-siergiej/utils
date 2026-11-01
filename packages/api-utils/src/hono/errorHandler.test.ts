@@ -1,19 +1,25 @@
 import { Hono } from 'hono';
 import { describe, expect, it, vi } from 'vitest';
+
 import { APIError, errorHandler } from './errorHandler';
 import type { RequestVariables } from './requestLogger';
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 const app = new Hono<RequestVariables>();
+
 app.use('*', (c, next) => {
     c.set('requestId', 'test-req');
+
     return next();
 });
+
 app.onError(errorHandler(logger));
+
 app.get('/api-error', () => {
     throw new APIError('nope', 404);
 });
+
 app.get('/plain-error', () => {
     throw new Error('boom');
 });
@@ -37,7 +43,7 @@ describe('errorHandler', () => {
         expect(logger.warn).toHaveBeenCalledOnce();
         const message = logger.warn.mock.calls[0][0];
         expect(message).toBe('nope');
-        const meta = logger.warn.mock.calls[0][2] as Record<string, unknown>;
+        const meta = logger.warn.mock.calls[0][2];
         expect(meta).toMatchObject({
             method: 'GET',
             path: '/api-error',
@@ -47,13 +53,20 @@ describe('errorHandler', () => {
         });
     });
 
+    it('omits userId from the logged meta when the request has none', async () => {
+        logger.warn.mockClear();
+        await app.request('/api-error');
+
+        expect(logger.warn.mock.calls[0][2]).not.toHaveProperty('userId');
+    });
+
     it('logs plain 5xx at error with stack and no errorName', async () => {
         logger.error.mockClear();
         await app.request('/plain-error');
         expect(logger.error).toHaveBeenCalledOnce();
         const message = logger.error.mock.calls[0][0];
         expect(message).toBe('boom');
-        const meta = logger.error.mock.calls[0][2] as Record<string, unknown>;
+        const meta = logger.error.mock.calls[0][2];
         expect(meta).toMatchObject({
             method: 'GET',
             path: '/plain-error',
@@ -61,7 +74,7 @@ describe('errorHandler', () => {
             status: 500,
         });
         expect(meta.errorName).toBeUndefined();
-        expect(typeof meta.stack).toBe('string');
+        expect(meta.stack).toEqual(expect.any(String));
     });
 
     it('falls back to no-logger behaviour when logger omitted', async () => {

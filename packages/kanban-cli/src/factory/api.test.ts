@@ -1,14 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
+import type { JsonValue } from '../json';
+import { fakeFetch } from '../testing/fakeFetch';
 import { ApiError, configFromEnv, dispatcherApi } from './api';
 
 const CARD = { id: 'task-5', number: 5, project: 'tandra', title: 'card 5' };
 
-function server(status: number, body: unknown) {
+function server(status: number, body: JsonValue) {
     const calls: { url: string; init: RequestInit }[] = [];
-    const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-        calls.push({ url: String(url), init: init ?? {} });
+
+    const fetch = fakeFetch(async (url, init) => {
+        calls.push({ url, init });
+
         return new Response(JSON.stringify(body), { status });
-    }) as unknown as typeof globalThis.fetch;
+    });
+
     return { calls, fetch };
 }
 
@@ -27,9 +33,16 @@ describe('dispatcherApi', () => {
         const { fetch } = server(400, { error: 'run is not running' });
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
 
-        const error = await api.heartbeat('r1', 'editing').catch((e: unknown) => e);
+        const error = await api.heartbeat('r1', 'editing').catch((e: Error) => e);
         expect(error).toBeInstanceOf(ApiError);
         expect(error).toMatchObject({ status: 400, message: expect.stringContaining('run is not running') });
+    });
+
+    it('falls back to the response text when a non-2xx answer has no error field', async () => {
+        const { fetch } = server(502, { detail: 'bad gateway' });
+        const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
+
+        await expect(api.heartbeat('r1')).rejects.toThrow(/failed \(502\): \{"detail":"bad gateway"\}/);
     });
 
     it('rejects a claim whose run lacks a card', async () => {
@@ -44,6 +57,7 @@ describe('dispatcherApi', () => {
             run: { id: 'r1', kind: 'refine', card: CARD, harness: 'omp', model: 'm' },
             block: [],
         });
+
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
 
         expect((await api.claim()).run?.kind).toBe('refine');
@@ -61,6 +75,7 @@ describe('dispatcherApi', () => {
             run: { id: 'r1', kind: 'polish', card: CARD, harness: 'omp', model: 'm' },
             block: [],
         });
+
         const api = dispatcherApi({ url: 'http://jott', token: 't', fetch });
 
         await expect(api.claim()).rejects.toThrow(/unexpected response/);

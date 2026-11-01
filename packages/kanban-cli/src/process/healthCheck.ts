@@ -15,6 +15,7 @@ export async function pollHttpHealth(url: string, options: HealthCheckOptions): 
         async () => {
             try {
                 const response = await fetchImpl(url);
+
                 return response.ok ? true : null;
             } catch {
                 return null;

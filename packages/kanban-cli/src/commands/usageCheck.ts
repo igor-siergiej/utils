@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { UsageCheckResult } from '../usage/evaluateUsage';
+
 import { evaluateUsage } from '../usage/evaluateUsage';
 import { defaultUsageStatePath, readUsageState } from '../usage/state';
 
@@ -22,6 +22,7 @@ const unwiredHint = (statePath: string) =>
 /** Returns the hint the first time only, leaving a marker beside the state file. */
 function hintOnce(statePath: string): string | undefined {
     const marker = `${statePath}.hint-shown`;
+
     if (existsSync(marker)) return undefined;
 
     try {
@@ -30,12 +31,14 @@ function hintOnce(statePath: string): string | undefined {
     } catch {
         // An unwritable marker only means the hint repeats; never fail the gate over it.
     }
+
     return unwiredHint(statePath);
 }
 
-export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result: UsageCheckResult } {
+export function usageCheck(options: UsageCheckOptions = {}) {
     const statePath = options.statePath ?? defaultUsageStatePath();
     const state = readUsageState(statePath);
+
     const result = evaluateUsage(state, {
         thresholdPct: options.thresholdPct ?? DEFAULT_THRESHOLD_PCT,
         maxStalenessMs: options.maxStalenessMs ?? DEFAULT_MAX_STALENESS_MS,
@@ -44,8 +47,9 @@ export function usageCheck(options: UsageCheckOptions = {}): { ok: true; result:
 
     if (result.status === 'unknown' && result.reason === 'no-state') {
         const hint = hintOnce(statePath);
-        if (hint) return { ok: true, result: { ...result, hint } };
+
+        if (hint) return { ok: true as const, result: { ...result, hint } };
     }
 
-    return { ok: true, result };
+    return { ok: true as const, result };
 }

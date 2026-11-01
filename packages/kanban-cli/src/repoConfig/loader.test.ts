@@ -1,7 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import type { JsonValue } from '../json';
 import { RepoConfigError } from './errors';
 import { loadRepoConfig } from './loader';
 import { CONFIG_FILENAME } from './types';
@@ -16,8 +19,8 @@ afterEach(() => {
     rmSync(repoDir, { recursive: true, force: true });
 });
 
-function writeConfig(contents: unknown) {
-    writeFileSync(join(repoDir, CONFIG_FILENAME), typeof contents === 'string' ? contents : JSON.stringify(contents));
+function writeConfig(contents: JsonValue) {
+    writeFileSync(join(repoDir, CONFIG_FILENAME), JSON.stringify(contents));
 }
 
 const VALID_CONFIG = {
@@ -52,6 +55,7 @@ describe('loadRepoConfig', () => {
         const result = loadRepoConfig(repoDir);
 
         expect(result.configFound).toBe(true);
+
         if (!result.configFound) throw new Error('expected configFound');
 
         expect(result.config.repoName).toBe('shoppingo');
@@ -72,6 +76,7 @@ describe('loadRepoConfig', () => {
             github: { mergeMethod: 'rebase' },
         });
         const result = loadRepoConfig(repoDir);
+
         if (!result.configFound) throw new Error('expected configFound');
 
         expect(result.config.retryPolicy).toEqual({ implement: 3, e2e_local: 3, ci: 5, deploy: 2, e2e_live: 1 });
@@ -106,7 +111,7 @@ describe('loadRepoConfig', () => {
     });
 
     it('throws RepoConfigError on invalid JSON', () => {
-        writeConfig('{ not valid json');
+        writeFileSync(join(repoDir, CONFIG_FILENAME), '{ not valid json');
         expect(() => loadRepoConfig(repoDir)).toThrow(RepoConfigError);
     });
 

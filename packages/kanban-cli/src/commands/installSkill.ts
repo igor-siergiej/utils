@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SKILLS = ['kanban-worker', 'refining-kanban-captures', 'triaging-blocked-cards'] as const;
+
 export type PackagedSkill = (typeof SKILLS)[number];
 
 /**
@@ -15,7 +16,8 @@ export type PackagedSkill = (typeof SKILLS)[number];
  * there threw `The "path" argument must be of type string`.
  */
 function moduleDirectory(): string {
-    if (typeof __dirname === 'string') return __dirname;
+    if (typeof __dirname !== 'undefined') return __dirname;
+
     return dirname(fileURLToPath(import.meta.url));
 }
 
@@ -24,6 +26,7 @@ function packagedSkillPath(skill: string): string {
 
     for (let depth = 0; depth < 5; depth += 1) {
         const candidate = join(dir, 'skill', skill, 'SKILL.md');
+
         if (existsSync(candidate)) return candidate;
         dir = dirname(dir);
     }
@@ -41,7 +44,7 @@ export interface InstallSkillOptions {
 export function installSkill(target: string, options: InstallSkillOptions = {}) {
     const mode = options.mode ?? 'copy';
 
-    if (options.skill && !SKILLS.includes(options.skill as PackagedSkill)) {
+    if (options.skill && !SKILLS.some((name) => name === options.skill)) {
         throw new Error(`unknown skill '${options.skill}'; packaged skills are: ${SKILLS.join(', ')}`);
     }
 
@@ -65,6 +68,7 @@ export function installSkill(target: string, options: InstallSkillOptions = {}) 
         // Remove first: writing over a symlinked install would write through it, onto
         // the packaged file it points at.
         rmSync(destFile, { force: true });
+
         if (mode === 'symlink') symlinkSync(source, destFile);
         else copyFileSync(source, destFile);
 

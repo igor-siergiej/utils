@@ -14,9 +14,8 @@ export const decodeJWT = (token: string): DecodedToken | null => {
 
         const decodedPayload = atob(paddedPayload);
 
-        const parsedPayload = JSON.parse(decodedPayload);
-
-        return parsedPayload as DecodedToken;
+        // SAFETY: the token comes from our own auth server, whose payload is a DecodedToken; web-utils has no schema library to verify it here, and the server verifies the signature anyway.
+        return JSON.parse(decodedPayload) as DecodedToken;
     } catch (error) {
         console.error('Failed to decode JWT token:', error);
 

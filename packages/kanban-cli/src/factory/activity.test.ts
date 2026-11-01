@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
+
+import type { JsonValue } from '../json';
 import { claudeActivity, ompActivity, redact } from './activity';
 
 const fixture = (name: string) =>
@@ -10,11 +13,16 @@ const fixture = (name: string) =>
 
 /** Activity for each line that has one, in stream order. */
 const activities = (lines: string[], extract: (line: string) => string | undefined) =>
-    lines.map(extract).filter((a) => a !== undefined);
+    lines.flatMap((line) => {
+        const activity = extract(line);
 
-const ompAssistant = (content: unknown[]) =>
+        return activity === undefined ? [] : [activity];
+    });
+
+const ompAssistant = (content: JsonValue[]) =>
     JSON.stringify({ type: 'message_end', message: { role: 'assistant', content } });
-const claudeAssistant = (content: unknown[]) =>
+
+const claudeAssistant = (content: JsonValue[]) =>
     JSON.stringify({ type: 'assistant', message: { role: 'assistant', content } });
 
 describe('ompActivity', () => {
@@ -57,6 +65,7 @@ describe('claudeActivity', () => {
             { type: 'text', text: 'Running the tests' },
             { type: 'tool_use', name: 'Bash', input: { command: 'bun run test' } },
         ]);
+
         expect(claudeActivity(line)).toBe('Bash {"command":"bun run test"}');
     });
 });

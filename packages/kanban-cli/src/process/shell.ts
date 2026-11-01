@@ -28,6 +28,9 @@ function collect(child: ChildProcess, onStdout?: (chunk: string) => void): Promi
     return promise;
 }
 
+/** The seam commands take so tests can script processes instead of spawning them. */
+export type RunArgv = (argv: string[], options: RunOptions) => Promise<CommandResult>;
+
 export interface RunOptions {
     cwd: string;
     /** Merged over the parent environment; a key set to `undefined` is removed from the child's. */
@@ -38,6 +41,7 @@ function buildEnv(env: RunOptions['env']): NodeJS.ProcessEnv | undefined {
     if (!env) return undefined;
 
     const merged: NodeJS.ProcessEnv = { ...process.env };
+
     for (const [key, value] of Object.entries(env)) {
         if (value === undefined) {
             delete merged[key];
@@ -45,17 +49,20 @@ function buildEnv(env: RunOptions['env']): NodeJS.ProcessEnv | undefined {
             merged[key] = value;
         }
     }
+
     return merged;
 }
 
 /** Runs an argv array directly (no shell) — the safe default for CLIs like `gh`/`git`. */
 export async function runArgv(argv: string[], options: RunOptions): Promise<CommandResult> {
     const [command, ...args] = argv;
+
     const child = spawn(command, args, {
         cwd: options.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: buildEnv(options.env),
     });
+
     return collect(child);
 }
 
@@ -80,6 +87,7 @@ export async function runArgvStreaming(
     options: StreamingOptions
 ): Promise<CommandResult & { killed: boolean }> {
     const [command, ...args] = argv;
+
     const child = spawn(command, args, {
         cwd: options.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -87,22 +95,29 @@ export async function runArgvStreaming(
     });
 
     let partial = '';
+
     const done = collect(child, (chunk) => {
         const lines = (partial + chunk).split('\n');
         partial = lines.pop() ?? '';
+
         for (const line of lines) options.onLine(line);
     });
 
     let killing: Promise<void> | undefined;
+
     const kill = () => {
         if (child.pid !== undefined) killing ??= killProcessTree(child.pid);
     };
+
     if (options.signal?.aborted) kill();
     options.signal?.addEventListener('abort', kill, { once: true });
+
     try {
         const result = await done;
+
         if (partial) options.onLine(partial);
         await killing;
+
         return { ...result, killed: killing !== undefined };
     } finally {
         options.signal?.removeEventListener('abort', kill);
@@ -119,6 +134,7 @@ export interface TrackedProcess {
 function isAlive(pid: number): boolean {
     try {
         process.kill(pid, 0);
+
         return true;
     } catch {
         return false;
@@ -135,6 +151,7 @@ function signal(pid: number, sig: NodeJS.Signals): void {
 
 async function descendantPids(pid: number): Promise<number[]> {
     const { exitCode, stdout } = await runArgv(['pgrep', '-P', String(pid)], { cwd: process.cwd() });
+
     if (exitCode !== 0) return [];
 
     const children = stdout
@@ -143,12 +160,14 @@ async function descendantPids(pid: number): Promise<number[]> {
         .filter((child) => Number.isInteger(child));
 
     const nested = await Promise.all(children.map(descendantPids));
+
     return [...children, ...nested.flat()];
 }
 
 function delay(ms: number): Promise<void> {
     const { promise, resolve } = Promise.withResolvers<void>();
     setTimeout(resolve, ms);
+
     return promise;
 }
 
@@ -169,6 +188,7 @@ export async function killProcessTree(rootPid: number, options: { graceMs?: numb
     for (const pid of pids) signal(pid, 'SIGTERM');
 
     const deadline = Date.now() + graceMs;
+
     while (Date.now() < deadline && pids.some(isAlive)) {
         await delay(50);
     }

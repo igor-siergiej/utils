@@ -1,3 +1,5 @@
+import { errorMessage } from '../errorMessage';
+
 export const DEFAULT_NTFY_URL = 'http://100.79.92.93:8090/jott-factory';
 const REASON_MAX = 200;
 const TIMEOUT_MS = 10_000;
@@ -15,9 +17,10 @@ function headerValue(text: string): string {
     return /^[\x20-\x7e]*$/.test(text) ? text : `=?UTF-8?B?${Buffer.from(text).toString('base64')}?=`;
 }
 
-export function notifyMessage(event: NotifyEvent): { title: string; body: string } {
+export function notifyMessage(event: NotifyEvent) {
     const title = `${event.project} #${event.number} ${event.kind}`;
     const reason = event.kind === 'blocked' ? event.reason?.split('\n')[0]?.trim().slice(0, REASON_MAX) : undefined;
+
     return { title, body: reason ? `${event.title}\n${reason}` : event.title };
 }
 
@@ -25,6 +28,7 @@ export function notifyMessage(event: NotifyEvent): { title: string; body: string
 export async function notify(event: NotifyEvent, opts: { url?: string; fetch?: typeof fetch } = {}): Promise<void> {
     const { title, body } = notifyMessage(event);
     const url = opts.url ?? process.env.NTFY_URL ?? DEFAULT_NTFY_URL;
+
     try {
         const res = await (opts.fetch ?? fetch)(url, {
             method: 'POST',
@@ -36,8 +40,9 @@ export async function notify(event: NotifyEvent, opts: { url?: string; fetch?: t
             },
             signal: AbortSignal.timeout(TIMEOUT_MS),
         });
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (error) {
-        process.stderr.write(`${JSON.stringify({ ok: false, error: `notify failed: ${(error as Error).message}` })}\n`);
+    } catch (cause) {
+        process.stderr.write(`${JSON.stringify({ ok: false, error: `notify failed: ${errorMessage(cause)}` })}\n`);
     }
 }

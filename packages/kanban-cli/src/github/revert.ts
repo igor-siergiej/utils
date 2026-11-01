@@ -1,4 +1,4 @@
-import { runArgv } from '../process/shell';
+import { type RunArgv, runArgv } from '../process/shell';
 import { runGh } from './gh';
 import { parseCreatedPrOutput } from './pullRequest';
 import type { PrInfo } from './types';
@@ -11,22 +11,24 @@ export async function revertMergeCommit(
         originalTitle: string;
         originalPrNumber?: number;
         failureSummary: string;
-    }
+    },
+    run: RunArgv = runArgv
 ): Promise<PrInfo> {
     const branch = `revert/${options.commitSha.slice(0, 7)}`;
 
-    await runArgv(['git', 'fetch', 'origin', options.base], { cwd: repoPath });
-    await runArgv(['git', 'checkout', '-B', branch, `origin/${options.base}`], { cwd: repoPath });
+    await run(['git', 'fetch', 'origin', options.base], { cwd: repoPath });
+    await run(['git', 'checkout', '-B', branch, `origin/${options.base}`], { cwd: repoPath });
 
-    const parents = await runArgv(['git', 'rev-list', '--parents', '-n', '1', options.commitSha], { cwd: repoPath });
+    const parents = await run(['git', 'rev-list', '--parents', '-n', '1', options.commitSha], { cwd: repoPath });
     const parentCount = parents.stdout.trim().split(/\s+/).length - 1;
+
     const revertArgs =
         parentCount > 1
             ? ['revert', '--no-edit', '-m', '1', options.commitSha]
             : ['revert', '--no-edit', options.commitSha];
 
-    await runArgv(['git', ...revertArgs], { cwd: repoPath });
-    await runArgv(['git', 'push', '-u', 'origin', branch], { cwd: repoPath });
+    await run(['git', ...revertArgs], { cwd: repoPath });
+    await run(['git', 'push', '-u', 'origin', branch], { cwd: repoPath });
 
     const body = [
         `Automated revert of ${options.commitSha}${options.originalPrNumber ? ` (#${options.originalPrNumber})` : ''}.`,
@@ -49,7 +51,7 @@ export async function revertMergeCommit(
             '--head',
             branch,
         ],
-        { cwd: repoPath }
+        { cwd: repoPath, run }
     );
 
     return parseCreatedPrOutput(stdout);

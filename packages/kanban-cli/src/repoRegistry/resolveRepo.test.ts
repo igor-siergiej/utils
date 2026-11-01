@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { RepoResolutionError } from './errors';
 import { repoRoots, resolveRepoPath } from './resolveRepo';
 
@@ -19,6 +21,7 @@ function makeRepo(dir: string, repoName: string) {
     const path = join(root, dir);
     mkdirSync(path, { recursive: true });
     writeFileSync(join(path, '.kanban-cli.json'), JSON.stringify({ repoName }));
+
     return path;
 }
 

@@ -1,6 +1,7 @@
 {
   "name": "utils",
   "private": true,
+  "type": "module",
   "version": "6.1.0",
   "description": "Monorepo for shared utilities across IM Apps projects",
   "repository": {
@@ -9,9 +10,11 @@
   },
   "packageManager": "bun@1.3.13",
   "lint-staged": {
-    "*.{ts,mts,cts,json}": [
-      "biome check --fix --unsafe"
-    ]
+    "*.{ts,tsx,mts,cts,js,jsx}": [
+      "oxlint --fix --no-error-on-unmatched-pattern",
+      "oxfmt --no-error-on-unmatched-pattern"
+    ],
+    "*.json": "oxfmt --no-error-on-unmatched-pattern"
   },
   "workspaces": [
     "packages/*"
@@ -20,16 +23,17 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "clean": "turbo run clean",
-    "lint": "biome check .",
-    "lint:fix": "biome check --fix --unsafe .",
-    "format": "biome format --write .",
+    "lint": "bun run build:config && oxlint && oxfmt --check",
+    "lint:fix": "bun run build:config && oxlint --fix && oxfmt && oxlint",
+    "format": "bun run build:config && oxfmt",
     "prepare": "husky",
     "release": "bunx semantic-release",
-    "release:dry": "bunx semantic-release --dry-run --no-ci"
+    "release:dry": "bunx semantic-release --dry-run --no-ci",
+    "build:config": "turbo run build --filter=@imapps/oxc-config"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.5",
-    "@imapps/biome-config": "*",
+    "@imapps/oxc-config": "*",
+    "@oxlint/plugins": "1.90.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.0",
     "@semantic-release/exec": "^7.1.0",
@@ -37,6 +41,8 @@
     "@semantic-release/release-notes-generator": "^14.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
     "rimraf": "^6.0.1",
     "semantic-release": "^24.2.0",
     "tsup": "^8.3.0",
