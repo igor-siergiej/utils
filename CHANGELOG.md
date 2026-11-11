@@ -1,3 +1,10 @@
+## [7.0.1](https://github.com/igor-siergiej/utils/compare/v7.0.0...v7.0.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **oxc-config:** accept newer oxlint and oxfmt as peers ([#39](https://github.com/igor-siergiej/utils/issues/39)) ([62d8be9](https://github.com/igor-siergiej/utils/commit/62d8be9274aa14bea253fcf3e58bd50761d6b96a))
+
 # [7.0.0](https://github.com/igor-siergiej/utils/compare/v6.1.0...v7.0.0) (2026-11-01)
 
 
