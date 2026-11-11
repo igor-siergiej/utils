@@ -33,19 +33,19 @@
     "test": "tsup && vitest run"
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.90.0",
+    "@oxlint/plugins": "1.93.0",
     "@types/node": "^24.3.0",
-    "oxfmt": "0.75.0",
-    "oxlint": "1.90.0",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
     "rimraf": "^6.0.1",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "@oxlint/plugins": "1.90.0",
-    "oxfmt": "0.75.0",
-    "oxlint": "1.90.0"
+    "@oxlint/plugins": ">=1.90.0 <2",
+    "oxfmt": ">=0.75.0 <1",
+    "oxlint": ">=1.90.0 <2"
   },
   "repository": {
     "type": "git",
