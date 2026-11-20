@@ -1,5 +1,5 @@
 {
-  "repoName": "kanban-cli",
+  "repoName": "utils",
   "dev": {
     "startCommand": "bun scripts/e2e-server.ts",
     "healthCheckUrl": "http://127.0.0.1:8798/health",

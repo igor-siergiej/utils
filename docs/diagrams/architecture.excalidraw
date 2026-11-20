@@ -714,80 +714,6 @@
       "lineHeight": 1.25
     },
     {
-      "id": "kan",
-      "type": "rectangle",
-      "x": 112,
-      "y": 344,
-      "width": 233,
-      "height": 70,
-      "angle": 0,
-      "strokeColor": "#2f9e44",
-      "backgroundColor": "#b2f2bb",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "strokeStyle": "solid",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "roundness": {
-        "type": 3
-      },
-      "seed": 303643217,
-      "version": 1,
-      "versionNonce": 585837032,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "type": "text",
-          "id": "kan__text"
-        },
-        {
-          "type": "arrow",
-          "id": "edge10"
-        }
-      ],
-      "updated": 1760000000000,
-      "link": null,
-      "locked": false
-    },
-    {
-      "id": "kan__text",
-      "type": "text",
-      "x": 132,
-      "y": 359,
-      "width": 193,
-      "height": 40,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "roundness": null,
-      "seed": 874707976,
-      "version": 1,
-      "versionNonce": 1352725829,
-      "isDeleted": false,
-      "boundElements": null,
-      "updated": 1760000000000,
-      "link": null,
-      "locked": false,
-      "text": "kanban-cli\n+ kanban-worker skill",
-      "originalText": "kanban-cli\n+ kanban-worker skill",
-      "fontSize": 16,
-      "fontFamily": 5,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "kan",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "pipe",
       "type": "rectangle",
       "x": 219,
@@ -1435,10 +1361,6 @@
         {
           "type": "arrow",
           "id": "edge9"
-        },
-        {
-          "type": "arrow",
-          "id": "edge10"
         }
       ],
       "updated": 1760000000000,
@@ -2470,105 +2392,6 @@
         "focus": 0,
         "gap": 2
       }
-    },
-    {
-      "id": "edge10",
-      "type": "arrow",
-      "x": 345,
-      "y": 379,
-      "width": 555,
-      "height": 119,
-      "angle": 0,
-      "strokeColor": "#868e96",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 2,
-      "strokeStyle": "dashed",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "roundness": null,
-      "seed": 548339471,
-      "version": 1,
-      "versionNonce": 1158655366,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "type": "text",
-          "id": "edge10__label"
-        }
-      ],
-      "updated": 1760000000000,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0,
-          0
-        ],
-        [
-          495,
-          0
-        ],
-        [
-          495,
-          -119
-        ],
-        [
-          555,
-          -119
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "startBinding": {
-        "elementId": "kan",
-        "focus": 0,
-        "gap": 2
-      },
-      "endBinding": {
-        "elementId": "dev2",
-        "focus": 0,
-        "gap": 2
-      }
-    },
-    {
-      "id": "edge10__label",
-      "type": "text",
-      "x": 693,
-      "y": 388,
-      "width": 83,
-      "height": 18,
-      "angle": 0,
-      "strokeColor": "#495057",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 1,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": null,
-      "roundness": null,
-      "seed": 389069718,
-      "version": 1,
-      "versionNonce": 1039864563,
-      "isDeleted": false,
-      "boundElements": null,
-      "updated": 1760000000000,
-      "link": null,
-      "locked": false,
-      "text": "bun add -g",
-      "originalText": "bun add -g",
-      "fontSize": 14,
-      "fontFamily": 5,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "edge10",
-      "autoResize": true,
-      "lineHeight": 1.25
     }
   ],
   "appState": {

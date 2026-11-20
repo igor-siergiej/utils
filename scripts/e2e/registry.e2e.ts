@@ -1,13 +1,10 @@
 /**
- * Live gate for `kanban-cli e2e live` (run through scripts/e2e.sh). utils deploys nothing:
+ * Live factory gate (run through scripts/e2e.sh). utils deploys nothing:
  * its release is the CI/CD workflow's push-to-main run, where semantic-release commits the
  * new version to main and publish-packages.sh publishes it. These specs check that release
  * from the outside, against the registry at E2E_BASE_URL. They only read from it.
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 const registry = (process.env.E2E_BASE_URL ?? 'https://registry.npmjs.org').replace(/\/$/, '');
 const waitMs = Number(process.env.E2E_PUBLISH_WAIT_S ?? 300) * 1000;
@@ -72,28 +69,4 @@ describe('released packages', () => {
         expect(missing).toEqual([]);
     });
 
-    test('@smoke the published kanban-cli installs and runs', async () => {
-        const cli = packages.find((manifest) => manifest.name === '@imapps/kanban-cli');
-        expect(cli).toBeDefined();
-        const spec = `${cli?.name}@${cli?.version}`;
-        const dir = mkdtempSync(join(tmpdir(), 'utils-e2e-'));
-
-        try {
-            await Bun.write(join(dir, 'package.json'), '{"name":"utils-e2e-live","private":true}');
-
-            const installed = await eventually(async () => {
-                const add = Bun.spawnSync(['bun', 'add', '--no-cache', `--registry=${registry}`, spec], { cwd: dir });
-
-                return add.exitCode === 0;
-            });
-
-            expect(installed).toBe(true);
-
-            const run = Bun.spawnSync([join(dir, 'node_modules', '.bin', 'kanban-cli'), '--help'], { cwd: dir });
-            expect(run.exitCode).toBe(0);
-            expect(run.stdout.toString()).toContain('Usage: kanban-cli');
-        } finally {
-            rmSync(dir, { recursive: true, force: true });
-        }
-    });
 });

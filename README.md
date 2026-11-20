@@ -13,9 +13,10 @@ Architecture: [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture
 | [`@imapps/oxc-config`](packages/oxc-config/README.md) | Shared Oxlint + Oxfmt config with vendored anti-slop rules | this repo, kivo |
 | [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config (**deprecated**, use `@imapps/oxc-config`) | shoppingo, tandra (not yet migrated) |
 | [`@imapps/dev-scripts`](packages/dev-scripts/README.md) | `fallow-audit` bin (dead-code/complexity audit, same as CI) | most app and site repos |
-| [`@imapps/kanban-cli`](packages/kanban-cli/README.md) | CLI + `kanban-worker` Claude Code skill for markdown kanban boards | installed globally (`bun add -g`) |
 
 "Used by" is a scan of `/home/home/imapps/*/package.json` (and `packages/*`), not exhaustive; `jc-*` checkouts are jewellery-catalogue branch clones.
+
+Task automation lives in [jott's factory runner](https://git.imapps.uk/igor/jott/src/branch/main/runner), maintained in the jott repository.
 
 ## Versioning and publishing
 
@@ -52,11 +53,11 @@ Husky + lint-staged run `oxlint --fix` and `oxfmt` on staged files on commit (th
 
 ## Factory gates (`.kanban-cli.json`)
 
-`.kanban-cli.json` (`repoName: kanban-cli`) lets the kanban-cli factory work `kanban-cli` cards in this repo. utils is a library monorepo, so each gate maps to the nearest real step:
+`.kanban-cli.json` (`repoName: utils`) configures this repo's gates for jott's factory runner. The filename remains part of the runner's per-repo configuration contract. utils is a library monorepo, so each gate maps to the nearest real step:
 
 | Gate | Runs |
 | --- | --- |
-| `e2e local` | `scripts/e2e-server.ts` only answers the gate's health poll on `127.0.0.1:8798`. Then `scripts/e2e.sh` runs `bun run lint`, `turbo run build test`, and the built `kanban-cli --help`. With `--grep <p>`, only tests matching `<p>` run (vitest `-t <p>`), and a pattern that matches no test fails. |
+| `e2e local` | `scripts/e2e-server.ts` only answers the gate's health poll on `127.0.0.1:8798`. Then `scripts/e2e.sh` runs `bun run lint` and `turbo run build test`. With `--grep <p>`, only tests matching `<p>` run (vitest `-t <p>`), and a pattern that matches no test fails. |
 | `ci` | PR run of workflow `CI/CD`; required checks `lint`, `test` |
 | `deploy` | push-to-main run of `CI/CD` for the merge commit (semantic-release, then `publish-npm`) |
-| `e2e live` | `scripts/e2e.sh` with `E2E_BASE_URL=https://registry.npmjs.org` runs the `@smoke` specs in `scripts/e2e/registry.e2e.ts` with `bun test`. They check that every public package on `origin/main` is on the registry at its version, then install the published `@imapps/kanban-cli` and run its `--help`. They wait up to `E2E_PUBLISH_WAIT_S` (default 300) for the registry, and they only read from it. |
+| `e2e live` | `scripts/e2e.sh` with `E2E_BASE_URL=https://registry.npmjs.org` runs the `@smoke` spec in `scripts/e2e/registry.e2e.ts` with `bun test`. It checks that every public package on `origin/main` is on the registry at its version. It waits up to `E2E_PUBLISH_WAIT_S` (default 300) for the registry, and only reads from it. |

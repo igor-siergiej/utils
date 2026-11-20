@@ -209,7 +209,7 @@ export default base;
 - [ ] **Step 2: Deps/scripts.** Remove `@biomejs/biome`, `@imapps/biome-config`. Add `@imapps/oxc-config` (exact released version), exact `oxlint`, `@oxlint/plugins`, `oxfmt` (versions must equal the oxc-config peer pins). Scripts as in Task 3 Step 2. lint-staged as in Task 3 Step 2. `bun install`.
 - [ ] **Step 3: Config files** identical to Task 3 Step 1. Preserve kivo's old ignore `!!**/.github/workflows-utils` as `ignorePatterns: ['**/.github/workflows-utils/**']` in `oxlint.config.ts` and equivalent `ignorePatterns` in `oxfmt.config.ts`.
 - [ ] **Step 4: Reformat commit** (`bun run format`), then autofix commit, then manual fix commits, exactly as Task 3 Steps 3-5. Run `bun run typecheck`, `bun test` after each batch. Record violation counts per rule in the PR description (`bunx oxlint --format json | jq`) for visibility.
-- [ ] **Step 5: Verify.** `bun run lint`, `bun run typecheck`, `bun test`, `bun run build` all exit 0. Run `bash scripts/e2e.sh` if docker is available (kanban gate); otherwise state it was not run.
+- [ ] **Step 5: Verify.** `bun run lint`, `bun run typecheck`, `bun test`, `bun run build` all exit 0. Run `bash scripts/e2e.sh` if docker is available (factory gate); otherwise state it was not run.
 - [ ] **Step 6: Docs.** `CLAUDE.md`: replace Biome mentions, add the same agent instruction as Task 3 Step 7. Commit.
 - [ ] **Step 7: PR** `chore: migrate from biome to oxlint + oxfmt`; confirm CI jobs `lint` and `test` pass (required check names unchanged).
 

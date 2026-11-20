@@ -27,7 +27,7 @@ Ignore: agent dirs (`.claude .omp .pi .agents .cursor ...`), `.worktrees`, `node
 
 ## Repo wiring (utils, kivo)
 - scripts keep names: `lint` = `oxlint && oxfmt --check`; `lint:fix` = `oxlint --fix && oxfmt && oxlint`; `format` = `oxfmt`.
-- lint-staged runs the fix pipeline; CI job names (`lint`, `test`) unchanged so the kanban-cli gate keeps working.
+- lint-staged runs the fix pipeline; CI job names (`lint`, `test`) unchanged so the jott factory gate keeps working.
 - Docs saying "Biome" updated (`utils/CLAUDE.md`, `utils/README.md`, `kivo/CLAUDE.md`); both CLAUDE.md gain an agent instruction to run `bun run lint:fix` and fix (not suppress) anti-slop violations.
 - Order: utils (build + release package) -> kivo (consumes released version).
 
