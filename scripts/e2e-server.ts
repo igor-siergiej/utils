@@ -1,10 +1,10 @@
 /**
- * `dev.startCommand` for jott's local factory gate (see .kanban-cli.json). utils is a library
+ * `dev.startCommand` for jott's local factory gate (see jott-config.json). utils is a library
  * monorepo with no app to start, but the gate starts one and polls `dev.healthCheckUrl`
  * before it runs scripts/e2e.sh, so this answers that poll and nothing else. The runner
  * stops it after the run.
  */
-const port = 8798; // must match dev.healthCheckUrl in .kanban-cli.json
+const port = 8798; // must match dev.healthCheckUrl in jott-config.json
 
 Bun.serve({
     hostname: '127.0.0.1',

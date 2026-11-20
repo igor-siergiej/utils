@@ -51,9 +51,9 @@ Husky + lint-staged run `oxlint --fix` and `oxfmt` on staged files on commit (th
 
 `docker/bun-git.Dockerfile` + `build-and-push-bun-git.sh` build a Bun + git CI image for the old GitLab setup (default registry `192.168.68.59:5000`); not referenced by current GitHub workflows.
 
-## Factory gates (`.kanban-cli.json`)
+## Factory gates (`jott-config.json`)
 
-`.kanban-cli.json` (`repoName: utils`) configures this repo's gates for jott's factory runner. The filename remains part of the runner's per-repo configuration contract. utils is a library monorepo, so each gate maps to the nearest real step:
+`jott-config.json` (`repoName: utils`) configures this repo's gates for jott's factory runner. This replaces `.kanban-cli.json`; the runner does not fall back to the old filename. utils is a library monorepo, so each gate maps to the nearest real step:
 
 | Gate | Runs |
 | --- | --- |

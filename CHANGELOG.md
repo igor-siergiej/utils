@@ -3,9 +3,9 @@
 ### Breaking changes
 
 * Retire `@imapps/kanban-cli`, including its bundled skills and service templates. Task automation now lives in [jott's factory runner](https://git.imapps.uk/igor/jott/src/branch/main/runner).
-* Keep the runner's `.kanban-cli.json` configuration filename, but change this checkout's `repoName` from `kanban-cli` to `utils`. New factory work for this checkout must use project `utils`.
+* Rename the runner's per-repo configuration to `jott-config.json` with no legacy filename fallback, and change this checkout's `repoName` from `kanban-cli` to `utils`. New factory work for this checkout must use project `utils`.
 * Remove the retired CLI's build and registry smoke checks; the remaining workspace build, test and public-package release checks stay in place.
-* Published npm versions remain available. A package owner must run `npm deprecate '@imapps/kanban-cli@*' 'moved into jott/runner'` after authenticating; this checkout's retirement does not deprecate registry releases.
+* The package owner removed the published `@imapps/kanban-cli` npm package.
 
 ## [7.0.1](https://github.com/igor-siergiej/utils/compare/v7.0.0...v7.0.1) (2026-11-11)
 

@@ -68,5 +68,4 @@ describe('released packages', () => {
 
         expect(missing).toEqual([]);
     });
-
 });

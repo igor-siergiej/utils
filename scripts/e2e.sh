@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `e2e.testCommand` for jott's factory gates (see .kanban-cli.json).
+# `e2e.testCommand` for jott's factory gates (see jott-config.json).
 # Both runners judge a run by exit code only.
 #
 #   Local (no E2E_BASE_URL): lint, then build and test every package through Turborepo.
