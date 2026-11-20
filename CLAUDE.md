@@ -23,8 +23,7 @@ im-apps-utils/
 │   │   │   ├── mongoDbConnection/  # MongoDB connection helpers
 │   │   │   └── objectStoreConnection/ # S3-compatible object storage utilities
 │   │   └── package.json
-│   ├── biome-config/        # Deprecated shared Biome configuration (kept published)
-│   │   └── configs/base.json
+│   ├── dev-scripts/        # Shared development/CI command-line scripts
 │   ├── oxc-config/          # Shared Oxlint + Oxfmt configuration with vendored anti-slop rules
 │   │   ├── src/            # oxlint/oxfmt presets (built to build/)
 │   │   └── anti-slop/      # Vendored upstream plugin; never edit, lint or format it
@@ -83,9 +82,6 @@ const clampedValue = clamp(value, 0, 100);
 
 ### @imapps/oxc-config
 Shared Oxlint and Oxfmt configuration, with the [anti-slop](https://github.com/dmmulroy/anti-slop) rules vendored in `anti-slop/`. Exports `./oxlint` (spread into `defineConfig` in `oxlint.config.ts`), `./oxfmt` (re-exported from `oxfmt.config.ts`) and `./anti-slop` (the plugin). It ships built JS, so `bun run build:config` (run automatically by `lint`, `lint:fix`, `format` and the pre-commit hook) must build it before Oxlint can load the plugin.
-
-### @imapps/biome-config (deprecated)
-Shared Biome configuration. Superseded by `@imapps/oxc-config`; still published for repos that have not migrated.
 
 ## Development Workflow
 
