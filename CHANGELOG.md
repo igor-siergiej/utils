@@ -1,3 +1,17 @@
+# [8.0.0](https://github.com/igor-siergiej/utils/compare/v7.0.1...v8.0.0) (2026-11-21)
+
+
+### Features
+
+* **biome-config:** retire deprecated source workspace ([#40](https://github.com/igor-siergiej/utils/issues/40)) ([ff02dbb](https://github.com/igor-siergiej/utils/commit/ff02dbbd5765c827009085cb9666183c7935049e))
+
+
+### BREAKING CHANGES
+
+* **biome-config:** @imapps/biome-config is no longer released from this repository; existing published versions remain available. Use @imapps/oxc-config for maintained presets.
+
+* fix(oxc-config): allow cold CLI integration startup
+
 # Unreleased
 
 ### Breaking changes
