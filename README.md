@@ -57,6 +57,8 @@ bun run lint       # build oxc-config, then oxlint && oxfmt --check
 bun run release:dry
 ```
 
+The `oxc-config` consumer tests have a 30-second per-test timeout: they run real CLI subprocesses, and the nested Turbo build-graph check can exceed Vitest's default 5 seconds on a cold start.
+
 Husky + lint-staged run `oxlint --fix` and `oxfmt` on staged files on commit (the hook builds `@imapps/oxc-config` first).
 
 `docker/docker-compose.yml` provides shared dev backing services, bound to `127.0.0.1`: MongoDB 7 (`27017`), RustFS S3-compatible object store (`9000`, console `9001`, creds `rustfsadmin`/`rustfsadmin`) with buckets created for jewellery-catalogue and shoppingo, and Navidrome (`4533`) reading `../../mixtape/music`. Credentials are dev-only placeholders in the compose file.
