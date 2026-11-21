@@ -1,5 +1,7 @@
 # Biome -> Oxlint/Oxfmt migration with anti-slop
 
+> **Historical design (2026-11-01).** utils #399 later removed the deprecated Biome source workspace; previously published npm versions remain available. The root README records the current package inventory and scoped consumer audit.
+
 ## Goal
 Replace Biome with Oxlint (lint) + Oxfmt (format) in `utils` and `kivo`, and enforce the
 [anti-slop](https://github.com/dmmulroy/anti-slop) ruleset so agents are held to it via the existing `lint` CI gate.

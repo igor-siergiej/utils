@@ -1,6 +1,6 @@
 # Biome -> Oxlint/Oxfmt + anti-slop Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Historical plan (2026-11-01), not current implementation instructions.** utils #399 later removed the deprecated Biome source workspace; only its previously published npm versions are retained. See the root README for the current package inventory and consumer audit.
 
 **Goal:** `utils` and `kivo` lint with Oxlint + anti-slop and format with Oxfmt, via a new shared `@imapps/oxc-config` package.
 

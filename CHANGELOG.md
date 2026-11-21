@@ -6,6 +6,11 @@
 * Rename the runner's per-repo configuration to `jott-config.json` with no legacy filename fallback, and change this checkout's `repoName` from `kanban-cli` to `utils`. New factory work for this checkout must use project `utils`.
 * Remove the retired CLI's build and registry smoke checks; the remaining workspace build, test and public-package release checks stay in place.
 * The package owner removed the published `@imapps/kanban-cli` npm package.
+* Remove the deprecated `@imapps/biome-config` source workspace from future builds and releases. Use `@imapps/oxc-config` for maintained shared presets. Previously published Biome config versions remain downloadable on npm; none are unpublished or replaced. See the README's scoped consumer recheck, including the unverified shoppingo/tandra references.
+
+### Bug fixes
+
+* Allow 30 seconds for `oxc-config` CLI integration tests so cold nested Turbo startup does not fail the supported-workspace inventory check at Vitest's default 5-second timeout. Inventory and release assertions remain unchanged.
 
 ## [7.0.1](https://github.com/igor-siergiej/utils/compare/v7.0.0...v7.0.1) (2026-11-11)
 

@@ -11,10 +11,22 @@ Architecture: [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture
 | [`@imapps/api-utils`](packages/api-utils/README.md) | Config, logger, DI container, Mongo + S3 object store connections; `./hono` app factory, CORS, request logging, error handler | `packages/api` of shoppingo, mixtape, jewellery-catalogue, imapps-template; kivo |
 | [`@imapps/web-utils`](packages/web-utils/README.md) | React JWT auth: providers, `ProtectedRoute`, token hooks/utils | `packages/web` of shoppingo, mixtape, jewellery-catalogue |
 | [`@imapps/oxc-config`](packages/oxc-config/README.md) | Shared Oxlint + Oxfmt config with vendored anti-slop rules | this repo, kivo |
-| [`@imapps/biome-config`](packages/biome-config/README.md) | Shared Biome config (**deprecated**, use `@imapps/oxc-config`) | shoppingo, tandra (not yet migrated) |
 | [`@imapps/dev-scripts`](packages/dev-scripts/README.md) | `fallow-audit` bin (dead-code/complexity audit, same as CI) | most app and site repos |
 
 "Used by" is a scan of `/home/home/imapps/*/package.json` (and `packages/*`), not exhaustive; `jc-*` checkouts are jewellery-catalogue branch clones.
+
+### Retired Biome configuration
+
+The deprecated `@imapps/biome-config` source workspace has been removed. Existing npm versions remain downloadable for old checkouts and outside consumers; do not unpublish them or recreate the old package name. Use [`@imapps/oxc-config`](packages/oxc-config/README.md) for maintained shared lint/format presets.
+
+Consumer recheck (2026-11-20, utils #399):
+
+- Inspected this utils worktree's manifests, configs, build/release/publish scripts and documentation. No remaining workspace depends on or imports the retired preset.
+- The mounted `/home/home/imapps` inventory contains only utils and a partial jott runner checkout. The accessible jott files contain no `@imapps/biome-config` dependency/import; no jott package manifests or Biome configs are mounted. No other application checkout was available.
+- The former inventory row claimed shoppingo and tandra used the shared preset. Neither checkout is mounted. Attempts to read their current `main/package.json` via raw GitHub, list GitHub repositories, and query the Forgejo repository inventory were denied (HTTP 403); GitHub CLI has no token, and shoppingo SSH access failed on the system SSH config permissions. Their current dependencies/configs could not be verified. The old row is not evidence of a live consumer.
+- The card's earlier remote-main audit reported no shared-preset consumers in accessible active projects, but that result was not independently reproduced here. This recheck found no live consumer in the accessible scope; it does **not** establish that all projects, shoppingo, tandra or outside consumers are migrated. Existing published versions are retained rather than breaking those unverified consumers. Other repositories' standalone Biome installations are outside this change.
+
+Retention check on the same date: all 23 versions listed by the [npm registry](https://registry.npmjs.org/@imapps%2fbiome-config), from `0.5.1` through `7.0.1`, were downloaded read-only and matched their registry SHA-1 checksums. No publish, deprecation or unpublish operation was performed.
 
 Task automation lives in [jott's factory runner](https://git.imapps.uk/igor/jott/src/branch/main/runner), maintained in the jott repository.
 
@@ -44,6 +56,8 @@ bun run test       # turbo run test
 bun run lint       # build oxc-config, then oxlint && oxfmt --check
 bun run release:dry
 ```
+
+The `oxc-config` consumer tests have a 30-second per-test timeout: they run real CLI subprocesses, and the nested Turbo build-graph check can exceed Vitest's default 5 seconds on a cold start.
 
 Husky + lint-staged run `oxlint --fix` and `oxfmt` on staged files on commit (the hook builds `@imapps/oxc-config` first).
 
