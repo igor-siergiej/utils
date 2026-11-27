@@ -1,0 +1,13 @@
+{
+  "service": "slop-times",
+  "dockerfiles": [
+    {
+      "dockerfile": "./Dockerfile.api",
+      "tag": "slop-times-api"
+    },
+    {
+      "dockerfile": "./Dockerfile.web",
+      "tag": "slop-times-web"
+    }
+  ]
+}
